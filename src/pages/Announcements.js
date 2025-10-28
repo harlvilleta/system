@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
-import { Box, Typography, Paper, TextField, Button, Stack, Snackbar, Alert, List, ListItem, ListItemText, Divider, MenuItem, Card, CardContent, CardHeader, Chip, Tabs, Tab, Badge, Dialog, DialogTitle, DialogContent, DialogActions, Select, InputAdornment, useTheme } from "@mui/material";
-import { CloudUpload, Image, Delete } from "@mui/icons-material";
+import { Box, Typography, Paper, TextField, Button, Stack, Snackbar, Alert, List, ListItem, ListItemText, Divider, MenuItem, Card, CardContent, CardHeader, Chip, Tabs, Tab, Badge, Dialog, DialogTitle, DialogContent, DialogActions, Select, InputAdornment, useTheme, CircularProgress } from "@mui/material";
+import { CloudUpload, Image, Delete, Schedule, AccessTime, CheckCircle, Visibility } from "@mui/icons-material";
 import { collection, addDoc, getDocs, query, orderBy, deleteDoc, doc, updateDoc, getDoc, where } from "firebase/firestore";
 import { db, logActivity, storage } from "../firebase";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
@@ -19,6 +19,16 @@ import { useLocation } from "react-router-dom";
 const categories = ["General", "Event", "Urgent", "Reminder", "Other"];
 const audiences = ["All", "Student", "Teacher"];
 const priorities = ["Normal", "High", "Urgent"];
+
+// Function to convert file to base64
+const convertToBase64 = (file) => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = (error) => reject(error);
+  });
+};
 
 export default function Announcements() {
   const theme = useTheme();
@@ -40,6 +50,7 @@ export default function Announcements() {
   const [userRole, setUserRole] = useState('Student');
   const [activities, setActivities] = useState([]);
   const [photoPreview, setPhotoPreview] = useState(null);
+  const [photoBase64, setPhotoBase64] = useState('');
 
   useEffect(() => {
     // Get current user and role
@@ -113,21 +124,46 @@ export default function Announcements() {
     setForm((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handlePhotoChange = (e) => {
+  const handlePhotoChange = async (e) => {
     const file = e.target.files[0];
     if (file) {
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        setSnackbar({ open: true, message: "Please select a valid image file (JPEG, PNG, GIF, WebP)", severity: "error" });
+        e.target.value = ''; // Clear the input
+        return;
+      }
+      
+      // Validate file size (5MB limit)
+      if (file.size > 5 * 1024 * 1024) {
+        setSnackbar({ open: true, message: "Image file size must be less than 5MB", severity: "error" });
+        e.target.value = ''; // Clear the input
+        return;
+      }
+      
+      console.log('📷 Processing image:', file.name, 'Size:', (file.size / 1024 / 1024).toFixed(2) + 'MB');
+      
+      try {
+        // Convert to base64 for storage
+        const base64String = await convertToBase64(file);
       setForm({ ...form, photo: file });
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        setPhotoPreview(e.target.result);
-      };
-      reader.readAsDataURL(file);
+        setPhotoBase64(base64String);
+        setPhotoPreview(base64String);
+        setSnackbar({ open: true, message: "Image uploaded successfully!", severity: "success" });
+      } catch (error) {
+        console.error('Error processing image:', error);
+        setSnackbar({ open: true, message: "Failed to process image. Please try again.", severity: "error" });
+        setForm({ ...form, photo: null });
+        setPhotoBase64('');
+        setPhotoPreview(null);
+      }
     }
   };
 
   const removePhoto = () => {
     setForm({ ...form, photo: null });
     setPhotoPreview(null);
+    setPhotoBase64('');
   };
 
   const sendNotificationsToRole = async (role, announcementId, form, senderId, senderEmail, senderName) => {
@@ -173,20 +209,8 @@ export default function Announcements() {
       const userEmail = currentUser?.email || 'unknown@school.com';
       const userName = currentUser?.displayName || userEmail.split('@')[0];
       
-      // Upload photo if provided
-      let photoUrl = null;
-      if (form.photo) {
-        try {
-          const photoRef = ref(storage, `announcements/${Date.now()}_${form.photo.name}`);
-          const uploadResult = await uploadBytes(photoRef, form.photo);
-          photoUrl = await getDownloadURL(uploadResult.ref);
-        } catch (photoError) {
-          console.error('Error uploading photo:', photoError);
-          setSnackbar({ open: true, message: "Error uploading photo", severity: "error" });
-          setIsSubmitting(false);
-          return;
-        }
-      }
+      // Use base64 photo data if available
+      let photoUrl = photoBase64 || null;
 
       const announcementRef = await addDoc(collection(db, "announcements"), {
         title: form.title,
@@ -229,10 +253,12 @@ export default function Announcements() {
       setSnackbar({ open: true, message: "Announcement submitted for approval!", severity: "success" });
       setForm({ title: "", message: "", date: "", audience: "All", scheduleDate: "", expiryDate: "", photo: null });
       setPhotoPreview(null);
+      setPhotoBase64('');
       setFormModalOpen(false);
       fetchAnnouncements();
     } catch (e) {
       setSnackbar({ open: true, message: "Error posting announcement", severity: "error" });
+      setPhotoBase64('');
     }
     setIsSubmitting(false);
   };
@@ -470,7 +496,156 @@ export default function Announcements() {
       
       <Box sx={{ maxWidth: 900, mx: 'auto', p: { xs: 1, sm: 3 } }}>
         <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
+      </Stack>
+      
+      {/* Quick Access Cards */}
+      <Box sx={{ mb: 3 }}>
+        <Typography variant="h6" sx={{ mb: 2, fontWeight: 700, color: '#ffffff' }}>
+          Quick Access
+        </Typography>
+        <Box sx={{ 
+          display: 'grid',
+          gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(4, 1fr)' },
+          gap: 2
+        }}>
+          <Card 
+            sx={{ 
+              cursor: 'pointer',
+              transition: 'all 0.3s ease',
+              background: 'transparent',
+              borderLeft: '4px solid #800000',
+              borderRadius: 2,
+              boxShadow: 2,
+              border: theme.palette.mode === 'dark' 
+                ? '1px solid rgba(255, 255, 255, 0.1)' 
+                : '1px solid rgba(255, 255, 255, 0.2)',
+              '&:hover': {
+                transform: 'translateY(-2px)',
+                boxShadow: theme.palette.mode === 'dark' 
+                  ? '0 12px 40px rgba(0, 0, 0, 0.4)' 
+                  : '0 8px 24px rgba(0, 0, 0, 0.15)',
+                background: theme.palette.mode === 'dark' 
+                  ? 'rgba(255, 255, 255, 0.08)' 
+                  : 'rgba(255, 255, 255, 0.9)',
+              }
+            }}
+            onClick={() => { setTab(0); setSelected([]); }}
+          >
+            <CardContent sx={{ textAlign: 'center' }}>
+              <Typography variant="h4" fontWeight={700} sx={{ color: '#800000' }}>
+                {recent.length + mainList.length}
+              </Typography>
+              <Typography variant="body2" color="textSecondary">
+                Active Announcements
+              </Typography>
+            </CardContent>
+          </Card>
+
+
+          <Card 
+            sx={{ 
+              cursor: 'pointer',
+              transition: 'all 0.3s ease',
+              background: 'transparent',
+              borderLeft: '4px solid #800000',
+              borderRadius: 2,
+              boxShadow: 2,
+              border: theme.palette.mode === 'dark' 
+                ? '1px solid rgba(255, 255, 255, 0.1)' 
+                : '1px solid rgba(255, 255, 255, 0.2)',
+              '&:hover': {
+                transform: 'translateY(-2px)',
+                boxShadow: theme.palette.mode === 'dark' 
+                  ? '0 12px 40px rgba(0, 0, 0, 0.4)' 
+                  : '0 8px 24px rgba(0, 0, 0, 0.15)',
+                background: theme.palette.mode === 'dark' 
+                  ? 'rgba(255, 255, 255, 0.08)' 
+                  : 'rgba(255, 255, 255, 0.9)',
+              }
+            }}
+            onClick={() => { setTab(2); setSelected([]); }}
+          >
+            <CardContent sx={{ textAlign: 'center' }}>
+              <Typography variant="h4" fontWeight={700} sx={{ color: '#800000' }}>
+                {filteredCompleted.length}
+              </Typography>
+              <Typography variant="body2" color="textSecondary">
+                Completed
+              </Typography>
+            </CardContent>
+          </Card>
+
+          <Card 
+            sx={{ 
+              cursor: 'pointer',
+              transition: 'all 0.3s ease',
+              background: 'transparent',
+              borderLeft: '4px solid #800000',
+              borderRadius: 2,
+              boxShadow: 2,
+              border: theme.palette.mode === 'dark' 
+                ? '1px solid rgba(255, 255, 255, 0.1)' 
+                : '1px solid rgba(255, 255, 255, 0.2)',
+              '&:hover': {
+                transform: 'translateY(-2px)',
+                boxShadow: theme.palette.mode === 'dark' 
+                  ? '0 12px 40px rgba(0, 0, 0, 0.4)' 
+                  : '0 8px 24px rgba(0, 0, 0, 0.15)',
+                background: theme.palette.mode === 'dark' 
+                  ? 'rgba(255, 255, 255, 0.08)' 
+                  : 'rgba(255, 255, 255, 0.9)',
+              }
+            }}
+            onClick={() => { setTab(3); setSelected([]); }}
+          >
+            <CardContent sx={{ textAlign: 'center' }}>
+              <Typography variant="h4" fontWeight={700} sx={{ color: '#800000' }}>
+                {scheduledList.length}
+              </Typography>
+              <Typography variant="body2" color="textSecondary">
+                Scheduled
+              </Typography>
+            </CardContent>
+          </Card>
+
+          <Card 
+            sx={{ 
+              cursor: 'pointer',
+              transition: 'all 0.3s ease',
+              background: 'transparent',
+              borderLeft: '4px solid #800000',
+              borderRadius: 2,
+              boxShadow: 2,
+              border: theme.palette.mode === 'dark' 
+                ? '1px solid rgba(255, 255, 255, 0.1)' 
+                : '1px solid rgba(255, 255, 255, 0.2)',
+              '&:hover': {
+                transform: 'translateY(-2px)',
+                boxShadow: theme.palette.mode === 'dark' 
+                  ? '0 12px 40px rgba(0, 0, 0, 0.4)' 
+                  : '0 8px 24px rgba(0, 0, 0, 0.15)',
+                background: theme.palette.mode === 'dark' 
+                  ? 'rgba(255, 255, 255, 0.08)' 
+                  : 'rgba(255, 255, 255, 0.9)',
+              }
+            }}
+            onClick={() => { setTab(4); setSelected([]); }}
+          >
+            <CardContent sx={{ textAlign: 'center' }}>
+              <Typography variant="h4" fontWeight={700} sx={{ color: '#800000' }}>
+                {expiredList.length}
+              </Typography>
+              <Typography variant="body2" color="textSecondary">
+                Expired
+              </Typography>
+            </CardContent>
+          </Card>
+        </Box>
+      </Box>
+
+      {/* Create Announcement Button */}
         {userRole === 'Admin' && (
+        <Box sx={{ mb: 3, display: 'flex', justifyContent: 'center' }}>
           <Button 
             variant="outlined" 
             onClick={() => setFormModalOpen(true)}
@@ -483,6 +658,8 @@ export default function Announcements() {
               fontSize: '0.875rem',
               textTransform: 'none',
               fontFamily: 'inherit',
+              px: 3,
+              py: 1,
               '&:hover': {
                 backgroundColor: '#800000',
                 color: '#ffffff',
@@ -493,8 +670,9 @@ export default function Announcements() {
           >
             + Create Announcement
           </Button>
+        </Box>
         )}
-      </Stack>
+
       <Tabs 
         value={tab} 
         onChange={(_, v) => { setTab(v); setSelected([]); }} 
@@ -575,7 +753,24 @@ export default function Announcements() {
               }}
             />
             <Tab 
-              label="Scheduled" 
+              label={
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  Scheduled
+                  {scheduledList.length > 0 && (
+                    <Chip 
+                      label={scheduledList.length} 
+                      size="small" 
+                      sx={{ 
+                        bgcolor: '#0288d1', 
+                        color: 'white', 
+                        fontSize: '0.7rem',
+                        height: '20px',
+                        minWidth: '20px'
+                      }} 
+                    />
+                  )}
+                </Box>
+              }
               sx={{ 
                 color: '#ffffff !important',
                 fontWeight: tab === 3 ? 700 : 400,
@@ -590,7 +785,24 @@ export default function Announcements() {
               }}
             />
             <Tab 
-              label="Expired" 
+              label={
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  Expired
+                  {expiredList.length > 0 && (
+                    <Chip 
+                      label={expiredList.length} 
+                      size="small" 
+                      sx={{ 
+                        bgcolor: '#d32f2f', 
+                        color: 'white', 
+                        fontSize: '0.7rem',
+                        height: '20px',
+                        minWidth: '20px'
+                      }} 
+                    />
+                  )}
+                </Box>
+              }
               sx={{ 
                 color: '#ffffff !important',
                 fontWeight: tab === 4 ? 700 : 400,
@@ -607,6 +819,84 @@ export default function Announcements() {
           </>
         )}
       </Tabs>
+      
+
+      {/* Filter and Sort Options */}
+      <Box sx={{ mb: 2, display: 'flex', flexWrap: 'wrap', gap: 2, alignItems: 'center' }}>
+        <Typography variant="body2" sx={{ color: '#ffffff', fontWeight: 600, fontSize: '0.9rem' }}>
+          Filters:
+        </Typography>
+        <Chip 
+          label="All" 
+          variant={search === "" ? "filled" : "outlined"}
+          onClick={() => setSearch("")}
+          sx={{ 
+            color: search === "" ? '#ffffff' : '#000000',
+            bgcolor: search === "" ? '#800000' : 'rgba(255, 255, 255, 0.9)',
+            borderColor: '#000000',
+            borderWidth: 2,
+            fontWeight: 500,
+            '&:hover': {
+              bgcolor: '#800000',
+              color: '#ffffff',
+              borderColor: '#800000'
+            }
+          }}
+        />
+        <Chip 
+          label="Students" 
+          variant="outlined"
+          onClick={() => setSearch("students")}
+          sx={{ 
+            color: '#000000',
+            bgcolor: 'rgba(255, 255, 255, 0.9)',
+            borderColor: '#000000',
+            borderWidth: 2,
+            fontWeight: 500,
+            '&:hover': {
+              bgcolor: '#800000',
+              color: '#ffffff',
+              borderColor: '#800000'
+            }
+          }}
+        />
+        <Chip 
+          label="Teachers" 
+          variant="outlined"
+          onClick={() => setSearch("teachers")}
+          sx={{ 
+            color: '#000000',
+            bgcolor: 'rgba(255, 255, 255, 0.9)',
+            borderColor: '#000000',
+            borderWidth: 2,
+            fontWeight: 500,
+            '&:hover': {
+              bgcolor: '#800000',
+              color: '#ffffff',
+              borderColor: '#800000'
+            }
+          }}
+        />
+        <Chip 
+          label="With Photos" 
+          variant="outlined"
+          onClick={() => setSearch("photo")}
+          sx={{ 
+            color: '#000000',
+            bgcolor: 'rgba(255, 255, 255, 0.9)',
+            borderColor: '#000000',
+            borderWidth: 2,
+            fontWeight: 500,
+            '&:hover': {
+              bgcolor: '#800000',
+              color: '#ffffff',
+              borderColor: '#800000'
+            }
+          }}
+        />
+      </Box>
+
+      {/* Search Bar */}
       <Box sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1, maxWidth: 500 }}>
         <TextField
           value={search}
@@ -615,33 +905,95 @@ export default function Announcements() {
           size="small"
           fullWidth
           autoFocus
+          sx={{
+            '& .MuiOutlinedInput-root': {
+              bgcolor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.9)',
+              color: '#000000',
+              borderRadius: 2,
+              '& fieldset': {
+                borderColor: '#000000',
+                borderWidth: 2,
+              },
+              '&:hover fieldset': {
+                borderColor: '#800000',
+                borderWidth: 2,
+              },
+              '&.Mui-focused fieldset': {
+                borderColor: '#800000',
+                borderWidth: 2,
+              },
+            },
+            '& .MuiInputBase-input': {
+              color: '#000000',
+              fontWeight: 500,
+              '&::placeholder': {
+                color: '#666666',
+                opacity: 1,
+                fontWeight: 400,
+              },
+            },
+          }}
           InputProps={{
             startAdornment: (
               <InputAdornment position="start">
-                <SearchIcon />
+                <SearchIcon sx={{ color: '#000000', opacity: 0.7 }} />
               </InputAdornment>
             ),
             endAdornment: search && (
-              <IconButton size="small" onClick={() => setSearch("")}>×</IconButton>
+              <IconButton 
+                size="small" 
+                onClick={() => setSearch("")}
+                sx={{ color: '#000000', opacity: 0.7 }}
+              >
+                ×
+              </IconButton>
             )
           }}
         />
       </Box>
+
       {/* Recent Announcements Section (only in Active tab) */}
       {tab === 0 && recent.length > 0 && (
         <Box sx={{ mb: 3 }}>
-          <Typography variant="h6" sx={{ mb: 1, fontWeight: 700 }}>Recent Announcements</Typography>
+          <Typography variant="h6" sx={{ mb: 1, fontWeight: 700, color: '#4caf50' }}>
+            🔥 Recent Announcements
+          </Typography>
           <Stack spacing={2}>
             {recent.map(a => (
-              <Card key={a.id} sx={{ borderLeft: a.priority === 'Urgent' ? '5px solid #d32f2f' : a.pinned ? '5px solid #0288d1' : '5px solid #eee', boxShadow: 2 }}>
+              <Card key={a.id} sx={{ 
+                borderLeft: a.priority === 'Urgent' ? '4px solid #d32f2f' : a.pinned ? '4px solid #800000' : '4px solid #800000', 
+                boxShadow: 2,
+                transition: 'all 0.3s ease',
+                bgcolor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.05)' : 'rgba(255, 255, 255, 0.9)',
+                borderRadius: 2,
+                mb: 2,
+                '&:hover': {
+                  transform: 'translateY(-2px)',
+                  boxShadow: 4,
+                  bgcolor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.08)' : 'rgba(255, 255, 255, 1)'
+                }
+              }}>
                 <CardHeader
-                  title={<Stack direction="row" alignItems="center" spacing={1}>
-                    <Typography fontWeight={700}>{a.title}</Typography>
-                    {a.pinned && <Chip label="Pinned" color="info" size="small" icon={<PushPinIcon fontSize="small" />} />}
-                    <Chip label={a.audience} color="secondary" size="small" />
-                    {a.completed && <Chip label="Completed" color="success" size="small" />}
+                  title={<Stack direction="row" alignItems="center" spacing={1} flexWrap="wrap">
+                    <Typography fontWeight={700} sx={{ color: '#4caf50' }}>{a.title}</Typography>
+                    {a.pinned && <Chip label="📌 Pinned" color="warning" size="small" sx={{ fontSize: '0.7rem' }} />}
+                    {a.priority === 'Urgent' && <Chip label="🚨 Urgent" color="error" size="small" sx={{ fontSize: '0.7rem' }} />}
+                    <Chip label="🆕 Recent" color="success" variant="outlined" size="small" sx={{ fontSize: '0.7rem' }} />
+                    <Chip label={`👤 ${a.audience}`} color="secondary" size="small" sx={{ fontSize: '0.7rem' }} />
+                    {a.completed && <Chip label="✅ Completed" color="success" size="small" sx={{ fontSize: '0.7rem' }} />}
                   </Stack>}
-                  subheader={a.date ? new Date(a.date).toLocaleDateString() : ''}
+                  subheader={
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                      <Typography variant="body2" color="text.secondary">
+                        📅 {a.date ? new Date(a.date).toLocaleString() : 'No date set'}
+                      </Typography>
+                      {a.expiryDate && (
+                        <Typography variant="body2" color="text.secondary">
+                          ⏰ Expires: {new Date(a.expiryDate).toLocaleString()}
+                        </Typography>
+                      )}
+                    </Box>
+                  }
                   action={
                     <Stack direction="row" spacing={1}>
                         {userRole === 'Admin' && (
@@ -731,7 +1083,20 @@ export default function Announcements() {
           ) : (
             <React.Fragment>
               {mainList.map(a => (
-                <Card key={a.id} sx={{ mb: 2, borderLeft: a.priority === 'Urgent' ? '5px solid #d32f2f' : a.pinned ? '5px solid #0288d1' : '5px solid #eee', boxShadow: 2, position: 'relative' }}>
+                <Card key={a.id} sx={{ 
+                  mb: 2, 
+                  borderLeft: a.priority === 'Urgent' ? '4px solid #d32f2f' : a.pinned ? '4px solid #800000' : '4px solid #800000', 
+                  boxShadow: 2, 
+                  position: 'relative',
+                  bgcolor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.05)' : 'rgba(255, 255, 255, 0.9)',
+                  borderRadius: 2,
+                  transition: 'all 0.3s ease',
+                  '&:hover': {
+                    transform: 'translateY(-2px)',
+                    boxShadow: 4,
+                    bgcolor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.08)' : 'rgba(255, 255, 255, 1)'
+                  }
+                }}>
                   {userRole === 'Admin' && (
                     <Box sx={{ position: 'absolute', left: 8, top: 8 }}>
                       <input type="checkbox" checked={selected.includes(a.id)} onChange={e => setSelected(sel => e.target.checked ? [...sel, a.id] : sel.filter(id => id !== a.id))} />
@@ -847,23 +1212,86 @@ export default function Announcements() {
       )}
       {tab === 3 && (
         <Box sx={{ mb: 4 }}>
-          <Typography variant="h6" sx={{ mb: 1, fontWeight: 700 }}>Scheduled Announcements</Typography>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+            <Typography variant="h6" sx={{ fontWeight: 700, color: '#0288d1' }}>
+              📅 Scheduled Announcements
+            </Typography>
+            <Chip 
+              label={`${scheduledList.length} scheduled`} 
+              color="primary" 
+              variant="outlined"
+              sx={{ fontWeight: 600 }}
+            />
+          </Box>
           {scheduledList.length === 0 ? (
-            <Typography align="center" color="text.secondary">No scheduled announcements.</Typography>
+            <Box sx={{ 
+              textAlign: 'center', 
+              py: 4,
+              bgcolor: theme.palette.mode === 'dark' ? 'rgba(2, 136, 209, 0.1)' : 'rgba(2, 136, 209, 0.05)',
+              borderRadius: 2,
+              border: `1px solid ${theme.palette.mode === 'dark' ? 'rgba(2, 136, 209, 0.3)' : 'rgba(2, 136, 209, 0.2)'}`
+            }}>
+              <Typography variant="h6" color="text.secondary" sx={{ mb: 1 }}>
+                📅 No Scheduled Announcements
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Announcements with future schedule dates will appear here
+              </Typography>
+            </Box>
           ) : scheduledList.map(a => (
-            <Card key={a.id} sx={{ mb: 2, borderLeft: '5px solid #0288d1', boxShadow: 2 }}>
+            <Card key={a.id} sx={{ 
+              mb: 2, 
+              borderLeft: '5px solid #0288d1', 
+              boxShadow: 2,
+              bgcolor: theme.palette.mode === 'dark' ? 'rgba(2, 136, 209, 0.05)' : 'rgba(2, 136, 209, 0.02)'
+            }}>
               <CardHeader
-                title={<Typography fontWeight={700}>{a.title}</Typography>}
-                subheader={a.date ? new Date(a.date).toLocaleDateString() : ''}
+                title={
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Typography fontWeight={700}>{a.title}</Typography>
+                    <Chip 
+                      label="Scheduled" 
+                      size="small" 
+                      color="primary" 
+                      variant="outlined"
+                      sx={{ fontSize: '0.7rem' }}
+                    />
+                  </Box>
+                }
+                subheader={
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                    <Typography variant="body2" color="text.secondary">
+                      📅 Scheduled: {a.scheduleDate ? new Date(a.scheduleDate).toLocaleString() : 'Not set'}
+                    </Typography>
+                    {a.expiryDate && (
+                      <Typography variant="body2" color="text.secondary">
+                        ⏰ Expires: {new Date(a.expiryDate).toLocaleString()}
+                      </Typography>
+                    )}
+                    <Typography variant="body2" color="text.secondary">
+                      👤 Audience: {a.audience || 'All'}
+                    </Typography>
+                  </Box>
+                }
                 action={
                   <Stack direction="row" spacing={1}>
-                    <Tooltip title="View"><IconButton onClick={() => setViewAnnouncement(a)}><VisibilityIcon /></IconButton></Tooltip>
-                    <Tooltip title="Print"><IconButton onClick={() => handlePrint(a)}><PrintIcon /></IconButton></Tooltip>
+                    <Tooltip title="View Details">
+                      <IconButton onClick={() => setViewAnnouncement(a)}>
+                        <VisibilityIcon />
+                      </IconButton>
+                    </Tooltip>
+                    <Tooltip title="Print">
+                      <IconButton onClick={() => handlePrint(a)}>
+                        <PrintIcon />
+                      </IconButton>
+                    </Tooltip>
                   </Stack>
                 }
               />
               <CardContent>
-                <Typography variant="body2" color="text.secondary">{a.message}</Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                  {a.message}
+                </Typography>
                 {a.photoUrl && (
                   <Box sx={{ mt: 2 }}>
                     <img
@@ -886,23 +1314,86 @@ export default function Announcements() {
       )}
       {tab === 4 && (
         <Box sx={{ mb: 4 }}>
-          <Typography variant="h6" sx={{ mb: 1, fontWeight: 700 }}>Expired Announcements</Typography>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+            <Typography variant="h6" sx={{ fontWeight: 700, color: '#d32f2f' }}>
+              ⏰ Expired Announcements
+            </Typography>
+            <Chip 
+              label={`${expiredList.length} expired`} 
+              color="error" 
+              variant="outlined"
+              sx={{ fontWeight: 600 }}
+            />
+          </Box>
           {expiredList.length === 0 ? (
-            <Typography align="center" color="text.secondary">No expired announcements.</Typography>
+            <Box sx={{ 
+              textAlign: 'center', 
+              py: 4,
+              bgcolor: theme.palette.mode === 'dark' ? 'rgba(211, 47, 47, 0.1)' : 'rgba(211, 47, 47, 0.05)',
+              borderRadius: 2,
+              border: `1px solid ${theme.palette.mode === 'dark' ? 'rgba(211, 47, 47, 0.3)' : 'rgba(211, 47, 47, 0.2)'}`
+            }}>
+              <Typography variant="h6" color="text.secondary" sx={{ mb: 1 }}>
+                ⏰ No Expired Announcements
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Announcements that have passed their expiry date will appear here
+              </Typography>
+            </Box>
           ) : expiredList.map(a => (
-            <Card key={a.id} sx={{ mb: 2, borderLeft: '5px solid #d32f2f', boxShadow: 2 }}>
+            <Card key={a.id} sx={{ 
+              mb: 2, 
+              borderLeft: '5px solid #d32f2f', 
+              boxShadow: 2,
+              bgcolor: theme.palette.mode === 'dark' ? 'rgba(211, 47, 47, 0.05)' : 'rgba(211, 47, 47, 0.02)'
+            }}>
               <CardHeader
-                title={<Typography fontWeight={700}>{a.title}</Typography>}
-                subheader={a.date ? new Date(a.date).toLocaleDateString() : ''}
+                title={
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Typography fontWeight={700}>{a.title}</Typography>
+                    <Chip 
+                      label="Expired" 
+                      size="small" 
+                      color="error" 
+                      variant="outlined"
+                      sx={{ fontSize: '0.7rem' }}
+                    />
+                  </Box>
+                }
+                subheader={
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                    <Typography variant="body2" color="text.secondary">
+                      ⏰ Expired: {a.expiryDate ? new Date(a.expiryDate).toLocaleString() : 'Not set'}
+                    </Typography>
+                    {a.scheduleDate && (
+                      <Typography variant="body2" color="text.secondary">
+                        📅 Was Scheduled: {new Date(a.scheduleDate).toLocaleString()}
+                      </Typography>
+                    )}
+                    <Typography variant="body2" color="text.secondary">
+                      👤 Audience: {a.audience || 'All'}
+                    </Typography>
+                  </Box>
+                }
                 action={
                   <Stack direction="row" spacing={1}>
-                    <Tooltip title="View"><IconButton onClick={() => setViewAnnouncement(a)}><VisibilityIcon /></IconButton></Tooltip>
-                    <Tooltip title="Print"><IconButton onClick={() => handlePrint(a)}><PrintIcon /></IconButton></Tooltip>
+                    <Tooltip title="View Details">
+                      <IconButton onClick={() => setViewAnnouncement(a)}>
+                        <VisibilityIcon />
+                      </IconButton>
+                    </Tooltip>
+                    <Tooltip title="Print">
+                      <IconButton onClick={() => handlePrint(a)}>
+                        <PrintIcon />
+                      </IconButton>
+                    </Tooltip>
                   </Stack>
                 }
               />
               <CardContent>
-                <Typography variant="body2" color="text.secondary">{a.message}</Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                  {a.message}
+                </Typography>
                 {a.photoUrl && (
                   <Box sx={{ mt: 2 }}>
                     <img
@@ -995,11 +1486,14 @@ export default function Announcements() {
               <TextField label="Schedule Date" name="scheduleDate" type="datetime-local" value={form.scheduleDate} onChange={handleChange} InputLabelProps={{ shrink: true }} fullWidth />
               <TextField label="Expiry Date" name="expiryDate" type="datetime-local" value={form.expiryDate} onChange={handleChange} InputLabelProps={{ shrink: true }} fullWidth />
               
-              {/* Photo Upload Section - Moved to bottom */}
+              {/* Photo Upload Section */}
               <Box>
                 <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>
                   Attach Photo (Optional)
                 </Typography>
+                
+                {/* Choose Photo Button */}
+                <Box sx={{ mb: 2 }}>
                 <input
                   accept="image/*"
                   style={{ display: 'none' }}
@@ -1024,26 +1518,55 @@ export default function Announcements() {
                     Choose Photo
                   </Button>
                 </label>
+                </Box>
                 
+                {/* Image Preview - Centered in modal */}
                 {photoPreview && (
-                  <Box sx={{ mt: 2, position: 'relative', display: 'inline-block' }}>
+                  <Box sx={{ 
+                    mt: 3,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    width: '100%'
+                  }}>
+                    <Typography variant="subtitle2" sx={{ 
+                      color: theme.palette.mode === 'dark' ? '#cccccc' : '#666666',
+                      mb: 2, 
+                      fontWeight: 600,
+                      textAlign: 'center'
+                    }}>
+                      Photo Preview
+                    </Typography>
+                    <Box sx={{ 
+                      position: 'relative',
+                      p: 2, 
+                      border: '2px solid #800000', 
+                      borderRadius: 2, 
+                      bgcolor: theme.palette.mode === 'dark' ? 'rgba(128, 0, 0, 0.1)' : 'rgba(128, 0, 0, 0.05)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      maxWidth: '400px',
+                      width: '100%'
+                    }}>
                     <img
                       src={photoPreview}
                       alt="Preview"
                       style={{
-                        maxWidth: '300px',
-                        maxHeight: '300px',
-                        objectFit: 'cover',
+                          maxWidth: '100%',
+                          maxHeight: '350px',
+                          objectFit: 'contain',
                         borderRadius: '8px',
-                        border: '2px solid #800000'
+                          display: 'block'
                       }}
                     />
                     <IconButton
                       onClick={removePhoto}
                       sx={{
                         position: 'absolute',
-                        top: -10,
-                        right: -10,
+                          top: 8,
+                          right: 8,
                         backgroundColor: 'error.main',
                         color: 'white',
                         '&:hover': {
@@ -1054,6 +1577,7 @@ export default function Announcements() {
                     >
                       <Delete fontSize="small" />
                     </IconButton>
+                    </Box>
                   </Box>
                 )}
               </Box>
@@ -1089,7 +1613,14 @@ export default function Announcements() {
                     }
                   }}
                 >
-                  {isSubmitting ? "Posting..." : "Post Announcement"}
+                  {isSubmitting ? (
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <CircularProgress size={16} color="inherit" />
+                      Posting...
+                    </Box>
+                  ) : (
+                    "Post Announcement"
+                  )}
                 </Button>
               </DialogActions>
             </Stack>

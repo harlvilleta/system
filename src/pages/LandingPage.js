@@ -67,7 +67,7 @@ import { signInWithEmailAndPassword } from 'firebase/auth';
 import { auth, db } from '../firebase';
 import { checkEmailAvailability } from '../utils/studentValidation';
 import { createSingleUser } from '../utils/createUsers';
-import { doc, getDoc, deleteDoc, updateDoc, collection, query, where, getDocs } from 'firebase/firestore';
+import { doc, getDoc, deleteDoc, updateDoc, getDocs, query, collection, where } from 'firebase/firestore';
 
 export default function LandingPage() {
   const { isDark } = useCustomTheme();
@@ -319,11 +319,44 @@ export default function LandingPage() {
       }
 
       console.log('Final user data for creation:', finalUserData);
+      console.log('🚀 About to call createSingleUser...');
 
       // Create the user account
       const result = await createSingleUser(finalUserData);
+      console.log('🔍 createSingleUser result:', result);
+      console.log('🔍 Final user data that was passed:', finalUserData);
       
       if (result.success) {
+        console.log('✅ Registration successful! User data should be in Firestore now.');
+        console.log('   User role:', finalUserData.role);
+        console.log('   User studentId:', finalUserData.studentId);
+        console.log('   Should create RegisteredStudents entry:', finalUserData.role === 'Student' && finalUserData.studentId);
+        console.log('   Should create students collection entry:', finalUserData.role === 'Student' && finalUserData.studentId);
+        
+        // Additional debugging - check if student was created in students collection
+        if (finalUserData.role === 'Student' && finalUserData.studentId) {
+          setTimeout(async () => {
+            try {
+              console.log('🔍 Checking if student was created in students collection...');
+              const studentsSnapshot = await getDocs(query(collection(db, 'students'), where('studentId', '==', finalUserData.studentId)));
+              console.log('📊 Students collection check result:', {
+                found: !studentsSnapshot.empty,
+                count: studentsSnapshot.size,
+                docs: studentsSnapshot.docs.map(doc => ({ id: doc.id, data: doc.data() }))
+              });
+              
+              const registeredStudentsSnapshot = await getDocs(query(collection(db, 'RegisteredStudents'), where('studentId', '==', finalUserData.studentId)));
+              console.log('📊 RegisteredStudents collection check result:', {
+                found: !registeredStudentsSnapshot.empty,
+                count: registeredStudentsSnapshot.size,
+                docs: registeredStudentsSnapshot.docs.map(doc => ({ id: doc.id, data: doc.data() }))
+              });
+            } catch (checkError) {
+              console.error('❌ Error checking collections after registration:', checkError);
+            }
+          }, 2000);
+        }
+        
         setSnackbar({ 
           open: true, 
           message: transferMessage 
@@ -440,7 +473,8 @@ export default function LandingPage() {
           isRegistered: true,
           registeredAt: new Date().toISOString(),
           registeredEmail: userData.email,
-          transferredToUsers: true
+          transferredToUsers: true,
+          transferredToRegisteredStudents: false // Will be updated by createSingleUser
         });
         
         console.log('✅ Marked student as registered in students collection');

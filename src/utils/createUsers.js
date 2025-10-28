@@ -1,6 +1,6 @@
 import { auth, db } from '../firebase';
 import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
-import { setDoc, doc, addDoc, collection } from 'firebase/firestore';
+import { setDoc, doc, addDoc, collection, query, where, getDocs, updateDoc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { storage } from '../firebase';
 
@@ -122,14 +122,14 @@ export const createSampleUsers = async () => {
       
       // Add student-specific data if role is Student
       if (userData.role === 'Student') {
-        firestoreUserData.studentId = userData.studentId;
+        firestoreUserData.studentId = userData.studentId || user.uid; // Use UID as fallback if studentId is empty
         firestoreUserData.firstName = userData.firstName;
         firestoreUserData.lastName = userData.lastName;
         firestoreUserData.course = userData.course;
         firestoreUserData.year = userData.year;
         firestoreUserData.section = userData.section;
         firestoreUserData.studentInfo = {
-          studentId: userData.studentId,
+          studentId: userData.studentId || user.uid, // Use UID as fallback if studentId is empty
           firstName: userData.firstName,
           lastName: userData.lastName,
           course: userData.course,
@@ -272,7 +272,7 @@ export const createSingleUser = async (userData) => {
     
     // Add student-specific data if role is Student
     if (userData.role === 'Student') {
-      firestoreUserData.studentId = userData.studentId;
+      firestoreUserData.studentId = userData.studentId || user.uid; // Use UID as fallback if studentId is empty
       firestoreUserData.firstName = userData.firstName;
       firestoreUserData.lastName = userData.lastName;
       firestoreUserData.course = userData.course;
@@ -292,7 +292,7 @@ export const createSingleUser = async (userData) => {
       }
       
       firestoreUserData.studentInfo = {
-        studentId: userData.studentId,
+        studentId: userData.studentId || user.uid, // Use UID as fallback if studentId is empty
         firstName: userData.firstName,
         lastName: userData.lastName,
         course: userData.course,
@@ -326,8 +326,114 @@ export const createSingleUser = async (userData) => {
     }
     
     // Save user data to Firestore
-    await setDoc(doc(db, 'users', user.uid), firestoreUserData);
-    console.log(`✅ User data saved to Firestore: ${userData.email}`);
+    // For students, use studentId as document ID in users collection
+    const documentId = (userData.role === 'Student' && userData.studentId) 
+      ? userData.studentId 
+      : user.uid;
+    
+    await setDoc(doc(db, 'users', documentId), firestoreUserData);
+    console.log(`✅ User data saved to Firestore with ID: ${documentId}`);
+    
+    // Also create entry in RegisteredStudents collection for students
+    if (userData.role === 'Student' && userData.studentId) {
+      console.log('📝 Creating RegisteredStudents entry for student:', userData.studentId);
+      
+      try {
+        const registeredStudentData = {
+          studentId: userData.studentId,
+          email: user.email,
+          fullName: userData.fullName,
+          firstName: userData.firstName || '',
+          lastName: userData.lastName || '',
+          course: userData.course || '',
+          year: userData.year || '',
+          section: userData.section || '',
+          sex: userData.sex || '',
+          contact: userData.contact || '',
+          birthdate: userData.birthdate || '',
+          age: userData.age || '',
+          profilePic: firestoreUserData.profilePic || '',
+          uid: user.uid,
+          registeredAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          // Add transfer information if available
+          transferredFromStudents: userData.transferredFromStudents || false,
+          transferDate: userData.transferDate || null,
+          originalStudentData: userData.originalStudentData || null
+        };
+        
+        console.log('📦 RegisteredStudentData to save:', registeredStudentData);
+        
+        await setDoc(doc(db, 'RegisteredStudents', userData.studentId), registeredStudentData);
+        console.log(`✅ Student data saved to RegisteredStudents collection with ID: ${userData.studentId}`);
+        
+        // CRITICAL: Also create/update entry in students collection for admin dashboard
+        try {
+          console.log('🔄 Creating/updating student record in students collection...');
+          
+          // Check if student record already exists in students collection
+          const studentsQuery = query(collection(db, 'students'), where('studentId', '==', userData.studentId));
+          const studentsSnapshot = await getDocs(studentsQuery);
+          
+          if (!studentsSnapshot.empty) {
+            // Update existing student record
+            const studentDoc = studentsSnapshot.docs[0];
+            await updateDoc(studentDoc.ref, {
+              isRegistered: true,
+              registeredAt: new Date().toISOString(),
+              registeredEmail: user.email,
+              registeredUserId: user.uid,
+              transferredToUsers: true,
+              transferredToRegisteredStudents: true,
+              updatedAt: new Date().toISOString()
+            });
+            console.log('✅ Updated existing student record in students collection');
+          } else {
+            // Create new student record in students collection
+            const studentData = {
+              id: userData.studentId,
+              studentId: userData.studentId,
+              firstName: userData.firstName || '',
+              lastName: userData.lastName || '',
+              fullName: userData.fullName || '',
+              email: user.email,
+              sex: userData.sex || '',
+              course: userData.course || '',
+              year: userData.year || '',
+              section: userData.section || '',
+              contact: userData.contact || '',
+              birthdate: userData.birthdate || '',
+              age: userData.age || '',
+              image: firestoreUserData.profilePic || '',
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+              isRegistered: true,
+              registeredAt: new Date().toISOString(),
+              registeredEmail: user.email,
+              registeredUserId: user.uid,
+              transferredToUsers: true,
+              transferredToRegisteredStudents: true,
+              source: userData.transferredFromStudents ? 'excel_import' : 'direct_registration',
+              uid: user.uid
+            };
+            
+            console.log('📦 Creating new student record in students collection:', studentData);
+            await setDoc(doc(db, 'students', userData.studentId), studentData);
+            console.log('✅ Created new student record in students collection');
+          }
+        } catch (studentError) {
+          console.error('❌ Error creating/updating student record in students collection:', studentError);
+          // Don't throw - continue with registration even if this fails
+        }
+        
+      } catch (regStudentError) {
+        console.error('❌ Error saving to RegisteredStudents collection:', regStudentError);
+        console.error('   Student ID:', userData.studentId);
+        console.error('   Error Code:', regStudentError.code);
+        console.error('   Error Message:', regStudentError.message);
+        // Don't throw - continue with user creation even if RegisteredStudents fails
+      }
+    }
     
     // Create user preferences
     await setDoc(doc(db, 'user_preferences', user.uid), {
@@ -377,6 +483,8 @@ export const createSingleUser = async (userData) => {
     console.error(`   Role: ${userData.role}`);
     console.error(`   Error Code: ${error.code}`);
     console.error(`   Error Message: ${error.message}`);
-    return { success: false, error };
+    // Return error message as string, not Error object
+    const errorMessage = error.message || `Failed to create user: ${error.code || 'Unknown error'}`;
+    return { success: false, error: errorMessage };
   }
 }; 

@@ -656,6 +656,11 @@ export default function ClassroomManager({ currentUser }) {
                   bgcolor: '#800000',
                   color: '#ffffff', 
                   fontWeight: 600 
+                }}>Email</TableCell>
+                <TableCell sx={{ 
+                  bgcolor: '#800000',
+                  color: '#ffffff', 
+                  fontWeight: 600 
                 }}>Course</TableCell>
                 <TableCell sx={{ 
                   bgcolor: '#800000',
@@ -682,6 +687,9 @@ export default function ClassroomManager({ currentUser }) {
                   </TableCell>
                   <TableCell sx={{ fontSize: 14, fontWeight: 400 }}>
                     {student.studentId}
+                  </TableCell>
+                  <TableCell sx={{ fontSize: 14, fontWeight: 400 }}>
+                    {student.email || 'N/A'}
                   </TableCell>
                   <TableCell sx={{ fontSize: 14, fontWeight: 400 }}>
                     {student.course}

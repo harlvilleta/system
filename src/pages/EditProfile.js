@@ -387,14 +387,62 @@ export default function EditProfile() {
               <Typography variant="h6" gutterBottom>
                 {profile.firstName} {profile.lastName}
               </Typography>
-              <Typography variant="body2" color="textSecondary">
-                {profile.email}
-              </Typography>
-              {profile.studentId && (
-                <Typography variant="body2" color="textSecondary" sx={{ mt: 0.5 }}>
-                  ID: {profile.studentId}
-                </Typography>
-              )}
+              
+              {/* Enhanced Gmail and Student ID Display */}
+              <Box sx={{ 
+                display: 'flex', 
+                flexDirection: 'column', 
+                gap: 1, 
+                mt: 1,
+                p: 1.5,
+                bgcolor: 'rgba(25, 118, 210, 0.08)',
+                borderRadius: 2,
+                border: '1px solid rgba(25, 118, 210, 0.2)'
+              }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Typography variant="body2" sx={{ 
+                    color: 'text.secondary',
+                    fontWeight: 600,
+                    fontSize: '0.8rem',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.5px',
+                    minWidth: '80px'
+                  }}>
+                    Gmail:
+                  </Typography>
+                  <Typography variant="body2" sx={{ 
+                    color: '#1976d2',
+                    fontWeight: 600,
+                    fontSize: '0.9rem'
+                  }}>
+                    {profile.email || 'Not provided'}
+                  </Typography>
+                </Box>
+                
+                {profile.studentId && (
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Typography variant="body2" sx={{ 
+                      color: 'text.secondary',
+                      fontWeight: 600,
+                      fontSize: '0.8rem',
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.5px',
+                      minWidth: '80px'
+                    }}>
+                      Student ID:
+                    </Typography>
+                    <Typography variant="body2" sx={{ 
+                      color: '#1976d2',
+                      fontWeight: 600,
+                      fontSize: '0.9rem',
+                      fontFamily: 'monospace'
+                    }}>
+                      {profile.studentId}
+                    </Typography>
+                  </Box>
+                )}
+              </Box>
+              
               <Chip 
                 label={profile.role || "Student"} 
                 color="primary" 

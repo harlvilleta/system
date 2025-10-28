@@ -19,6 +19,7 @@ function UserOverview({ currentUser }) {
   const [activities, setActivities] = useState([]);
   const [notifications, setNotifications] = useState([]);
   const [userProfile, setUserProfile] = useState(null);
+  const [studentData, setStudentData] = useState(null);
   const [stats, setStats] = useState({
     totalViolations: 0,
     pendingViolations: 0,
@@ -32,9 +33,81 @@ function UserOverview({ currentUser }) {
     // Fetch user profile from Firestore
     const fetchUserProfile = async () => {
       try {
-        const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
-        if (userDoc.exists()) {
-          setUserProfile(userDoc.data());
+        console.log('🔍 Fetching data for user:', currentUser.email);
+        
+        // Fetch student data from students collection FIRST (priority)
+        // Try multiple email matching strategies
+        let studentsSnapshot = null;
+        
+        // Strategy 1: Match registeredEmail field
+        const studentsQuery1 = query(
+          collection(db, 'students'),
+          where('registeredEmail', '==', currentUser.email)
+        );
+        studentsSnapshot = await getDocs(studentsQuery1);
+        console.log('📚 Strategy 1 - registeredEmail match:', studentsSnapshot.size, 'documents found');
+        
+        // Strategy 2: Match email field (if no results)
+        if (studentsSnapshot.empty) {
+          const studentsQuery2 = query(
+            collection(db, 'students'),
+            where('email', '==', currentUser.email)
+          );
+          studentsSnapshot = await getDocs(studentsQuery2);
+          console.log('📚 Strategy 2 - email field match:', studentsSnapshot.size, 'documents found');
+        }
+        
+        // Strategy 3: Case-insensitive registeredEmail match (if no results)
+        if (studentsSnapshot.empty) {
+          const studentsQuery3 = query(
+            collection(db, 'students'),
+            where('registeredEmail', '==', currentUser.email.toLowerCase())
+          );
+          studentsSnapshot = await getDocs(studentsQuery3);
+          console.log('📚 Strategy 3 - Lowercase registeredEmail match:', studentsSnapshot.size, 'documents found');
+        }
+        
+        // Strategy 3: Get all students and filter client-side (if still no results)
+        if (studentsSnapshot.empty) {
+          console.log('📚 Strategy 3 - Fetching all students for client-side filtering...');
+          const allStudentsQuery = query(collection(db, 'students'));
+          const allStudentsSnapshot = await getDocs(allStudentsQuery);
+          
+          const matchingStudents = allStudentsSnapshot.docs.filter(doc => {
+            const data = doc.data();
+            return (data.registeredEmail && data.registeredEmail.toLowerCase() === currentUser.email.toLowerCase()) ||
+                   (data.email && data.email.toLowerCase() === currentUser.email.toLowerCase());
+          });
+          
+          if (matchingStudents.length > 0) {
+            console.log('📚 Strategy 3 - Found', matchingStudents.length, 'matching students');
+            studentsSnapshot = { 
+              empty: false, 
+              docs: matchingStudents,
+              size: matchingStudents.length 
+            };
+          }
+        }
+        
+        if (!studentsSnapshot.empty) {
+          // Get the first matching student record
+          const studentDoc = studentsSnapshot.docs[0];
+          const studentDataFromDB = studentDoc.data();
+          setStudentData(studentDataFromDB);
+          console.log('✅ Student data fetched from students collection:', studentDataFromDB);
+          console.log('🎯 Student ID from students collection:', studentDataFromDB.studentId);
+        } else {
+          console.log('❌ No student data found in students collection for:', currentUser.email);
+          setStudentData(null);
+        }
+        
+        // Only fetch from users collection if no student data found
+        if (studentsSnapshot.empty) {
+          const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
+          if (userDoc.exists()) {
+            setUserProfile(userDoc.data());
+            console.log('📄 User profile fetched from users collection:', userDoc.data());
+          }
         }
       } catch (error) {
         console.error('Error fetching user profile:', error);
@@ -159,25 +232,96 @@ function UserOverview({ currentUser }) {
   const recentAnnouncements = announcements?.slice(0, 3) || [];
   const recentNotifications = notifications?.slice(0, 5) || [];
 
-  // Get user display info
+  // Get user display info - prioritize studentData from students collection
   const getUserDisplayInfo = () => {
-    if (userProfile) {
+    console.log('🔍 getUserDisplayInfo called with:', {
+      hasStudentData: !!studentData,
+      hasUserProfile: !!userProfile,
+      studentDataKeys: studentData ? Object.keys(studentData) : 'none',
+      userProfileKeys: userProfile ? Object.keys(userProfile) : 'none'
+    });
+
+    // Use studentData from students collection if available
+    if (studentData) {
+      console.log('✅ Using studentData from students collection');
+      console.log('🎯 Student ID from students collection:', studentData.id);
+      console.log('📧 Email from students collection:', studentData.registeredEmail);
+      
       return {
-        name: userProfile.fullName || currentUser?.displayName || 'Student',
-        email: userProfile.email || currentUser?.email,
-        photo: userProfile.profilePic || currentUser?.photoURL,
-        role: userProfile.role || 'Student'
+        name: studentData.fullName || currentUser?.displayName || 'Student',
+        firstName: studentData.firstName || '',
+        lastName: studentData.lastName || '',
+        middleInitial: '', // Not in the data you showed
+        email: studentData.registeredEmail || studentData.email || currentUser?.email,
+        photo: studentData.image || currentUser?.photoURL,
+        role: 'Student',
+        studentId: studentData.id || '', // Use 'id' field instead of 'studentId'
+        course: studentData.course || 'Not provided',
+        yearLevel: '', // Not in the data you showed
+        section: studentData.section || 'Not provided',
+        contact: '', // Not in the data you showed
+        address: '', // Not in the data you showed
+        sex: studentData.sex || 'Not provided',
+        age: '', // Not in the data you showed
+        birthdate: '' // Not in the data you showed
       };
     }
+    
+    // Fallback to userProfile if no studentData
+    if (userProfile) {
+      console.log('⚠️ Falling back to userProfile from users collection');
+      console.log('🎯 Student ID from users collection:', userProfile.studentId);
+      return {
+        name: userProfile.fullName || currentUser?.displayName || 'Student',
+        firstName: userProfile.firstName || '',
+        lastName: userProfile.lastName || '',
+        middleInitial: userProfile.middleInitial || '',
+        email: userProfile.email || currentUser?.email,
+        photo: userProfile.profilePic || currentUser?.photoURL,
+        role: userProfile.role || 'Student',
+        studentId: userProfile.studentId || '', // Don't fallback to UID if no studentId
+        course: userProfile.course || '',
+        yearLevel: userProfile.year || '',
+        section: userProfile.section || '',
+        contact: userProfile.contact || '',
+        address: userProfile.address || '',
+        sex: userProfile.sex || '',
+        age: userProfile.age || '',
+        birthdate: userProfile.birthdate || ''
+      };
+    }
+    
+    // Final fallback
+    console.log('❌ Using final fallback - no data from either collection');
     return {
       name: currentUser?.displayName || 'Student',
+      firstName: '',
+      lastName: '',
+      middleInitial: '',
       email: currentUser?.email,
       photo: currentUser?.photoURL,
-      role: 'Student'
+      role: 'Student',
+      studentId: '', // Don't show UID hash as Student ID
+      course: '',
+      yearLevel: '',
+      section: '',
+      contact: '',
+      address: '',
+      sex: '',
+      age: '',
+      birthdate: ''
     };
   };
 
   const userInfo = getUserDisplayInfo();
+
+  // Debug: Log user profile data
+  console.log('🔍 UserDashboard Debug:', {
+    userProfile: userProfile,
+    studentData: studentData,
+    userInfo: userInfo,
+    dataSource: studentData ? 'students collection' : userProfile ? 'users collection' : 'fallback'
+  });
 
   return (
     <Box sx={{ p: { xs: 0.5, sm: 1 }, pt: { xs: 2, sm: 3 }, pl: { xs: 2, sm: 3, md: 4 }, pr: { xs: 2, sm: 3, md: 4 } }}>

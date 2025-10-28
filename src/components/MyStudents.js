@@ -509,8 +509,14 @@ export default function MyStudents() {
               <InputLabel>Course</InputLabel>
               <Select
                 value={editForm.course}
-                onChange={(e) => setEditForm({ ...editForm, course: e.target.value })}
                 label="Course"
+                disabled
+                sx={{
+                  '& .MuiInputBase-input': {
+                    backgroundColor: 'rgba(0, 0, 0, 0.04)',
+                    cursor: 'default'
+                  }
+                }}
               >
                 <MenuItem value="">Select Course</MenuItem>
                 {courses.map((course) => (
@@ -519,6 +525,7 @@ export default function MyStudents() {
                   </MenuItem>
                 ))}
               </Select>
+              <FormHelperText>Course cannot be changed</FormHelperText>
             </FormControl>
             <FormControl fullWidth margin="normal">
               <InputLabel>Year Level</InputLabel>

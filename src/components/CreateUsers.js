@@ -16,7 +16,7 @@ import {
 import { createSingleUser } from '../utils/createUsers';
 
 const roles = ['Student', 'Admin', 'Teacher'];
-const courses = ["BSIT", "BSBA", "BSED", "BEED", "BSN"];
+const courses = ["BSIT", "BSBA", "BSCRIM", "BSHTM", "BEED", "BSED", "BSHM"];
 const years = ["1st Year", "2nd Year", "3rd Year", "4th Year"];
 
 export default function CreateUsers({ open, onClose }) {

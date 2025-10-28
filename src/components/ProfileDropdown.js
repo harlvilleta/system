@@ -106,14 +106,16 @@ const ProfileDropdown = ({
         name: userProfile.fullName || userProfile.firstName + ' ' + userProfile.lastName || currentUser?.displayName || 'User',
         email: userProfile.email || currentUser?.email,
         photo: userProfile.profilePic || userProfile.image || currentUser?.photoURL,
-        role: userProfile.role || 'User'
+        role: userProfile.role || 'User',
+        studentId: userProfile.studentId || ''
       };
     }
     return {
       name: currentUser?.displayName || 'User',
       email: currentUser?.email,
       photo: currentUser?.photoURL,
-      role: 'User'
+      role: 'User',
+      studentId: ''
     };
   };
 
@@ -231,6 +233,20 @@ const ProfileDropdown = ({
               >
                 {userInfo.role}
               </Typography>
+              {userInfo.studentId && (
+                <Typography 
+                  variant="caption" 
+                  sx={{ 
+                    color: isDark ? '#e0e0e0' : '#000000',
+                    fontWeight: 600,
+                    fontSize: '0.7rem',
+                    display: 'block',
+                    mt: 0.5
+                  }}
+                >
+                  ID: {userInfo.studentId}
+                </Typography>
+              )}
             </Box>
           </Box>
         </Box>

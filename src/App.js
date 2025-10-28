@@ -464,6 +464,23 @@ function App() {
           if (userDoc.exists()) {
             const userData = userDoc.data();
             const role = userData.role || 'Student';
+            
+            // Fix missing studentId field for existing users
+            if (!userData.studentId && role === 'Student') {
+              console.log('🔧 Fixing missing studentId for user:', user.uid);
+              try {
+                await setDoc(doc(db, 'users', user.uid), {
+                  studentId: user.uid // Use UID as Student ID
+                }, { merge: true });
+                
+                // Update userData to include studentId
+                userData.studentId = user.uid;
+                console.log('✅ studentId added to user document');
+              } catch (updateError) {
+                console.error('❌ Failed to update studentId:', updateError);
+              }
+            }
+            
             console.log('Setting user role from database:', role);
             setUserProfile(userData);
             setUserRole(role);
@@ -477,6 +494,7 @@ function App() {
               email: user.email,
               fullName: user.displayName || user.email,
               role: 'Student',
+              studentId: user.uid, // Use UID as Student ID for default users
               createdAt: new Date().toISOString(),
               updatedAt: new Date().toISOString(),
               lastLogin: new Date().toISOString(),
