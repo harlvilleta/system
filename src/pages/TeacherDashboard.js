@@ -127,9 +127,14 @@ export default function TeacherDashboard() {
     // Fetch violations
     const violationsQuery = query(collection(db, 'violations'));
     const violationsUnsubscribe = onSnapshot(violationsQuery, (snapshot) => {
-      const violationsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      setViolations(violationsData);
-      checkAndSetLoading();
+      try {
+        const violationsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        setViolations(violationsData);
+        checkAndSetLoading();
+      } catch (error) {
+        console.error('Error processing violations data:', error);
+        checkAndSetLoading();
+      }
     }, (error) => {
       console.error('Error fetching violations:', error);
       checkAndSetLoading();
@@ -499,33 +504,60 @@ export default function TeacherDashboard() {
 
   return (
     <Box sx={{ p: { xs: 0.5, sm: 1 }, pt: { xs: 2, sm: 3 }, pl: { xs: 2, sm: 3, md: 4 }, pr: { xs: 2, sm: 3, md: 4 } }}>
-      {/* Welcome Section */}
-      <Box sx={{ mb: 2, pt: { xs: 1, sm: 1 }, px: { xs: 0, sm: 0 } }}>
-        <Typography 
-          variant="h4" 
-          fontWeight={700} 
-          gutterBottom 
-          sx={{ 
-            color: theme.palette.mode === 'dark' ? '#ffffff' : '#800000',
-            wordBreak: 'break-word',
-            fontSize: { xs: '1.75rem', sm: '2.125rem' },
-            lineHeight: 1.2
-          }}
-        >
-          Hi Teacher {userInfo.name}
-        </Typography>
-        <Typography 
-          variant="body1" 
-          color="text.secondary" 
-          sx={{ 
-            fontSize: { xs: 16, sm: 18 },
-            wordBreak: 'break-word',
-            lineHeight: 1.4
-          }}
-        >
-          Welcome back, {userInfo.name}! Here's what's happening in your classroom today
-        </Typography>
-      </Box>
+      {loading ? (
+        <Box sx={{ 
+          display: 'flex', 
+          justifyContent: 'center', 
+          alignItems: 'center', 
+          height: '50vh',
+          flexDirection: 'column',
+          gap: 2
+        }}>
+          <Typography variant="h6" sx={{ color: theme.palette.mode === 'dark' ? '#ffffff' : '#800000' }}>
+            Loading Dashboard...
+          </Typography>
+          <Box sx={{ 
+            width: 40, 
+            height: 40, 
+            border: `4px solid ${theme.palette.mode === 'dark' ? '#ffffff' : '#800000'}`,
+            borderTop: `4px solid transparent`,
+            borderRadius: '50%',
+            animation: 'spin 1s linear infinite',
+            '@keyframes spin': {
+              '0%': { transform: 'rotate(0deg)' },
+              '100%': { transform: 'rotate(360deg)' }
+            }
+          }} />
+        </Box>
+      ) : (
+        <>
+          {/* Welcome Section */}
+          <Box sx={{ mb: 2, pt: { xs: 1, sm: 1 }, px: { xs: 0, sm: 0 } }}>
+            <Typography 
+              variant="h4" 
+              fontWeight={700} 
+              gutterBottom 
+              sx={{ 
+                color: theme.palette.mode === 'dark' ? '#ffffff' : '#800000',
+                wordBreak: 'break-word',
+                fontSize: { xs: '1.75rem', sm: '2.125rem' },
+                lineHeight: 1.2
+              }}
+            >
+              Hi Teacher {userInfo?.name || 'User'}
+            </Typography>
+            <Typography 
+              variant="body1" 
+              color="text.secondary" 
+              sx={{ 
+                fontSize: { xs: 16, sm: 18 },
+                wordBreak: 'break-word',
+                lineHeight: 1.4
+              }}
+            >
+              Welcome back, {userInfo?.name || 'User'}! Here's what's happening in your classroom today
+            </Typography>
+          </Box>
 
       {/* Statistics Cards - styled to match Admin Students list cards */}
       <Grid container spacing={{ xs: 1, sm: 2 }} sx={{ mb: 1 }}>
@@ -1037,6 +1069,8 @@ export default function TeacherDashboard() {
           </Button>
         </DialogActions>
       </Dialog>
+        </>
+      )}
     </Box>
   );
 } 

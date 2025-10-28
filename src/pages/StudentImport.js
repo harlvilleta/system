@@ -52,12 +52,11 @@ function StudentImport({ open, onClose, onImportSuccess }) {
 
   // Sample Excel data template for reference
   const sampleData = {
-    headers: ['Student Id', 'Firt Name', 'Last Name', 'Gmail', 'Sex'],
+    headers: ['ID', 'First Name', 'Last Name', 'Email', 'Sex'],
     sampleRows: [
-      ['SCC-22-00000921', 'Dell', 'Amiron', 'Dell@gmail.com', 'Male'],
-      ['SCC-22-00000922', 'Max', 'Talumpong', 'T.max@gmail.com', 'Male'],
-      ['SCC-22-00000923', 'John', 'Doe', '', ''], // Example with empty optional fields
-      ['SCC-22-00000924', 'Jane', 'Smith', 'jane@email.com', ''] // Example with partial optional fields
+      ['SCC-22-00000006', 'Joshie', 'Teves', 'teves@gmail.com', '-'],
+      ['SCC-22-00000007', 'Leevan', 'Canoy', 'seph@gmail.com', 'MALE'],
+      ['SCC-22-00000008', 'Andie', 'Lapay', 'andie@gmail.com', 'MALE']
     ]
   };
 
@@ -86,6 +85,8 @@ function StudentImport({ open, onClose, onImportSuccess }) {
       const worksheet = workbook.Sheets[sheetName];
       const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '' });
 
+      console.log('Raw Excel data:', jsonData);
+
       if (jsonData.length < 2) {
         setStatus({ type: 'error', message: 'File must have at least a header row and one data row' });
         return;
@@ -93,6 +94,7 @@ function StudentImport({ open, onClose, onImportSuccess }) {
 
       // Parse the data with flexible column mapping
       const students = parseExcelData(jsonData);
+      console.log('Parsed students:', students);
       setPreviewData(students);
       
       setStatus({ 
@@ -117,7 +119,9 @@ function StudentImport({ open, onClose, onImportSuccess }) {
       // Map Student ID (various possible names including typos)
       if ((cleanHeader.includes('student') && cleanHeader.includes('id')) || 
           cleanHeader === 'id' || cleanHeader === 'studentid' || cleanHeader === 'student_id' ||
-          cleanHeader === 'student id' || cleanHeader === 'studentid') {
+          cleanHeader === 'student id' || cleanHeader === 'studentid' ||
+          cleanHeader === 'student-id' || cleanHeader === 'student_id' ||
+          cleanHeader === 'studentnumber' || cleanHeader === 'student_number') {
         columnMap.studentId = index;
       }
       // Map First Name (handle typos like "Firt Name")
@@ -199,6 +203,21 @@ function StudentImport({ open, onClose, onImportSuccess }) {
       return { valid: false, error: 'Last Name is required' };
     }
     
+    // Clean up the data - remove extra spaces and handle empty values
+    student.studentId = student.studentId.trim();
+    student.firstName = student.firstName.trim();
+    student.lastName = student.lastName.trim();
+    student.email = student.email ? student.email.trim() : '';
+    student.sex = student.sex ? student.sex.trim() : '';
+    
+    // Handle common empty indicators
+    if (student.email === '-' || student.email === 'N/A' || student.email === 'n/a') {
+      student.email = '';
+    }
+    if (student.sex === '-' || student.sex === 'N/A' || student.sex === 'n/a') {
+      student.sex = '';
+    }
+    
     // Email and Gender are optional - no validation needed
     // Duplicate Student ID validation is handled in the import process
     
@@ -240,21 +259,27 @@ function StudentImport({ open, onClose, onImportSuccess }) {
       setProgress(((i + 1) / previewData.length) * 100);
 
       try {
+        console.log(`Processing student ${i + 1}:`, student);
+        
         // Validate student data
         const validation = validateStudent(student);
         if (!validation.valid) {
+          console.log(`Validation failed for student ${i + 1}:`, validation.error);
           failedCount++;
           errors.push({
             row: student.rowNumber,
-            student: `${student.firstName} ${student.lastName}`,
+            student: `${student.firstName || 'Unknown'} ${student.lastName || 'Unknown'}`,
             error: validation.error
           });
           continue;
         }
+        
+        console.log(`Student ${i + 1} validation passed:`, student);
 
         // Check for duplicates - treat as invalid/error
         const isDuplicate = await checkDuplicate(student.studentId);
         if (isDuplicate) {
+          console.log(`Duplicate found for student ${i + 1}:`, student.studentId);
           failedCount++;
           errors.push({
             row: student.rowNumber,
@@ -263,6 +288,8 @@ function StudentImport({ open, onClose, onImportSuccess }) {
           });
           continue;
         }
+        
+        console.log(`No duplicate found for student ${i + 1}, proceeding with import...`);
 
         // Prepare student data for Firebase
         const studentData = {
@@ -285,9 +312,12 @@ function StudentImport({ open, onClose, onImportSuccess }) {
           isRegistered: false,
           source: 'excel_import'
         };
+        
+        console.log(`Prepared student data for ${i + 1}:`, studentData);
 
         // Save to Firestore
         await setDoc(doc(db, 'students', studentData.id), studentData);
+        console.log(`Successfully saved student ${i + 1} to database`);
         
         // Log activity
         await logActivity({ 
@@ -296,12 +326,14 @@ function StudentImport({ open, onClose, onImportSuccess }) {
         });
 
         successCount++;
+        console.log(`Student ${i + 1} imported successfully. Success count: ${successCount}`);
       } catch (error) {
+        console.error(`Error importing student ${i + 1}:`, error);
         failedCount++;
         errors.push({
           row: student.rowNumber,
-          student: `${student.firstName} ${student.lastName}`,
-          error: error.message || 'Unknown error'
+          student: `${student.firstName || 'Unknown'} ${student.lastName || 'Unknown'}`,
+          error: error.message || 'Unknown error occurred during import'
         });
       }
     }
@@ -318,6 +350,18 @@ function StudentImport({ open, onClose, onImportSuccess }) {
         type: 'success',
         message: `Successfully imported ${successCount} student(s)! ${skippedCount > 0 ? `${skippedCount} skipped.` : ''}`
       });
+      
+      // Debug: Check if students were actually saved
+      console.log('🔍 Verifying imported students in database...');
+      try {
+        const verificationSnapshot = await getDocs(collection(db, 'students'));
+        const importedStudents = verificationSnapshot.docs
+          .map(doc => ({ id: doc.id, ...doc.data() }))
+          .filter(student => student.source === 'excel_import');
+        console.log('✅ Found imported students in database:', importedStudents);
+      } catch (error) {
+        console.error('❌ Error verifying imported students:', error);
+      }
       
       if (onImportSuccess) {
         onImportSuccess();

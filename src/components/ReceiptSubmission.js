@@ -847,7 +847,7 @@ export default function ReceiptSubmission() {
                     />
                     <Box sx={{ mt: 3, display: 'flex', justifyContent: 'center' }}>
                       <Chip 
-                        label={`${receiptImage.name} (${(receiptImage.size / 1024).toFixed(2)} KB)`}
+                        label={receiptImage ? `${receiptImage.name} (${(receiptImage.size / 1024).toFixed(2)} KB)` : 'Receipt image'}
                         size="medium"
                         color="primary"
                         sx={{

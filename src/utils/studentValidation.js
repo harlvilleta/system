@@ -1,4 +1,4 @@
-import { collection, query, where, getDocs } from 'firebase/firestore';
+import { collection, query, where, getDocs, getDoc, doc } from 'firebase/firestore';
 import { db } from '../firebase';
 
 /**
@@ -142,11 +142,11 @@ export const testStudentIdValidation = async (studentId) => {
   
   try {
     // Check students collection
-    const studentsQuery = query(collection(db, "students"), where("id", "==", studentId.trim()));
+    const studentsQuery = query(collection(db, "students"), where("studentId", "==", studentId.trim()));
     const studentsSnapshot = await getDocs(studentsQuery);
     
     console.log("📋 Students collection results:", {
-      query: `where("id", "==", "${studentId.trim()}")`,
+      query: `where("studentId", "==", "${studentId.trim()}")`,
       count: studentsSnapshot.size,
       docs: studentsSnapshot.docs.map(doc => ({ id: doc.id, data: doc.data() }))
     });
@@ -184,45 +184,67 @@ export const validateStudentIdForRegistration = async (studentId) => {
 
     console.log("🔍 Validating student ID for registration:", studentId.trim());
     
-    // Check if student exists in the students collection (admin-added records)
-    // Look for both "studentId" field and "id" field for compatibility
-    const studentsQuery = query(collection(db, "students"), where("studentId", "==", studentId.trim()));
-    const studentsSnapshot = await getDocs(studentsQuery);
-    
-    // Also check by document ID (id field) as fallback
-    const studentsByIdQuery = query(collection(db, "students"), where("id", "==", studentId.trim()));
-    const studentsByIdSnapshot = await getDocs(studentsByIdQuery);
-    
     // Check if student exists in the users collection (already registered)
     const usersQuery = query(collection(db, "users"), where("studentId", "==", studentId.trim()));
     const usersSnapshot = await getDocs(usersQuery);
     
-    const existsInStudents = !studentsSnapshot.empty || !studentsByIdSnapshot.empty;
-    const existsInUsers = !usersSnapshot.empty;
-    
-    console.log("📊 Student ID registration validation result:", { 
-      studentId: studentId.trim(), 
-      existsInStudents, 
-      existsInUsers,
-      studentsCount: studentsSnapshot.size,
-      studentsByIdCount: studentsByIdSnapshot.size,
-      usersCount: usersSnapshot.size
-    });
-    
-    // Debug: Log the actual student records found
-    if (studentsSnapshot.size > 0) {
-      console.log("🔍 Found student records by studentId:", studentsSnapshot.docs.map(doc => ({ id: doc.id, data: doc.data() })));
-    }
-    if (studentsByIdSnapshot.size > 0) {
-      console.log("🔍 Found student records by id:", studentsByIdSnapshot.docs.map(doc => ({ id: doc.id, data: doc.data() })));
-    }
-    
-    if (existsInUsers) {
+    if (!usersSnapshot.empty) {
       console.log("❌ Student ID already registered in users collection");
       return {
         isValid: false,
         error: `Student ID ${studentId} is already registered. Please contact your administrator if you believe this is an error.`
       };
+    }
+    
+    // Check if student exists in the students collection (admin-added records)
+    // First try by studentId field - check all students with this ID
+    const studentsQuery = query(
+      collection(db, "students"), 
+      where("studentId", "==", studentId.trim())
+    );
+    const studentsSnapshot = await getDocs(studentsQuery);
+    
+    // Filter out registered students (isRegistered === true)
+    const unregisteredStudents = studentsSnapshot.docs.filter(doc => {
+      const data = doc.data();
+      return data.isRegistered !== true; // Consider undefined/null as unregistered
+    });
+    
+    // Also try by document ID (since imported students use studentId as document ID)
+    let studentsByIdSnapshot = { empty: true, docs: [] };
+    try {
+      const docRef = doc(db, "students", studentId.trim());
+      const docSnap = await getDoc(docRef);
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        // Only consider unregistered students
+        if (data.isRegistered !== true) {
+          studentsByIdSnapshot = { empty: false, docs: [docSnap] };
+        }
+      }
+    } catch (error) {
+      console.log("Document ID check failed (this is normal for invalid IDs):", error.message);
+    }
+    
+    const existsInStudents = unregisteredStudents.length > 0 || !studentsByIdSnapshot.empty;
+    
+    console.log("📊 Student ID registration validation result:", { 
+      studentId: studentId.trim(), 
+      existsInStudents, 
+      existsInUsers: !usersSnapshot.empty,
+      totalStudentsFound: studentsSnapshot.size,
+      unregisteredStudentsCount: unregisteredStudents.length,
+      studentsByIdCount: studentsByIdSnapshot.empty ? 0 : 1,
+      usersCount: usersSnapshot.size
+    });
+    
+    // Debug: Log the actual student records found
+    if (studentsSnapshot.size > 0) {
+      console.log("🔍 Found student records by studentId field:", studentsSnapshot.docs.map(doc => ({ id: doc.id, data: doc.data() })));
+      console.log("🔍 Unregistered students:", unregisteredStudents.map(doc => ({ id: doc.id, data: doc.data() })));
+    }
+    if (!studentsByIdSnapshot.empty) {
+      console.log("🔍 Found student record by document ID:", { id: studentsByIdSnapshot.docs[0].id, data: studentsByIdSnapshot.docs[0].data() });
     }
     
     if (existsInStudents) {
@@ -244,6 +266,64 @@ export const validateStudentIdForRegistration = async (studentId) => {
       isValid: false,
       error: "Error validating student ID. Please try again."
     };
+  }
+};
+
+/**
+ * Debug function to check what's in the database for a specific student ID
+ * @param {string} studentId - The student ID to debug
+ * @returns {Promise<{debug: object}>}
+ */
+export const debugStudentId = async (studentId) => {
+  try {
+    console.log('🔍 DEBUG: Checking student ID:', studentId);
+    
+    // Check users collection
+    const usersQuery = query(collection(db, "users"), where("studentId", "==", studentId.trim()));
+    const usersSnapshot = await getDocs(usersQuery);
+    
+    // Check students collection by field
+    const studentsQuery = query(collection(db, "students"), where("studentId", "==", studentId.trim()));
+    const studentsSnapshot = await getDocs(studentsQuery);
+    
+    // Check students collection by document ID
+    let docExists = false;
+    let docData = null;
+    try {
+      const docRef = doc(db, "students", studentId.trim());
+      const docSnap = await getDoc(docRef);
+      docExists = docSnap.exists();
+      if (docExists) {
+        docData = docSnap.data();
+      }
+    } catch (error) {
+      console.log('Document check error:', error.message);
+    }
+    
+    const debugInfo = {
+      studentId: studentId.trim(),
+      usersCollection: {
+        found: !usersSnapshot.empty,
+        count: usersSnapshot.size,
+        docs: usersSnapshot.docs.map(doc => ({ id: doc.id, data: doc.data() }))
+      },
+      studentsCollectionByField: {
+        found: !studentsSnapshot.empty,
+        count: studentsSnapshot.size,
+        docs: studentsSnapshot.docs.map(doc => ({ id: doc.id, data: doc.data() }))
+      },
+      studentsCollectionByDocId: {
+        exists: docExists,
+        data: docData
+      }
+    };
+    
+    console.log('🔍 DEBUG RESULT:', debugInfo);
+    return { debug: debugInfo };
+    
+  } catch (error) {
+    console.error('❌ DEBUG ERROR:', error);
+    return { debug: { error: error.message } };
   }
 };
 
@@ -352,32 +432,71 @@ export const getStudentById = async (studentId) => {
     }
 
     // Then check in students collection (manually added students)
-    const studentsQuery = query(collection(db, "students"), where("studentId", "==", studentId.trim()));
+    // First try by studentId field - check all students with this ID
+    const studentsQuery = query(
+      collection(db, "students"), 
+      where("studentId", "==", studentId.trim())
+    );
     const studentsSnapshot = await getDocs(studentsQuery);
+    
+    // Filter out registered students (isRegistered === true)
+    const unregisteredStudents = studentsSnapshot.docs.filter(doc => {
+      const data = doc.data();
+      return data.isRegistered !== true; // Consider undefined/null as unregistered
+    });
     
     console.log('📊 Students collection query result:', {
       studentId: studentId.trim(),
       found: !studentsSnapshot.empty,
-      count: studentsSnapshot.size
+      totalCount: studentsSnapshot.size,
+      unregisteredCount: unregisteredStudents.length
     });
     
-    if (!studentsSnapshot.empty) {
-      const studentDoc = studentsSnapshot.docs[0];
+    if (unregisteredStudents.length > 0) {
+      const studentDoc = unregisteredStudents[0];
       const studentData = studentDoc.data();
-      console.log('✅ Found student in students collection:', studentData);
+      console.log('✅ Found unregistered student in students collection by field:', studentData);
       return {
         student: {
           id: studentDoc.id,
           studentId: studentData.studentId,
           firstName: studentData.firstName,
           lastName: studentData.lastName,
-          fullName: studentData.name || `${studentData.firstName} ${studentData.lastName}`,
+          fullName: studentData.fullName || `${studentData.firstName} ${studentData.lastName}`,
           email: studentData.email,
           course: studentData.course,
-          year: studentData.yearLevel || studentData.year,
+          year: studentData.year,
           isRegisteredUser: false
         }
       };
+    }
+    
+    // Also try by document ID (for imported students) - only unregistered
+    try {
+      const docRef = doc(db, "students", studentId.trim());
+      const docSnap = await getDoc(docRef);
+      if (docSnap.exists()) {
+        const studentData = docSnap.data();
+        // Only return if student is unregistered
+        if (studentData.isRegistered !== true) {
+          console.log('✅ Found unregistered student in students collection by document ID:', studentData);
+          return {
+            student: {
+              id: docSnap.id,
+              studentId: studentData.studentId,
+              firstName: studentData.firstName,
+              lastName: studentData.lastName,
+              fullName: studentData.fullName || `${studentData.firstName} ${studentData.lastName}`,
+              email: studentData.email,
+              course: studentData.course,
+              year: studentData.year,
+              isRegisteredUser: false
+            }
+          };
+        }
+      }
+    } catch (error) {
+      console.log('Document ID check failed (this is normal for invalid IDs):', error.message);
     }
 
     console.log('❌ Student not found in any collection');

@@ -62,12 +62,12 @@ import {
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { useTheme as useCustomTheme } from '../contexts/ThemeContext';
-import { validateStudentIdForRegistration } from '../utils/studentValidation';
+import { validateStudentIdForRegistration, getStudentById, debugStudentId } from '../utils/studentValidation';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { auth, db } from '../firebase';
 import { checkEmailAvailability } from '../utils/studentValidation';
 import { createSingleUser } from '../utils/createUsers';
-import { doc, getDoc, deleteDoc, updateDoc } from 'firebase/firestore';
+import { doc, getDoc, deleteDoc, updateDoc, collection, query, where, getDocs } from 'firebase/firestore';
 
 export default function LandingPage() {
   const { isDark } = useCustomTheme();
@@ -218,7 +218,7 @@ export default function LandingPage() {
     }
 
     // Check for email errors
-    if (emailError) {
+    if (emailError && !emailError.startsWith('✅')) {
       setSnackbar({ 
         open: true, 
         message: 'Please fix the email error', 
@@ -245,15 +245,6 @@ export default function LandingPage() {
       return;
     }
 
-    if (registerForm.password !== registerForm.confirmPassword) {
-      setSnackbar({ 
-        open: true, 
-        message: 'Passwords do not match', 
-        severity: 'error' 
-      });
-      return;
-    }
-
     // Role-specific validation
     if (registerForm.role === 'Student') {
       if (!registerForm.studentId) {
@@ -264,7 +255,7 @@ export default function LandingPage() {
         });
         return;
       }
-      if (studentIdError) {
+      if (studentIdError && !studentIdError.startsWith('✅')) {
         setSnackbar({ 
           open: true, 
           message: 'Please fix the Student ID error', 
@@ -336,9 +327,10 @@ export default function LandingPage() {
         setSnackbar({ 
           open: true, 
           message: transferMessage 
-            ? `Account created successfully! ${transferMessage}` 
-            : 'Account created successfully! Please sign in.', 
-          severity: 'success' 
+            ? transferMessage
+            : '✅ Account created successfully! Please sign in.', 
+          severity: 'success',
+          autoHideDuration: 8000 // Show longer for transfer messages
         });
         
         // Reset form
@@ -379,26 +371,46 @@ export default function LandingPage() {
     try {
       console.log('🔄 Checking for unregistered student with ID:', studentId);
       
-      // Query students collection by studentId field, not document ID
+      // Query students collection by studentId field - check all students with this ID
       const studentsQuery = query(
         collection(db, 'students'),
-        where('studentId', '==', studentId),
-        where('isRegistered', '==', false)
+        where('studentId', '==', studentId)
       );
       const studentsSnapshot = await getDocs(studentsQuery);
       
-      // Also check by document ID (id field) as fallback
-      const studentsByIdQuery = query(
-        collection(db, 'students'),
-        where('id', '==', studentId),
-        where('isRegistered', '==', false)
-      );
-      const studentsByIdSnapshot = await getDocs(studentsByIdQuery);
+      // Filter out registered students (isRegistered === true)
+      const unregisteredStudents = studentsSnapshot.docs.filter(doc => {
+        const data = doc.data();
+        return data.isRegistered !== true; // Consider undefined/null as unregistered
+      });
       
-      if (!studentsSnapshot.empty || !studentsByIdSnapshot.empty) {
-        const studentDoc = (!studentsSnapshot.empty) ? studentsSnapshot.docs[0] : studentsByIdSnapshot.docs[0];
-        const studentData = studentDoc.data();
-        console.log('📋 Found unregistered student data:', studentData);
+      // Also check by document ID (for imported students)
+      let studentDoc = null;
+      let studentData = null;
+      
+      if (unregisteredStudents.length > 0) {
+        studentDoc = unregisteredStudents[0];
+        studentData = studentDoc.data();
+        console.log('📋 Found unregistered student data by field:', studentData);
+      } else {
+        // Try by document ID
+        try {
+          const docRef = doc(db, 'students', studentId);
+          const docSnap = await getDoc(docRef);
+          if (docSnap.exists()) {
+            const data = docSnap.data();
+            if (data.isRegistered !== true) {
+              studentDoc = docSnap;
+              studentData = data;
+              console.log('📋 Found unregistered student data by document ID:', studentData);
+            }
+          }
+        } catch (error) {
+          console.log('Document ID check failed:', error.message);
+        }
+      }
+      
+      if (studentDoc && studentData) {
         
         // Update the user data with the existing student information
         const enhancedUserData = {
@@ -435,7 +447,7 @@ export default function LandingPage() {
         
         return {
           enhancedData: enhancedUserData,
-          transferMessage: `Student data transferred from unregistered list. Student ${studentData.firstName} ${studentData.lastName} (${studentId}) is now registered.`
+          transferMessage: `✅ Registration successful! Student ${studentData.firstName} ${studentData.lastName} with Student ID: ${studentId} has been moved from unregistered to registered students. You can now sign in with your account.`
         };
       } else {
         console.log('ℹ️ No unregistered student found with ID:', studentId);
@@ -458,11 +470,31 @@ export default function LandingPage() {
     setRegisterForm({...registerForm, studentId: value});
     
     if (value) {
+      console.log('🔍 Testing student ID validation for:', value);
+      
+      // First run debug to see what's in the database
+      const debugResult = await debugStudentId(value);
+      console.log('🔍 DEBUG INFO:', debugResult.debug);
+      
       const result = await validateStudentIdForRegistration(value);
+      console.log('📊 Validation result:', result);
+      
       if (!result.isValid) {
         setStudentIdError(result.error);
       } else {
-        setStudentIdError('');
+        // Get student info to show name
+        try {
+          const studentInfo = await getStudentById(value);
+          console.log('📊 Student info result:', studentInfo);
+          if (studentInfo.student) {
+            setStudentIdError(`✅ Valid Student ID found: ${studentInfo.student.firstName} ${studentInfo.student.lastName}`);
+          } else {
+            setStudentIdError('✅ Valid Student ID - Ready for registration');
+          }
+        } catch (error) {
+          console.error('❌ Error getting student info:', error);
+          setStudentIdError('✅ Valid Student ID - Ready for registration');
+        }
       }
     } else {
       setStudentIdError('');

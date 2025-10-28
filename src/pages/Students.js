@@ -646,33 +646,41 @@ function LostFound() {
       try {
         console.log("Fetching students from Firebase...");
         
-        // Fetch from 'students' collection (manually added students)
+        // Fetch from 'students' collection (only unregistered students)
         const studentsQuerySnapshot = await getDocs(collection(db, "students"));
-        const studentsData = studentsQuerySnapshot.docs.map(doc => {
-          const data = doc.data();
-          return {
-            id: doc.id,
-            firstName: data.firstName || '',
-            lastName: data.lastName || '',
-            fullName: data.fullName || `${data.firstName || ''} ${data.lastName || ''}`.trim(),
-            email: data.email || '',
-            course: data.course || '',
-            year: data.year || '',
-            section: data.section || '',
-            studentId: data.studentId || data.id || doc.id, // Use actual studentId if available, otherwise fallback to document id
-            sex: data.sex || '',
-            age: data.age || '',
-            birthdate: data.birthdate || '',
-            contact: data.contact || '',
-            profilePic: data.profilePic || '',
-            createdAt: data.createdAt || '',
-            updatedAt: data.updatedAt || '',
-            isRegisteredUser: Boolean(data.isRegistered)
-          };
-        }).filter(student => !student.isRegistered);
+        const unregisteredStudentsData = studentsQuerySnapshot.docs
+          .filter(doc => doc.data().isRegistered !== true) // Only unregistered students
+          .map(doc => {
+            const data = doc.data();
+            return {
+              id: doc.id,
+              firstName: data.firstName || '',
+              lastName: data.lastName || '',
+              fullName: data.fullName || `${data.firstName || ''} ${data.lastName || ''}`.trim(),
+              email: data.email || '',
+              course: data.course || '',
+              year: data.year || '',
+              section: data.section || '',
+              studentId: data.studentId || data.id || doc.id, // Use actual studentId if available, otherwise fallback to document id
+              sex: data.sex || '',
+              age: data.age || '',
+              birthdate: data.birthdate || '',
+              contact: data.contact || '',
+              profilePic: data.profilePic || '',
+              createdAt: data.createdAt || '',
+              updatedAt: data.updatedAt || '',
+              isRegisteredUser: false // These are unregistered students
+            };
+          });
         
         // Fetch from 'users' collection (registered students)
         const usersQuerySnapshot = await getDocs(query(collection(db, "users"), where("role", "==", "Student")));
+        console.log("🔍 Debug: All users with role=Student:", usersQuerySnapshot.docs.map(doc => ({
+          id: doc.id,
+          studentId: doc.data().studentId,
+          email: doc.data().email,
+          fullName: doc.data().fullName
+        })));
         const registeredStudentsData = usersQuerySnapshot.docs.map(doc => {
           const data = doc.data();
           return {
@@ -696,8 +704,8 @@ function LostFound() {
           };
         });
         
-        // Combine both collections
-        const allStudents = [...studentsData, ...registeredStudentsData];
+        // Combine both collections (no duplicates since we filter unregistered students)
+        const allStudents = [...unregisteredStudentsData, ...registeredStudentsData];
         
         // Sort students by creation date (newest first)
         const sortedStudents = allStudents.sort((a, b) => {
@@ -707,8 +715,18 @@ function LostFound() {
         });
         
         console.log("Students fetched successfully:", sortedStudents.length);
-        console.log("Manual students:", studentsData.length);
+        console.log("Unregistered students:", unregisteredStudentsData.length);
         console.log("Registered students:", registeredStudentsData.length);
+        
+        // Debug: Check for specific student ID
+        const targetStudentId = "SCC-22-00004444";
+        const foundStudent = sortedStudents.find(s => s.studentId === targetStudentId);
+        if (foundStudent) {
+          console.log(`🎯 Found ${targetStudentId}:`, foundStudent);
+        } else {
+          console.log(`❌ Student ${targetStudentId} not found in combined list`);
+          console.log("Available student IDs:", sortedStudents.map(s => s.studentId).filter(id => id));
+        }
         setStudents(sortedStudents);
       } catch (error) {
         console.error("Error fetching students:", error);
@@ -1081,30 +1099,32 @@ function CourseDashboard({
       try {
         console.log(`Fetching ${courseName} students from Firebase...`);
         
-        // Fetch from 'students' collection (manually added students)
+        // Fetch from 'students' collection (only unregistered students)
         const studentsQuerySnapshot = await getDocs(collection(db, "students"));
-        const studentsData = studentsQuerySnapshot.docs.map(doc => {
-          const data = doc.data();
-          return {
-            id: doc.id,
-            firstName: data.firstName || '',
-            lastName: data.lastName || '',
-            fullName: data.fullName || `${data.firstName || ''} ${data.lastName || ''}`.trim(),
-            email: data.email || '',
-            course: data.course || '',
-            year: data.year || '',
-            section: data.section || '',
-            studentId: data.studentId || data.id || doc.id, // Use actual studentId if available, otherwise fallback to document id
-            sex: data.sex || '',
-            age: data.age || '',
-            birthdate: data.birthdate || '',
-            contact: data.contact || '',
-            profilePic: data.profilePic || '',
-            createdAt: data.createdAt || '',
-            updatedAt: data.updatedAt || '',
-            isRegisteredUser: Boolean(data.isRegistered)
-          };
-        }).filter(student => !student.isRegistered);
+        const unregisteredStudentsData = studentsQuerySnapshot.docs
+          .filter(doc => doc.data().isRegistered !== true) // Only unregistered students
+          .map(doc => {
+            const data = doc.data();
+            return {
+              id: doc.id,
+              firstName: data.firstName || '',
+              lastName: data.lastName || '',
+              fullName: data.fullName || `${data.firstName || ''} ${data.lastName || ''}`.trim(),
+              email: data.email || '',
+              course: data.course || '',
+              year: data.year || '',
+              section: data.section || '',
+              studentId: data.studentId || data.id || doc.id, // Use actual studentId if available, otherwise fallback to document id
+              sex: data.sex || '',
+              age: data.age || '',
+              birthdate: data.birthdate || '',
+              contact: data.contact || '',
+              profilePic: data.profilePic || '',
+              createdAt: data.createdAt || '',
+              updatedAt: data.updatedAt || '',
+              isRegisteredUser: false // These are unregistered students
+            };
+          });
         
         // Fetch from 'users' collection (registered students)
         const usersQuerySnapshot = await getDocs(query(collection(db, "users"), where("role", "==", "Student")));
@@ -1126,8 +1146,8 @@ function CourseDashboard({
           };
         });
         
-        // Combine both collections and filter by course
-        const allStudents = [...studentsData, ...registeredStudentsData];
+        // Combine both collections and filter by course (no duplicates since we filter unregistered students)
+        const allStudents = [...unregisteredStudentsData, ...registeredStudentsData];
         const courseStudents = allStudents.filter(student => student.course === courseName);
         
         // Sort students by name
@@ -1590,16 +1610,32 @@ function CourseDashboard({
                     </Typography>
                   </TableCell>
                   <TableCell sx={{ padding: '12px 16px', minWidth: '100px', maxWidth: '100px' }}>
-                    <Chip 
-                      label={student.isRegisteredUser ? 'Registered' : 'Unregistered'} 
-                      size="small" 
-                      sx={{ 
-                        bgcolor: student.isRegisteredUser ? '#4caf50' : '#ff9800',
-                        color: 'white',
-                        fontSize: '0.75rem',
-                        height: 24
-                      }} 
-                    />
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                      <Chip 
+                        label={student.isRegisteredUser ? 'Registered' : 'Unregistered'} 
+                        size="small" 
+                        sx={{ 
+                          bgcolor: student.isRegisteredUser ? '#4caf50' : '#ff9800',
+                          color: 'white',
+                          fontSize: '0.75rem',
+                          height: 24,
+                          fontWeight: 'bold'
+                        }} 
+                      />
+                      {student.transferredFromStudents && (
+                        <Chip 
+                          label="Transferred" 
+                          size="small" 
+                          sx={{ 
+                            bgcolor: '#2196f3',
+                            color: 'white',
+                            fontSize: '0.65rem',
+                            height: 20,
+                            fontWeight: 'bold'
+                          }} 
+                        />
+                      )}
+                    </Box>
                   </TableCell>
                   <TableCell sx={{ padding: '12px 16px', minWidth: '120px', maxWidth: '120px' }}>
                     <Stack direction="row" spacing={1}>
@@ -1720,11 +1756,12 @@ function StudentList({
             profilePic: data.profilePic || '',
             createdAt: data.createdAt || '',
             updatedAt: data.updatedAt || '',
-            isRegisteredUser: Boolean(data.isRegistered) // Ensure boolean value
+            isRegisteredUser: data.isRegistered === true // Check the actual isRegistered field
           };
-        }).filter(student => !student.isRegistered); // Only show unregistered students
+        }); // Only show unregistered students
         
-        console.log('📋 Unregistered students updated:', studentsData.length);
+        console.log('📋 All students from collection:', snapshot.docs.map(doc => ({ id: doc.id, data: doc.data() })));
+        console.log('📋 Unregistered students after filtering:', studentsData.length);
         
         // Update unregistered students in state
         setStudents(prevStudents => {
@@ -1770,7 +1807,9 @@ function StudentList({
             profilePic: data.profilePic || '',
             createdAt: data.createdAt || '',
             updatedAt: data.updatedAt || '',
-            isRegisteredUser: true // Flag to identify registered users
+            isRegisteredUser: true, // Flag to identify registered users
+            transferredFromStudents: data.transferredFromStudents || false,
+            transferDate: data.transferDate || null
           };
         });
         
@@ -1887,7 +1926,7 @@ function StudentList({
       filtered = filtered.filter(student => {
         // Ensure isRegisteredUser is properly defined (default to false if undefined)
         const isRegistered = Boolean(student.isRegisteredUser);
-        console.log(`Student ${student.fullName || `${student.firstName || ''} ${student.lastName || ''}`.trim()}: isRegisteredUser=${student.isRegisteredUser}, isRegistered=${isRegistered}`);
+        console.log(`Student ${student.fullName || `${student.firstName || ''} ${student.lastName || ''}`.trim()} (ID: ${student.studentId}): isRegisteredUser=${student.isRegisteredUser}, isRegistered=${isRegistered}`);
         return isRegistered;
       });
       console.log('📊 Students after registered filter:', filtered.length);
@@ -3730,7 +3769,7 @@ export default function Students() {
         open={openViewDetails} 
         onClose={() => setOpenViewDetails(false)} 
         maxWidth="md"
-        fullWidth={false}
+        fullWidth={true}
       >
         <DialogTitle>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -3744,220 +3783,150 @@ export default function Students() {
         </DialogTitle>
         <DialogContent>
           {studentToView && (
-            <Box>
-              <Grid container spacing={1.5}>
-                {/* Profile Image */}
-                <Grid item xs={12} sx={{ textAlign: 'center', mb: 1 }}>
-                  {studentToView.image ? (
-                    <Avatar src={studentToView.image} sx={{ width: 70, height: 70, mx: 'auto' }} />
-                  ) : (
-                    <Avatar sx={{ width: 70, height: 70, mx: 'auto', bgcolor: 'primary.main', fontSize: '1.3rem' }}>
-                      {studentToView.firstName?.charAt(0)}{studentToView.lastName?.charAt(0)}
-                    </Avatar>
+            <Box sx={{ p: 2 }}>
+              {/* Profile Section */}
+              <Box sx={{ textAlign: 'center', mb: 3 }}>
+                {studentToView.image ? (
+                  <Avatar src={studentToView.image} sx={{ width: 80, height: 80, mx: 'auto', mb: 2 }} />
+                ) : (
+                  <Avatar sx={{ width: 80, height: 80, mx: 'auto', mb: 2, bgcolor: '#800000', fontSize: '1.5rem' }}>
+                    {studentToView.firstName?.charAt(0)}{studentToView.lastName?.charAt(0)}
+                  </Avatar>
+                )}
+                <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#800000', mb: 1 }}>
+                  {`${studentToView.firstName || ''} ${studentToView.lastName || ''}`.trim() || 'N/A'}
+                </Typography>
+                <Typography variant="body2" sx={{ color: 'text.secondary', mb: 1 }}>
+                  {studentToView.email || 'N/A'}
+                </Typography>
+              </Box>
+
+              {/* Student Information */}
+              <Box sx={{ bgcolor: 'rgba(128,0,0,0.05)', borderRadius: 2, p: 2 }}>
+                <Typography variant="subtitle1" sx={{ fontWeight: 'bold', color: '#800000', mb: 2 }}>
+                  Student Information
+                </Typography>
+                
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Typography variant="body2" sx={{ fontWeight: 'medium', color: 'text.secondary' }}>
+                      Student ID:
+                    </Typography>
+                    <Typography variant="body2" sx={{ fontWeight: 'bold', fontFamily: 'monospace' }}>
+                      {studentToView.studentId || 'N/A'}
+                    </Typography>
+                  </Box>
+
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Typography variant="body2" sx={{ fontWeight: 'medium', color: 'text.secondary' }}>
+                      Last Name:
+                    </Typography>
+                    <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
+                      {studentToView.lastName || 'N/A'}
+                    </Typography>
+                  </Box>
+
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Typography variant="body2" sx={{ fontWeight: 'medium', color: 'text.secondary' }}>
+                      First Name:
+                    </Typography>
+                    <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
+                      {studentToView.firstName || 'N/A'}
+                    </Typography>
+                  </Box>
+
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Typography variant="body2" sx={{ fontWeight: 'medium', color: 'text.secondary' }}>
+                      Middle Initial:
+                    </Typography>
+                    <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
+                      {studentToView.middleInitial || 'N/A'}
+                    </Typography>
+                  </Box>
+
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Typography variant="body2" sx={{ fontWeight: 'medium', color: 'text.secondary' }}>
+                      Sex:
+                    </Typography>
+                    <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
+                      {studentToView.sex || 'N/A'}
+                    </Typography>
+                  </Box>
+
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Typography variant="body2" sx={{ fontWeight: 'medium', color: 'text.secondary' }}>
+                      Age:
+                    </Typography>
+                    <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
+                      {studentToView.age || 'N/A'}
+                    </Typography>
+                  </Box>
+
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Typography variant="body2" sx={{ fontWeight: 'medium', color: 'text.secondary' }}>
+                      Birthday:
+                    </Typography>
+                    <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
+                      {studentToView.birthdate ? new Date(studentToView.birthdate).toLocaleDateString('en-US', { 
+                        year: 'numeric', 
+                        month: 'long', 
+                        day: 'numeric' 
+                      }) : 'N/A'}
+                    </Typography>
+                  </Box>
+
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Typography variant="body2" sx={{ fontWeight: 'medium', color: 'text.secondary' }}>
+                      Contact Number:
+                    </Typography>
+                    <Typography variant="body2" sx={{ fontWeight: 'bold', fontFamily: 'monospace' }}>
+                      {studentToView.contact || 'N/A'}
+                    </Typography>
+                  </Box>
+
+                  {/* Transfer Information */}
+                  {studentToView.transferredFromStudents && (
+                    <>
+                      <Box sx={{ mt: 2, pt: 2, borderTop: '1px solid', borderColor: 'divider' }}>
+                        <Typography variant="subtitle2" sx={{ fontWeight: 'bold', color: '#2196f3', mb: 1 }}>
+                          Transfer Information
+                        </Typography>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <Typography variant="body2" sx={{ fontWeight: 'medium', color: 'text.secondary' }}>
+                            Transfer Status:
+                          </Typography>
+                          <Chip 
+                            label="Transferred from Unregistered" 
+                            size="small" 
+                            sx={{ 
+                              bgcolor: '#2196f3',
+                              color: 'white',
+                              fontSize: '0.75rem',
+                              fontWeight: 'bold'
+                            }} 
+                          />
+                        </Box>
+                        {studentToView.transferDate && (
+                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 1 }}>
+                            <Typography variant="body2" sx={{ fontWeight: 'medium', color: 'text.secondary' }}>
+                              Transfer Date:
+                            </Typography>
+                            <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
+                              {new Date(studentToView.transferDate).toLocaleDateString('en-US', { 
+                                year: 'numeric', 
+                                month: 'long', 
+                                day: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              })}
+                            </Typography>
+                          </Box>
+                        )}
+                      </Box>
+                    </>
                   )}
-                </Grid>
-
-                {/* Gmail */}
-                <Grid item xs={12} sx={{ textAlign: 'center', mb: 1.5 }}>
-                  <Typography variant="body2" sx={{ 
-                    fontWeight: 'bold',
-                    color: theme.palette.mode === 'dark' ? '#ffffff' : '#1976d2',
-                    fontSize: '0.9rem'
-                  }}>
-                    {studentToView.email || 'N/A'}
-                  </Typography>
-                </Grid>
-
-                {/* Information Grid */}
-                <Grid container spacing={1.5}>
-                  {/* Student ID */}
-                  <Grid item xs={6} sx={{ textAlign: 'center' }}>
-                    <Typography variant="body2" sx={{ fontSize: '0.7rem' }}>
-                      <Typography component="span" sx={{ 
-                        color: 'text.secondary', 
-                        fontSize: '0.6rem',
-                        display: 'block',
-                        textAlign: 'center',
-                        marginBottom: '2px'
-                      }}>
-                        Student ID
-                      </Typography>
-                      <Typography component="span" sx={{ 
-                        color: theme.palette.mode === 'dark' ? '#ffffff' : '#000000',
-                        fontFamily: 'monospace', 
-                        fontWeight: 'bold',
-                        fontSize: '0.7rem',
-                        display: 'block',
-                        textAlign: 'center'
-                      }}>
-                        {studentToView.studentId || 'N/A'}
-                      </Typography>
-                    </Typography>
-                  </Grid>
-                  
-                  {/* First Name */}
-                  <Grid item xs={6} sx={{ textAlign: 'center' }}>
-                    <Typography variant="body2" sx={{ fontSize: '0.7rem' }}>
-                      <Typography component="span" sx={{ 
-                        color: 'text.secondary', 
-                        fontSize: '0.6rem',
-                        display: 'block',
-                        textAlign: 'center',
-                        marginBottom: '2px'
-                      }}>
-                        First Name
-                      </Typography>
-                      <Typography component="span" sx={{ 
-                        color: theme.palette.mode === 'dark' ? '#ffffff' : '#000000',
-                        fontSize: '0.7rem',
-                        display: 'block',
-                        textAlign: 'center'
-                      }}>
-                        {studentToView.firstName || 'N/A'}
-                      </Typography>
-                    </Typography>
-                  </Grid>
-
-                  {/* Last Name */}
-                  <Grid item xs={6} sx={{ textAlign: 'center' }}>
-                    <Typography variant="body2" sx={{ fontSize: '0.7rem' }}>
-                      <Typography component="span" sx={{ 
-                        color: 'text.secondary', 
-                        fontSize: '0.6rem',
-                        display: 'block',
-                        textAlign: 'center',
-                        marginBottom: '2px'
-                      }}>
-                        Last Name
-                      </Typography>
-                      <Typography component="span" sx={{ 
-                        color: theme.palette.mode === 'dark' ? '#ffffff' : '#000000',
-                        fontSize: '0.7rem',
-                        display: 'block',
-                        textAlign: 'center'
-                      }}>
-                        {studentToView.lastName || 'N/A'}
-                      </Typography>
-                    </Typography>
-                  </Grid>
-
-                  {/* Middle Initial */}
-                  <Grid item xs={6} sx={{ textAlign: 'center' }}>
-                    <Typography variant="body2" sx={{ fontSize: '0.7rem' }}>
-                      <Typography component="span" sx={{ 
-                        color: 'text.secondary', 
-                        fontSize: '0.6rem',
-                        display: 'block',
-                        textAlign: 'center',
-                        marginBottom: '2px'
-                      }}>
-                        Middle Initial
-                      </Typography>
-                      <Typography component="span" sx={{ 
-                        color: theme.palette.mode === 'dark' ? '#ffffff' : '#000000',
-                        fontSize: '0.7rem',
-                        display: 'block',
-                        textAlign: 'center'
-                      }}>
-                        {studentToView.middleInitial || 'N/A'}
-                      </Typography>
-                    </Typography>
-                  </Grid>
-
-                  {/* Sex */}
-                  <Grid item xs={6} sx={{ textAlign: 'center' }}>
-                    <Typography variant="body2" sx={{ fontSize: '0.7rem' }}>
-                      <Typography component="span" sx={{ 
-                        color: 'text.secondary', 
-                        fontSize: '0.6rem',
-                        display: 'block',
-                        textAlign: 'center',
-                        marginBottom: '2px'
-                      }}>
-                        Sex
-                      </Typography>
-                      <Typography component="span" sx={{ 
-                        color: theme.palette.mode === 'dark' ? '#ffffff' : '#000000',
-                        fontSize: '0.7rem',
-                        display: 'block',
-                        textAlign: 'center'
-                      }}>
-                        {studentToView.sex || 'N/A'}
-                      </Typography>
-                    </Typography>
-                  </Grid>
-
-                  {/* Age */}
-                  <Grid item xs={6} sx={{ textAlign: 'center' }}>
-                    <Typography variant="body2" sx={{ fontSize: '0.7rem' }}>
-                      <Typography component="span" sx={{ 
-                        color: 'text.secondary', 
-                        fontSize: '0.6rem',
-                        display: 'block',
-                        textAlign: 'center',
-                        marginBottom: '2px'
-                      }}>
-                        Age
-                      </Typography>
-                      <Typography component="span" sx={{ 
-                        color: theme.palette.mode === 'dark' ? '#ffffff' : '#000000',
-                        fontSize: '0.7rem',
-                        display: 'block',
-                        textAlign: 'center'
-                      }}>
-                        {studentToView.age || 'N/A'}
-                      </Typography>
-                    </Typography>
-                  </Grid>
-
-                  {/* Birthday */}
-                  <Grid item xs={6} sx={{ textAlign: 'center' }}>
-                    <Typography variant="body2" sx={{ fontSize: '0.7rem' }}>
-                      <Typography component="span" sx={{ 
-                        color: 'text.secondary', 
-                        fontSize: '0.6rem',
-                        display: 'block',
-                        textAlign: 'center',
-                        marginBottom: '2px'
-                      }}>
-                        Birthday
-                      </Typography>
-                      <Typography component="span" sx={{ 
-                        color: theme.palette.mode === 'dark' ? '#ffffff' : '#000000',
-                        fontSize: '0.7rem',
-                        display: 'block',
-                        textAlign: 'center'
-                      }}>
-                        {studentToView.birthdate ? new Date(studentToView.birthdate).toLocaleDateString() : 'N/A'}
-                      </Typography>
-                    </Typography>
-                  </Grid>
-
-                  {/* Contact Number */}
-                  <Grid item xs={6} sx={{ textAlign: 'center' }}>
-                    <Typography variant="body2" sx={{ fontSize: '0.7rem' }}>
-                      <Typography component="span" sx={{ 
-                        color: 'text.secondary', 
-                        fontSize: '0.6rem',
-                        display: 'block',
-                        textAlign: 'center',
-                        marginBottom: '2px'
-                      }}>
-                        Contact Number
-                      </Typography>
-                      <Typography component="span" sx={{ 
-                        color: theme.palette.mode === 'dark' ? '#ffffff' : '#000000',
-                        fontFamily: 'monospace',
-                        fontSize: '0.7rem',
-                        display: 'block',
-                        textAlign: 'center'
-                      }}>
-                        {studentToView.contact || 'N/A'}
-                      </Typography>
-                    </Typography>
-                  </Grid>
-                </Grid>
-              </Grid>
+                </Box>
+              </Box>
             </Box>
           )}
         </DialogContent>
