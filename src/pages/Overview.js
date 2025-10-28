@@ -555,6 +555,8 @@ export default function Overview() {
                   ? 'linear-gradient(135deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.02) 100%)'
                   : 'linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%)',
                 border: isDark ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(0,0,0,0.08)',
+                borderLeft: '4px solid',
+                borderLeftColor: '#800000',
                 boxShadow: isDark 
                   ? '0 4px 20px rgba(0,0,0,0.3)'
                   : '0 4px 20px rgba(0,0,0,0.08)',
@@ -563,18 +565,7 @@ export default function Overview() {
                   boxShadow: isDark 
                     ? '0 8px 30px rgba(128,0,0,0.3)'
                     : '0 8px 30px rgba(128,0,0,0.15)',
-                  border: `1px solid ${card.color}`,
-                },
-                position: 'relative',
-                overflow: 'hidden',
-                '&::before': {
-                  content: '""',
-                  position: 'absolute',
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  height: '4px',
-                  background: `linear-gradient(90deg, ${card.color}, ${card.color}88)`,
+                  borderLeftColor: '#A52A2A',
                 }
               }}
               onClick={() => navigate(card.to)}
