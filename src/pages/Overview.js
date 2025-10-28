@@ -45,7 +45,7 @@ export default function Overview() {
       { month: 'Dec', count: 3 }
     ]
   });
-  // Removed loading state
+  const [loading, setLoading] = useState(true);
   const [recentActivity, setRecentActivity] = useState([]);
   const [openEventModal, setOpenEventModal] = useState(false);
   const [eventForm, setEventForm] = useState({ title: '', description: '', proposedBy: '', date: '', time: '', location: '' });
@@ -69,7 +69,7 @@ export default function Overview() {
     const loadDashboardData = async () => {
       if (!isMounted) return;
       
-      // Skip loading state
+      setLoading(true);
       try {
         // Add timeout to prevent infinite loading
         const timeoutPromise = new Promise((_, reject) => {
@@ -97,7 +97,9 @@ export default function Overview() {
           setRecentActivity([]);
         }
       } finally {
-        // Skip loading state
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     };
     
@@ -780,8 +782,20 @@ export default function Overview() {
             >
               Recent Activity
             </Typography>
-            {/* Skip loading state - show empty state instead */}
-            {recentActivity.length === 0 ? (
+            {loading ? (
+              <Box sx={{ textAlign: 'center', py: 4 }}>
+                <CircularProgress sx={{ mb: 2 }} />
+                <Typography 
+                  variant="body2" 
+                  sx={{ 
+                    color: isDark ? '#ffffff' : '#333333',
+                    fontWeight: 500
+                  }}
+                >
+                  Loading recent activity...
+                </Typography>
+              </Box>
+            ) : recentActivity.length === 0 ? (
               <Box sx={{ textAlign: 'center', py: 4 }}>
                 <Typography 
                   variant="body2" 

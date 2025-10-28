@@ -565,7 +565,20 @@ function App() {
   }, [authInitialized]);
 
 
-  // Skip loading state - go directly to landing page
+  // Show loading state while authentication is being determined
+  if (loading && !authInitialized) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', flexDirection: 'column' }}>
+        <CircularProgress size={40} sx={{ mb: 2 }} />
+        <Typography variant="h6" sx={{ mb: 1 }}>
+          Loading your dashboard...
+        </Typography>
+        <Typography variant="body2" color="text.secondary">
+          Please wait while we set up your account
+        </Typography>
+      </Box>
+    );
+  }
 
   // If user is not authenticated OR forceLogin is true, show login/register forms
   if (!user || forceLogin) {
