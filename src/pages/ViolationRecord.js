@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from "react";
-import { Typography, Box, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Button, TextField, Grid, Chip, Avatar, InputAdornment, IconButton, Dialog, DialogTitle, DialogContent, DialogActions, Card, CardContent, CardHeader, Divider, Tooltip, CircularProgress, Snackbar, Alert, Stack, Autocomplete, useTheme } from "@mui/material";
+import React, { useState, useEffect, useMemo } from "react";
+import { Typography, Box, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Button, TextField, Grid, Chip, Avatar, InputAdornment, IconButton, Dialog, DialogTitle, DialogContent, DialogActions, Card, CardContent, CardHeader, Divider, Tooltip, CircularProgress, Snackbar, Alert, Stack, Autocomplete, useTheme, TablePagination } from "@mui/material";
 import { collection, getDocs, addDoc, doc, deleteDoc, updateDoc, query, where } from "firebase/firestore";
 import { db } from "../firebase";
 import { validateStudentId } from "../utils/studentValidation";
@@ -59,6 +59,12 @@ export default function ViolationRecord() {
   const [meetings, setMeetings] = useState([]);
   const [editMeeting, setEditMeeting] = useState(null);
   const [printMode, setPrintMode] = useState(false);
+  const [meetingStats, setMeetingStats] = useState({
+    total: 0,
+    pending: 0,
+    scheduled: 0,
+    completed: 0
+  });
   const [studentInputValue, setStudentInputValue] = useState('');
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [selectedMeetingStudent, setSelectedMeetingStudent] = useState(null);
@@ -71,6 +77,10 @@ export default function ViolationRecord() {
     violation: '',
     location: ''
   });
+  
+  // Pagination state
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(8);
 
   const toggleAddForm = () => {
     setShowAddForm(!showAddForm);
@@ -96,6 +106,40 @@ export default function ViolationRecord() {
       setSelectedStudent(null);
       setStudentInputValue('');
     }
+  };
+
+  // Pagination handlers
+  const handleChangePage = (event, newPage) => {
+    setPage(newPage);
+  };
+
+  const handleChangeRowsPerPage = (event) => {
+    setRowsPerPage(parseInt(event.target.value, 10));
+    setPage(0);
+  };
+
+  // Calculate meeting statistics for selected student
+  const calculateMeetingStats = (studentId) => {
+    console.log('🔍 Calculating meeting stats for studentId:', studentId);
+    console.log('📊 Total meetings available:', meetings.length);
+    console.log('📋 All meetings:', meetings);
+    
+    if (!studentId || !meetings.length) {
+      console.log('❌ No studentId or no meetings, setting stats to 0');
+      setMeetingStats({ total: 0, pending: 0, scheduled: 0, completed: 0 });
+      return;
+    }
+
+    const studentMeetings = meetings.filter(meeting => meeting.studentId === studentId);
+    console.log('👤 Student meetings:', studentMeetings);
+    
+    const total = studentMeetings.length;
+    const pending = studentMeetings.filter(meeting => meeting.status === 'Pending').length;
+    const scheduled = studentMeetings.filter(meeting => meeting.status === 'Scheduled').length;
+    const completed = studentMeetings.filter(meeting => meeting.status === 'Completed').length;
+
+    console.log('📈 Calculated stats:', { total, pending, scheduled, completed });
+    setMeetingStats({ total, pending, scheduled, completed });
   };
 
   useEffect(() => {
@@ -131,7 +175,7 @@ export default function ViolationRecord() {
 
   // Fetch meetings when modal opens
   useEffect(() => {
-    if (openMeetingsModal) {
+    if (openMeetingsModal || openMeetingModal) {
       const fetchMeetings = async () => {
         try {
           const snap = await getDocs(collection(db, 'meetings'));
@@ -142,7 +186,7 @@ export default function ViolationRecord() {
       };
       fetchMeetings();
     }
-  }, [openMeetingsModal, meetingSnackbar]);
+  }, [openMeetingsModal, openMeetingModal, meetingSnackbar]);
 
   const baseByStatus = statusFilter === 'all' ? records : records.filter(v => (statusFilter === 'pending' ? v.status === 'Pending' : statusFilter === 'solved' ? v.status === 'Solved' : true));
   // Sort newest first using createdAt if available
@@ -489,7 +533,7 @@ School Administration
   };
 
   return (
-    <Box sx={{ p: { xs: 0.5, sm: 1 }, pt: { xs: 2, sm: 3 }, pl: { xs: 2, sm: 3, md: 4 }, pr: { xs: 2, sm: 3, md: 4 } }}>
+    <Box sx={{ pt: { xs: 2, sm: 3 }, pl: { xs: 2, sm: 3, md: 4 }, pr: { xs: 2, sm: 3, md: 4 } }}>
       <style>
         {`
           @media print {
@@ -895,7 +939,7 @@ School Administration
       <Dialog 
         open={showHistory} 
         onClose={() => setShowHistory(false)}
-        maxWidth="md"
+        maxWidth="xl"
         fullWidth
         PaperProps={{
           sx: {
@@ -930,7 +974,7 @@ School Administration
           </IconButton>
         </DialogTitle>
         
-        <DialogContent sx={{ p: 0, overflow: 'hidden' }}>
+        <DialogContent sx={{ p: 0 }}>
           {/* Search Bar Section */}
           <Box sx={{ 
             p: 2, 
@@ -971,84 +1015,107 @@ School Administration
           </Box>
 
           {/* Table Section */}
-          <Box sx={{ flex: 1, overflow: 'hidden' }}>
-            <TableContainer sx={{ 
-              height: 'calc(85vh - 140px)',
-              bgcolor: theme.palette.mode === 'dark' ? '#2d2d2d' : '#ffffff'
-            }}>
+          <Box sx={{ flex: 1 }}>
+            {(() => {
+              // Filter records based on search term
+              const searchTerm = historyFilter.name.trim().toLowerCase();
+              const filteredHistory = searchTerm ? records.filter(record => {
+                const name = (record.studentName || '').toLowerCase();
+                const id = (record.studentId || '').toLowerCase();
+                const violation = (record.violation || '').toLowerCase();
+                const location = (record.location || '').toLowerCase();
+                
+                return name.includes(searchTerm) || 
+                       id.includes(searchTerm) || 
+                       violation.includes(searchTerm) || 
+                       location.includes(searchTerm);
+              }) : records;
+
+              // Get paginated records
+              const paginatedRecords = useMemo(() => {
+                const startIndex = page * rowsPerPage;
+                const endIndex = startIndex + rowsPerPage;
+                return filteredHistory.slice(startIndex, endIndex);
+              }, [filteredHistory, page, rowsPerPage]);
+
+              return (
+                <>
+                  <TableContainer component={Paper} elevation={2} sx={{ 
+                    bgcolor: theme.palette.mode === 'dark' ? '#2d2d2d' : '#ffffff'
+                  }}>
               <Table stickyHeader>
                 <TableHead>
                   <TableRow>
                     <TableCell sx={{ 
                       bgcolor: '#800000',
-                      fontWeight: 600, 
+                      fontWeight: 700,
                       color: '#ffffff',
-                      borderBottom: '2px solid #e0e0e0'
+                      fontSize: '16px',
+                      padding: '12px 16px',
+                      minWidth: '140px',
+                      maxWidth: '140px'
                     }}>Name</TableCell>
                     <TableCell sx={{ 
                       bgcolor: '#800000',
-                      fontWeight: 600, 
+                      fontWeight: 700,
                       color: '#ffffff',
-                      borderBottom: '2px solid #e0e0e0'
+                      fontSize: '16px',
+                      padding: '12px 16px',
+                      minWidth: '120px',
+                      maxWidth: '120px'
                     }}>Student ID</TableCell>
                     <TableCell sx={{ 
                       bgcolor: '#800000',
-                      fontWeight: 600, 
+                      fontWeight: 700,
                       color: '#ffffff',
-                      borderBottom: '2px solid #e0e0e0'
+                      fontSize: '16px',
+                      padding: '12px 16px',
+                      minWidth: '180px',
+                      maxWidth: '180px'
                     }}>Violation</TableCell>
                     <TableCell sx={{ 
                       bgcolor: '#800000',
-                      fontWeight: 600, 
+                      fontWeight: 700,
                       color: '#ffffff',
-                      borderBottom: '2px solid #e0e0e0'
+                      fontSize: '16px',
+                      padding: '12px 16px',
+                      minWidth: '120px',
+                      maxWidth: '120px'
                     }}>Date</TableCell>
                     <TableCell sx={{ 
                       bgcolor: '#800000',
-                      fontWeight: 600, 
+                      fontWeight: 700,
                       color: '#ffffff',
-                      borderBottom: '2px solid #e0e0e0'
+                      fontSize: '16px',
+                      padding: '12px 16px',
+                      minWidth: '140px',
+                      maxWidth: '140px'
                     }}>Location</TableCell>
                     <TableCell sx={{ 
                       bgcolor: '#800000',
-                      fontWeight: 600, 
+                      fontWeight: 700,
                       color: '#ffffff',
-                      borderBottom: '2px solid #e0e0e0'
+                      fontSize: '16px',
+                      padding: '12px 16px',
+                      minWidth: '120px',
+                      maxWidth: '120px'
                     }} align="center">Actions</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {(() => {
-                    // Filter records based on search term
-                    const searchTerm = historyFilter.name.trim().toLowerCase();
-                    const filteredHistory = searchTerm ? records.filter(record => {
-                      const name = (record.studentName || '').toLowerCase();
-                      const id = (record.studentId || '').toLowerCase();
-                      const violation = (record.violation || '').toLowerCase();
-                      const location = (record.location || '').toLowerCase();
-                      
-                      return name.includes(searchTerm) || 
-                             id.includes(searchTerm) || 
-                             violation.includes(searchTerm) || 
-                             location.includes(searchTerm);
-                    }) : records;
-
-                    if (filteredHistory.length === 0) {
-                      return (
-                        <TableRow>
-                          <TableCell colSpan={6} sx={{ 
-                            textAlign: 'center', 
-                            py: 4,
-                            color: '#666666',
-                            fontStyle: 'italic'
-                          }}>
-                            {searchTerm ? 'No violation records found matching your search.' : 'No violation records found.'}
-                          </TableCell>
-                        </TableRow>
-                      );
-                    }
-
-                    return filteredHistory.map((record, idx) => (
+                  {filteredHistory.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={6} sx={{ 
+                        textAlign: 'center', 
+                        py: 4,
+                        color: '#666666',
+                        fontStyle: 'italic'
+                      }}>
+                        {searchTerm ? 'No violation records found matching your search.' : 'No violation records found.'}
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    paginatedRecords.map((record, idx) => (
                       <TableRow 
                         key={record.id || idx} 
                         hover 
@@ -1157,11 +1224,29 @@ School Administration
                           </Stack>
                         </TableCell>
                       </TableRow>
-                    ));
-                  })()}
+                    ))
+                  )}
                 </TableBody>
               </Table>
             </TableContainer>
+            
+            {/* Pagination */}
+            <TablePagination
+              rowsPerPageOptions={[5, 8]}
+              component="div"
+              count={filteredHistory.length}
+              rowsPerPage={rowsPerPage}
+              page={page}
+              onPageChange={handleChangePage}
+              onRowsPerPageChange={handleChangeRowsPerPage}
+              sx={{
+                bgcolor: theme.palette.mode === 'dark' ? '#2d2d2d' : '#ffffff',
+                borderTop: theme.palette.mode === 'dark' ? '1px solid #404040' : '1px solid #e0e0e0'
+              }}
+            />
+                </>
+              );
+            })()}
           </Box>
         </DialogContent>
         
@@ -1509,6 +1594,8 @@ School Administration
                       studentName: newValue ? `${newValue.firstName} ${newValue.lastName}` : '',
                       studentId: newValue ? newValue.id : ''
                     }));
+                    // Calculate meeting statistics for the selected student
+                    calculateMeetingStats(newValue ? newValue.id : null);
                   }}
                   renderInput={(params) => (
                     <TextField
@@ -1555,6 +1642,61 @@ School Administration
                   disabled
                 />
               </Grid>
+              
+              {/* Meeting Statistics Table */}
+              {selectedMeetingStudent && (
+                <Grid item xs={12}>
+                  {console.log('🎯 Rendering statistics table for:', selectedMeetingStudent)}
+                  {console.log('📊 Current meeting stats:', meetingStats)}
+                  <Paper sx={{ p: 2, mb: 2, bgcolor: '#f8f9fa', borderRadius: 2 }}>
+                    <Typography variant="h6" sx={{ mb: 2, color: '#800000', fontWeight: 600 }}>
+                      Meeting Statistics for {selectedMeetingStudent.firstName} {selectedMeetingStudent.lastName}
+                    </Typography>
+                    <Grid container spacing={2}>
+                      <Grid item xs={6} sm={3}>
+                        <Box sx={{ textAlign: 'center', p: 2, bgcolor: '#ffffff', borderRadius: 1, border: '1px solid #e0e0e0' }}>
+                          <Typography variant="h4" sx={{ color: '#800000', fontWeight: 'bold' }}>
+                            {meetingStats.total}
+                          </Typography>
+                          <Typography variant="body2" color="text.secondary">
+                            Total Meetings
+                          </Typography>
+                        </Box>
+                      </Grid>
+                      <Grid item xs={6} sm={3}>
+                        <Box sx={{ textAlign: 'center', p: 2, bgcolor: '#fff3cd', borderRadius: 1, border: '1px solid #ffeaa7' }}>
+                          <Typography variant="h4" sx={{ color: '#856404', fontWeight: 'bold' }}>
+                            {meetingStats.pending}
+                          </Typography>
+                          <Typography variant="body2" sx={{ color: '#856404' }}>
+                            Pending
+                          </Typography>
+                        </Box>
+                      </Grid>
+                      <Grid item xs={6} sm={3}>
+                        <Box sx={{ textAlign: 'center', p: 2, bgcolor: '#cce5ff', borderRadius: 1, border: '1px solid #74c0fc' }}>
+                          <Typography variant="h4" sx={{ color: '#004085', fontWeight: 'bold' }}>
+                            {meetingStats.scheduled}
+                          </Typography>
+                          <Typography variant="body2" sx={{ color: '#004085' }}>
+                            Scheduled
+                          </Typography>
+                        </Box>
+                      </Grid>
+                      <Grid item xs={6} sm={3}>
+                        <Box sx={{ textAlign: 'center', p: 2, bgcolor: '#d4edda', borderRadius: 1, border: '1px solid #c3e6cb' }}>
+                          <Typography variant="h4" sx={{ color: '#155724', fontWeight: 'bold' }}>
+                            {meetingStats.completed}
+                          </Typography>
+                          <Typography variant="body2" sx={{ color: '#155724' }}>
+                            Completed
+                          </Typography>
+                        </Box>
+                      </Grid>
+                    </Grid>
+                  </Paper>
+                </Grid>
+              )}
               <Grid item xs={12} sm={6}>
                 <TextField label="Location" name="location" value={meetingForm.location} onChange={handleMeetingFormChange} fullWidth required sx={{ mb: 2 }} />
               </Grid>

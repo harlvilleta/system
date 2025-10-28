@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Box,
   Typography,
@@ -26,7 +26,8 @@ import {
   IconButton,
   Tooltip,
   CircularProgress,
-  InputAdornment
+  InputAdornment,
+  TablePagination
 } from '@mui/material';
 import {
   Person,
@@ -61,6 +62,10 @@ export default function TeacherRequest() {
   const [deleteReason, setDeleteReason] = useState('');
   const [selectedFilter, setSelectedFilter] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
+  
+  // Pagination state
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(8);
 
   useEffect(() => {
     fetchTeacherRequests();
@@ -101,6 +106,16 @@ export default function TeacherRequest() {
 
   const handleCardClick = (filter) => {
     setSelectedFilter(filter);
+  };
+
+  // Pagination handlers
+  const handleChangePage = (event, newPage) => {
+    setPage(newPage);
+  };
+
+  const handleChangeRowsPerPage = (event) => {
+    setRowsPerPage(parseInt(event.target.value, 10));
+    setPage(0);
   };
 
   const handleSubmitApproval = async () => {
@@ -274,6 +289,13 @@ export default function TeacherRequest() {
     
     return statusMatch && searchMatch;
   });
+
+  // Get paginated requests
+  const paginatedRequests = useMemo(() => {
+    const startIndex = page * rowsPerPage;
+    const endIndex = startIndex + rowsPerPage;
+    return filteredRequests.slice(startIndex, endIndex);
+  }, [filteredRequests, page, rowsPerPage]);
 
   return (
     <Box sx={{ pt: { xs: 2, sm: 3 }, pl: { xs: 2, sm: 3, md: 4 }, pr: { xs: 2, sm: 3, md: 4 } }}>
@@ -476,226 +498,243 @@ export default function TeacherRequest() {
             </Typography>
           </Box>
         ) : (
-          <TableContainer 
-            component={Paper} 
-            elevation={2}
-          >
-            <Table>
-              <TableHead>
-                <TableRow>
-                  <TableCell sx={{
-                    bgcolor: '#800000',
-                    fontWeight: 'bold',
-                    color: '#ffffff',
-                    fontSize: '0.875rem',
-                    padding: '12px 16px',
-                    minWidth: '140px',
-                    maxWidth: '140px'
-                  }}>
-                    Teacher
-                  </TableCell>
-                  <TableCell sx={{
-                    bgcolor: '#800000',
-                    fontWeight: 'bold',
-                    color: '#ffffff',
-                    fontSize: '0.875rem',
-                    padding: '12px 16px',
-                    minWidth: '200px',
-                    maxWidth: '200px'
-                  }}>
-                    Email
-                  </TableCell>
-                  <TableCell sx={{
-                    bgcolor: '#800000',
-                    fontWeight: 'bold',
-                    color: '#ffffff',
-                    fontSize: '0.875rem',
-                    padding: '12px 16px',
-                    minWidth: '120px',
-                    maxWidth: '120px'
-                  }}>
-                    Request Date
-                  </TableCell>
-                  <TableCell sx={{
-                    bgcolor: '#800000',
-                    fontWeight: 'bold',
-                    color: '#ffffff',
-                    fontSize: '0.875rem',
-                    padding: '12px 16px',
-                    minWidth: '100px',
-                    maxWidth: '100px'
-                  }}>
-                    Status
-                  </TableCell>
-                  <TableCell sx={{
-                    bgcolor: '#800000',
-                    fontWeight: 'bold',
-                    color: '#ffffff',
-                    fontSize: '0.875rem',
-                    padding: '12px 16px',
-                    minWidth: '120px',
-                    maxWidth: '120px'
-                  }}>
-                    Actions
-                  </TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {filteredRequests.length === 0 ? (
+          <>
+            <TableContainer 
+              component={Paper} 
+              elevation={2}
+            >
+              <Table>
+                <TableHead>
                   <TableRow>
-                    <TableCell colSpan={5} align="center" sx={{ py: 4 }}>
-                      <Typography variant="h6" color="text.secondary">
-                        {selectedFilter === 'all' 
-                          ? 'No teacher requests found.' 
-                          : `No ${selectedFilter} teacher requests found.`
-                        }
-                      </Typography>
+                    <TableCell sx={{
+                      bgcolor: '#800000',
+                      fontWeight: 700,
+                      color: '#ffffff',
+                      fontSize: '16px',
+                      padding: '12px 16px',
+                      minWidth: '140px',
+                      maxWidth: '140px'
+                    }}>
+                      Teacher
+                    </TableCell>
+                    <TableCell sx={{
+                      bgcolor: '#800000',
+                      fontWeight: 700,
+                      color: '#ffffff',
+                      fontSize: '16px',
+                      padding: '12px 16px',
+                      minWidth: '200px',
+                      maxWidth: '200px'
+                    }}>
+                      Email
+                    </TableCell>
+                    <TableCell sx={{
+                      bgcolor: '#800000',
+                      fontWeight: 700,
+                      color: '#ffffff',
+                      fontSize: '16px',
+                      padding: '12px 16px',
+                      minWidth: '120px',
+                      maxWidth: '120px'
+                    }}>
+                      Request Date
+                    </TableCell>
+                    <TableCell sx={{
+                      bgcolor: '#800000',
+                      fontWeight: 700,
+                      color: '#ffffff',
+                      fontSize: '16px',
+                      padding: '12px 16px',
+                      minWidth: '100px',
+                      maxWidth: '100px'
+                    }}>
+                      Status
+                    </TableCell>
+                    <TableCell sx={{
+                      bgcolor: '#800000',
+                      fontWeight: 700,
+                      color: '#ffffff',
+                      fontSize: '16px',
+                      padding: '12px 16px',
+                      minWidth: '120px',
+                      maxWidth: '120px'
+                    }}>
+                      Actions
                     </TableCell>
                   </TableRow>
-                ) : filteredRequests.map((request) => (
-                  <TableRow key={request.id} hover sx={{ '& .MuiTableCell-root': { padding: '8px 16px' } }}>
-                    <TableCell>
-                      <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                        <Avatar 
-                          src={request.profilePic} 
-                          sx={{ 
-                            width: 32, 
-                            height: 32, 
-                            mr: 1.5,
-                            bgcolor: '#1976d2'
-                          }}
-                        >
-                          <Person />
-                        </Avatar>
-                        <Box>
-                          <Typography variant="body2" fontWeight={500} sx={{ fontSize: '0.875rem', lineHeight: 1.2 }}>
-                            {request.fullName}
-                          </Typography>
+                </TableHead>
+                <TableBody>
+                  {filteredRequests.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={5} align="center" sx={{ py: 4 }}>
+                        <Typography variant="h6" color="text.secondary">
+                          {selectedFilter === 'all' 
+                            ? 'No teacher requests found.' 
+                            : `No ${selectedFilter} teacher requests found.`
+                          }
+                        </Typography>
+                      </TableCell>
+                    </TableRow>
+                  ) : paginatedRequests.map((request) => (
+                    <TableRow key={request.id} hover sx={{ '& .MuiTableCell-root': { padding: '8px 16px' } }}>
+                      <TableCell>
+                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                          <Avatar 
+                            src={request.profilePic} 
+                            sx={{ 
+                              width: 32, 
+                              height: 32, 
+                              mr: 1.5,
+                              bgcolor: '#1976d2'
+                            }}
+                          >
+                            <Person />
+                          </Avatar>
+                          <Box>
+                            <Typography variant="body2" fontWeight={500} sx={{ fontSize: '0.875rem', lineHeight: 1.2 }}>
+                              {request.fullName}
+                            </Typography>
+                          </Box>
                         </Box>
-                      </Box>
-                    </TableCell>
-                    <TableCell>
-                      <Typography variant="body2" sx={{ fontSize: '0.875rem' }}>
-                        {request.email}
-                      </Typography>
-                    </TableCell>
-                    <TableCell>
-                      <Typography variant="body2" fontWeight={500} sx={{ fontSize: '0.875rem' }}>
-                        {formatDate(request.requestDate)}
-                      </Typography>
-                    </TableCell>
-                    <TableCell>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                        {getStatusIcon(request.status)}
-                        {request.status === 'approved' ? (
-                          <Typography 
-                            variant="body2" 
-                            sx={{ 
-                              color: '#4caf50', 
-                              fontWeight: 500,
-                              textTransform: 'capitalize',
-                              fontSize: '0.875rem'
-                            }}
-                          >
-                            {request.status}
-                          </Typography>
-                        ) : request.status === 'denied' ? (
-                          <Typography 
-                            variant="body2" 
-                            sx={{ 
-                              color: '#f44336', 
-                              fontWeight: 500,
-                              textTransform: 'capitalize',
-                              fontSize: '0.875rem'
-                            }}
-                          >
-                            {request.status}
-                          </Typography>
-                        ) : (
-                          <Chip 
-                            label={request.status.charAt(0).toUpperCase() + request.status.slice(1)} 
-                            color={getStatusColor(request.status)} 
-                            size="small"
-                            sx={{ height: 20, fontSize: '0.75rem' }}
-                          />
-                        )}
-                      </Box>
-                    </TableCell>
-                    <TableCell>
-                      <Box sx={{ display: 'flex', gap: 0.5 }}>
-                        <Tooltip title="View Details">
-                          <IconButton 
-                            size="small" 
-                            onClick={() => handleViewDetails(request)}
-                            sx={{ 
-                              color: '#666',
-                              '&:hover': { color: '#1976d2' }
-                            }}
-                          >
-                            <Visibility />
-                          </IconButton>
-                        </Tooltip>
-                        
-                        <Tooltip title="Edit Status">
-                          <IconButton 
-                            size="small" 
-                            onClick={() => handleApprovalAction(request, request.status === 'approved' ? 'deny' : 'approve')}
-                            sx={{ 
-                              color: '#666',
-                              '&:hover': { color: '#ff9800' }
-                            }}
-                          >
-                            <Edit />
-                          </IconButton>
-                        </Tooltip>
-                        
-                        {request.status === 'pending' && (
-                          <>
-                            <Tooltip title="Approve">
-                              <IconButton 
-                                size="small" 
-                                onClick={() => handleApprovalAction(request, 'approve')}
-                                sx={{ 
-                                  color: '#666',
-                                  '&:hover': { color: '#4caf50' }
-                                }}
-                              >
-                                <CheckCircle />
-                              </IconButton>
-                            </Tooltip>
-                            <Tooltip title="Deny">
-                              <IconButton 
-                                size="small" 
-                                onClick={() => handleApprovalAction(request, 'deny')}
-                                sx={{ 
-                                  color: '#666',
-                                  '&:hover': { color: '#f44336' }
-                                }}
-                              >
-                                <Cancel />
-                              </IconButton>
-                            </Tooltip>
-                          </>
-                        )}
-                        <Tooltip title="Delete Account">
-                          <IconButton 
-                            size="small" 
-                            onClick={() => handleDeleteRequest(request)}
-                            sx={{ 
-                              color: '#666',
-                              '&:hover': { color: '#d32f2f' }
-                            }}
-                          >
-                            <Delete />
-                          </IconButton>
-                        </Tooltip>
-                      </Box>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </TableContainer>
+                      </TableCell>
+                      <TableCell>
+                        <Typography variant="body2" sx={{ fontSize: '0.875rem' }}>
+                          {request.email}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Typography variant="body2" fontWeight={500} sx={{ fontSize: '0.875rem' }}>
+                          {formatDate(request.requestDate)}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                          {getStatusIcon(request.status)}
+                          {request.status === 'approved' ? (
+                            <Typography 
+                              variant="body2" 
+                              sx={{ 
+                                color: '#4caf50', 
+                                fontWeight: 500,
+                                textTransform: 'capitalize',
+                                fontSize: '0.875rem'
+                              }}
+                            >
+                              {request.status}
+                            </Typography>
+                          ) : request.status === 'denied' ? (
+                            <Typography 
+                              variant="body2" 
+                              sx={{ 
+                                color: '#f44336', 
+                                fontWeight: 500,
+                                textTransform: 'capitalize',
+                                fontSize: '0.875rem'
+                              }}
+                            >
+                              {request.status}
+                            </Typography>
+                          ) : (
+                            <Chip 
+                              label={request.status.charAt(0).toUpperCase() + request.status.slice(1)} 
+                              color={getStatusColor(request.status)} 
+                              size="small"
+                              sx={{ height: 20, fontSize: '0.75rem' }}
+                            />
+                          )}
+                        </Box>
+                      </TableCell>
+                      <TableCell>
+                        <Box sx={{ display: 'flex', gap: 0.5 }}>
+                          <Tooltip title="View Details">
+                            <IconButton 
+                              size="small" 
+                              onClick={() => handleViewDetails(request)}
+                              sx={{ 
+                                color: '#666',
+                                '&:hover': { color: '#1976d2' }
+                              }}
+                            >
+                              <Visibility />
+                            </IconButton>
+                          </Tooltip>
+                          
+                          <Tooltip title="Edit Status">
+                            <IconButton 
+                              size="small" 
+                              onClick={() => handleApprovalAction(request, request.status === 'approved' ? 'deny' : 'approve')}
+                              sx={{ 
+                                color: '#666',
+                                '&:hover': { color: '#ff9800' }
+                              }}
+                            >
+                              <Edit />
+                            </IconButton>
+                          </Tooltip>
+                          
+                          {request.status === 'pending' && (
+                            <>
+                              <Tooltip title="Approve">
+                                <IconButton 
+                                  size="small" 
+                                  onClick={() => handleApprovalAction(request, 'approve')}
+                                  sx={{ 
+                                    color: '#666',
+                                    '&:hover': { color: '#4caf50' }
+                                  }}
+                                >
+                                  <CheckCircle />
+                                </IconButton>
+                              </Tooltip>
+                              <Tooltip title="Deny">
+                                <IconButton 
+                                  size="small" 
+                                  onClick={() => handleApprovalAction(request, 'deny')}
+                                  sx={{ 
+                                    color: '#666',
+                                    '&:hover': { color: '#f44336' }
+                                  }}
+                                >
+                                  <Cancel />
+                                </IconButton>
+                              </Tooltip>
+                            </>
+                          )}
+                          <Tooltip title="Delete Account">
+                            <IconButton 
+                              size="small" 
+                              onClick={() => handleDeleteRequest(request)}
+                              sx={{ 
+                                color: '#666',
+                                '&:hover': { color: '#d32f2f' }
+                              }}
+                            >
+                              <Delete />
+                            </IconButton>
+                          </Tooltip>
+                        </Box>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+            
+            {/* Pagination */}
+            <TablePagination
+              rowsPerPageOptions={[5, 8]}
+              component="div"
+              count={filteredRequests.length}
+              rowsPerPage={rowsPerPage}
+              page={page}
+              onPageChange={handleChangePage}
+              onRowsPerPageChange={handleChangeRowsPerPage}
+              sx={{
+                bgcolor: theme.palette.mode === 'dark' ? '#2d2d2d' : '#ffffff',
+                borderTop: theme.palette.mode === 'dark' ? '1px solid #404040' : '1px solid #e0e0e0'
+              }}
+            />
+          </>
         )}
 
       {/* View Details Dialog */}
