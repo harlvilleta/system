@@ -547,8 +547,9 @@ export default function Overview() {
           <Grid item xs={12} sm={6} md={3} key={index}>
             <Card 
               sx={{ 
-                p: 2,
-                height: '100%',
+                p: 1.5,
+                height: 'auto',
+                minHeight: '120px',
                 cursor: 'pointer',
                 transition: 'all 0.3s ease-in-out',
                 background: isDark 
@@ -558,19 +559,19 @@ export default function Overview() {
                 borderLeft: '4px solid',
                 borderLeftColor: '#800000',
                 boxShadow: isDark 
-                  ? '0 4px 20px rgba(0,0,0,0.3)'
-                  : '0 4px 20px rgba(0,0,0,0.08)',
+                  ? '0 2px 8px rgba(0,0,0,0.2)'
+                  : '0 2px 8px rgba(0,0,0,0.06)',
                 '&:hover': {
-                  transform: 'translateY(-4px)',
+                  transform: 'translateY(-2px)',
                   boxShadow: isDark 
-                    ? '0 8px 30px rgba(128,0,0,0.3)'
-                    : '0 8px 30px rgba(128,0,0,0.15)',
+                    ? '0 4px 16px rgba(128,0,0,0.25)'
+                    : '0 4px 16px rgba(128,0,0,0.12)',
                   borderLeftColor: '#A52A2A',
                 }
               }}
               onClick={() => navigate(card.to)}
             >
-              <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
+              <CardContent sx={{ p: 1, '&:last-child': { pb: 1 } }}>
                 <Box sx={{ 
                   display: 'flex', 
                   flexDirection: 'column', 
@@ -578,38 +579,38 @@ export default function Overview() {
                   justifyContent: 'center',
                   textAlign: 'center',
                   height: '100%',
-                  gap: 1
+                  gap: 0.5
                 }}>
                   <Box 
                     sx={{ 
                       color: card.color,
                       opacity: 0.9,
                       transition: 'all 0.3s ease',
-                      mb: 1
+                      '& svg': { fontSize: '1.8rem' }
                     }}
                   >
                     {card.icon}
                   </Box>
                   <Typography 
-                    variant="h3" 
+                    variant="h4" 
                     sx={{ 
                       fontWeight: 700,
                       color: isDark ? '#ffffff' : '#2c3e50',
-                      fontSize: { xs: '1.8rem', sm: '2.2rem', md: '2.5rem' },
+                      fontSize: { xs: '1.4rem', sm: '1.6rem', md: '1.8rem' },
                       lineHeight: 1.2,
-                      mb: 0.5
+                      mb: 0.25
                     }}
                   >
                     {card.value.toLocaleString()}
                   </Typography>
                   <Typography 
-                    variant="body1" 
+                    variant="body2" 
                     sx={{ 
                       color: isDark ? '#b0b0b0' : '#64748b',
                       fontWeight: 600,
-                      fontSize: '0.95rem',
+                      fontSize: '0.75rem',
                       textTransform: 'uppercase',
-                      letterSpacing: '0.5px'
+                      letterSpacing: '0.3px'
                     }}
                   >
                     {card.label}
