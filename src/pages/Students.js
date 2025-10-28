@@ -980,7 +980,7 @@ function LostFound() {
                   </Grid>
                   <Grid item xs>
                     <Typography fontWeight={700} sx={item.resolved ? { textDecoration: 'line-through', color: 'gray' } : {}}>{item.name}</Typography>
-                    <Typography variant="body2" sx={item.resolved ? { textDecoration: 'line-through', color: 'gray' } : {}}>{item.description}</Typography>
+                    <Typography variant="body1" sx={item.resolved ? { textDecoration: 'line-through', color: 'gray' } : {}}>{item.description}</Typography>
                     <Typography variant="caption" color="text.secondary">Location: {item.location}</Typography>
                     <Typography variant="caption" color="text.secondary" sx={{ ml: 2 }}>{new Date(item.createdAt).toLocaleString()}</Typography>
                   </Grid>
@@ -1009,7 +1009,7 @@ function LostFound() {
                   </Grid>
                   <Grid item xs>
                     <Typography fontWeight={700} sx={item.resolved ? { textDecoration: 'line-through', color: 'gray' } : {}}>{item.name}</Typography>
-                    <Typography variant="body2" sx={item.resolved ? { textDecoration: 'line-through', color: 'gray' } : {}}>{item.description}</Typography>
+                    <Typography variant="body1" sx={item.resolved ? { textDecoration: 'line-through', color: 'gray' } : {}}>{item.description}</Typography>
                     <Typography variant="caption" color="text.secondary">Location: {item.location}</Typography>
                     <Typography variant="caption" color="text.secondary" sx={{ ml: 2 }}>{new Date(item.createdAt).toLocaleString()}</Typography>
                   </Grid>
@@ -1317,7 +1317,7 @@ function CourseDashboard({
         <Box>
           <Typography variant="h4" sx={{ 
             color: theme.palette.mode === 'dark' ? '#ffffff' : '#000000', 
-            fontWeight: 'bold' 
+            fontWeight: 700 
           }}>
             {courseName} Students
           </Typography>
@@ -1341,11 +1341,11 @@ function CourseDashboard({
           }}>
             <Typography variant="h4" sx={{ 
               color: '#000000', 
-              fontWeight: 'bold' 
+              fontWeight: 700 
             }}>
               {students.length}
             </Typography>
-            <Typography variant="body2" sx={{ 
+            <Typography variant="body1" sx={{ 
               color: theme.palette.mode === 'dark' ? '#ffffff' : 'text.secondary' 
             }}>
               Total {courseName} Students
@@ -1362,11 +1362,11 @@ function CourseDashboard({
           }}>
             <Typography variant="h4" sx={{ 
               color: '#000000', 
-              fontWeight: 'bold' 
+              fontWeight: 700 
             }}>
               {selectedYear === "All Years" ? new Set(students.map(s => s.year)).size : 1}
             </Typography>
-            <Typography variant="body2" sx={{ 
+            <Typography variant="body1" sx={{ 
               color: theme.palette.mode === 'dark' ? '#ffffff' : 'text.secondary' 
             }}>
               {selectedYear === "All Years" ? 'Year Levels' : 'Selected Year'}
@@ -1383,11 +1383,11 @@ function CourseDashboard({
           }}>
             <Typography variant="h4" sx={{ 
               color: '#000000', 
-              fontWeight: 'bold' 
+              fontWeight: 700 
             }}>
               {new Set(filteredStudents.map(s => s.section)).size}
             </Typography>
-            <Typography variant="body2" sx={{ 
+            <Typography variant="body1" sx={{ 
               color: theme.palette.mode === 'dark' ? '#ffffff' : 'text.secondary' 
             }}>
               Sections
@@ -1404,11 +1404,11 @@ function CourseDashboard({
           }}>
             <Typography variant="h4" sx={{ 
               color: '#000000', 
-              fontWeight: 'bold' 
+              fontWeight: 700 
             }}>
               {filteredStudents.length}
             </Typography>
-            <Typography variant="body2" sx={{ 
+            <Typography variant="body1" sx={{ 
               color: theme.palette.mode === 'dark' ? '#ffffff' : 'text.secondary' 
             }}>
               {search.trim() || selectedYear !== "All Years" ? 'Filtered Results' : 'All Students'}
@@ -1422,7 +1422,7 @@ function CourseDashboard({
         <Typography variant="h6" sx={{ 
           mb: 2, 
           color: theme.palette.mode === 'dark' ? '#ffffff' : '#000000', 
-          fontWeight: 'bold' 
+          fontWeight: 700 
         }}>
           Filter by Year Level
         </Typography>
@@ -1461,7 +1461,7 @@ function CourseDashboard({
           })}
         </Stack>
         {selectedYear !== "All Years" && (
-          <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+          <Typography variant="body1" color="text.secondary" sx={{ mt: 1 }}>
             Showing {filteredStudents.length} student{filteredStudents.length !== 1 ? 's' : ''} from {selectedYear}
           </Typography>
         )}
@@ -1552,9 +1552,9 @@ function CourseDashboard({
               }}>
                 <TableCell sx={{ 
                   bgcolor: '#800000',
-                  fontWeight: 'bold',
+                  fontWeight: 700,
                   color: '#ffffff',
-                  fontSize: '0.875rem',
+                  fontSize: '16px',
                   padding: '12px 16px',
                   minWidth: '140px',
                   maxWidth: '140px'
@@ -1563,9 +1563,9 @@ function CourseDashboard({
                 </TableCell>
                 <TableCell sx={{ 
                   bgcolor: '#800000',
-                  fontWeight: 'bold',
+                  fontWeight: 700,
                   color: '#ffffff',
-                  fontSize: '0.875rem',
+                  fontSize: '16px',
                   padding: '12px 16px',
                   minWidth: '120px',
                   maxWidth: '120px'
@@ -1574,9 +1574,9 @@ function CourseDashboard({
                 </TableCell>
                 <TableCell sx={{ 
                   bgcolor: '#800000',
-                  fontWeight: 'bold',
+                  fontWeight: 700,
                   color: '#ffffff',
-                  fontSize: '0.875rem',
+                  fontSize: '16px',
                   padding: '12px 16px',
                   minWidth: '180px',
                   maxWidth: '180px'
@@ -1585,9 +1585,9 @@ function CourseDashboard({
                 </TableCell>
                 <TableCell sx={{ 
                   bgcolor: '#800000',
-                  fontWeight: 'bold',
+                  fontWeight: 700,
                   color: '#ffffff',
-                  fontSize: '0.875rem',
+                  fontSize: '16px',
                   padding: '12px 16px',
                   minWidth: '100px',
                   maxWidth: '100px'
@@ -1596,9 +1596,9 @@ function CourseDashboard({
                 </TableCell>
                 <TableCell sx={{ 
                   bgcolor: '#800000',
-                  fontWeight: 'bold',
+                  fontWeight: 700,
                   color: '#ffffff',
-                  fontSize: '0.875rem',
+                  fontSize: '16px',
                   padding: '12px 16px',
                   minWidth: '120px',
                   maxWidth: '120px'
@@ -1607,9 +1607,9 @@ function CourseDashboard({
                 </TableCell>
                 <TableCell sx={{ 
                   bgcolor: '#800000',
-                  fontWeight: 'bold',
+                  fontWeight: 700,
                   color: '#ffffff',
-                  fontSize: '0.875rem',
+                  fontSize: '16px',
                   padding: '12px 16px',
                   minWidth: '100px',
                   maxWidth: '100px'
@@ -1618,9 +1618,9 @@ function CourseDashboard({
                 </TableCell>
                 <TableCell sx={{ 
                   bgcolor: '#800000',
-                  fontWeight: 'bold',
+                  fontWeight: 700,
                   color: '#ffffff',
-                  fontSize: '0.875rem',
+                  fontSize: '16px',
                   padding: '12px 16px',
                   minWidth: '120px',
                   maxWidth: '120px'
@@ -1644,16 +1644,16 @@ function CourseDashboard({
                           width: 36, 
                           height: 36,
                           bgcolor: theme.palette.mode === 'dark' ? '#800000' : '#1976d2',
-                          fontSize: '0.875rem'
+                          fontSize: '16px'
                         }}
                       >
                         {(student.fullName || `${student.firstName || ''} ${student.lastName || ''}`.trim()).charAt(0)}
                       </Avatar>
                       <Box sx={{ minWidth: 0, flex: 1 }}>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                          <Typography variant="body2" sx={{ 
-                            fontWeight: 'medium',
-                            fontSize: '0.875rem',
+                          <Typography variant="body1" sx={{ 
+                            fontWeight: 600,
+                            fontSize: '16px',
                             lineHeight: 1.2,
                             overflow: 'hidden',
                             textOverflow: 'ellipsis',
@@ -1681,7 +1681,7 @@ function CourseDashboard({
                         </Box>
                         <Typography variant="caption" sx={{ 
                           color: 'text.secondary',
-                          fontSize: '0.75rem',
+                          fontSize: '14px',
                           lineHeight: 1.2
                         }}>
                           {student.year} • {student.section}
@@ -1694,9 +1694,9 @@ function CourseDashboard({
                       title={student.lastUpdated ? `Last updated: ${new Date(student.lastUpdated).toLocaleString()}${student.updatedBy ? ` by ${student.updatedBy}` : ''}` : 'No update information'}
                       arrow
                     >
-                      <Typography variant="body2" sx={{ 
-                        fontSize: '0.875rem',
-                        fontWeight: 'medium',
+                      <Typography variant="body1" sx={{ 
+                        fontSize: '16px',
+                        fontWeight: 600,
                         color: theme.palette.mode === 'dark' ? '#ffffff' : '#000000',
                         cursor: student.lastUpdated ? 'help' : 'default'
                       }}>
@@ -1705,8 +1705,8 @@ function CourseDashboard({
                     </Tooltip>
                   </TableCell>
                   <TableCell sx={{ padding: '12px 16px', minWidth: '180px', maxWidth: '180px' }}>
-                    <Typography variant="body2" sx={{ 
-                      fontSize: '0.875rem',
+                    <Typography variant="body1" sx={{ 
+                      fontSize: '16px',
                       color: theme.palette.mode === 'dark' ? '#ffffff' : '#000000',
                       overflow: 'hidden',
                       textOverflow: 'ellipsis',
@@ -1716,16 +1716,16 @@ function CourseDashboard({
                     </Typography>
                   </TableCell>
                   <TableCell sx={{ padding: '12px 16px', minWidth: '100px', maxWidth: '100px' }}>
-                    <Typography variant="body2" sx={{ 
-                      fontSize: '0.875rem',
+                    <Typography variant="body1" sx={{ 
+                      fontSize: '16px',
                       color: theme.palette.mode === 'dark' ? '#ffffff' : '#000000'
                     }}>
                       {student.course || 'N/A'}
                     </Typography>
                   </TableCell>
                   <TableCell sx={{ padding: '12px 16px', minWidth: '120px', maxWidth: '120px' }}>
-                    <Typography variant="body2" sx={{ 
-                      fontSize: '0.875rem',
+                    <Typography variant="body1" sx={{ 
+                      fontSize: '16px',
                       color: theme.palette.mode === 'dark' ? '#ffffff' : '#000000'
                     }}>
                       {student.year} • {student.section}
@@ -1739,9 +1739,9 @@ function CourseDashboard({
                         sx={{ 
                           bgcolor: student.isRegisteredUser ? '#4caf50' : '#ff9800',
                           color: 'white',
-                          fontSize: '0.75rem',
+                          fontSize: '14px',
                           height: 24,
-                          fontWeight: 'bold'
+                          fontWeight: 700
                         }} 
                       />
                       {student.transferredFromStudents && (
@@ -1753,7 +1753,7 @@ function CourseDashboard({
                             color: 'white',
                             fontSize: '0.65rem',
                             height: 20,
-                            fontWeight: 'bold'
+                            fontWeight: 700
                           }} 
                         />
                       )}
@@ -2805,7 +2805,7 @@ School Administration
             },
             '& .Mui-selected': {
               color: '#000000 !important',
-              fontWeight: 'bold'
+              fontWeight: 700
             },
             '& .MuiTabs-indicator': {
               backgroundColor: '#000000'
@@ -2849,11 +2849,11 @@ School Administration
           }}>
             <Typography variant="h4" sx={{ 
               color: theme.palette.mode === 'dark' ? '#ffffff' : '#000000', 
-              fontWeight: 'bold' 
+              fontWeight: 700 
             }}>
               {filteredStudents.filter(s => s.course && s.course.trim() !== '').length}
             </Typography>
-            <Typography variant="body2" sx={{ 
+            <Typography variant="body1" sx={{ 
               color: theme.palette.mode === 'dark' ? '#ffffff' : 'text.secondary' 
             }}>
               {activeTab === 1 ? 'Unregistered with Courses' : 
@@ -2872,11 +2872,11 @@ School Administration
           }}>
             <Typography variant="h4" sx={{ 
               color: theme.palette.mode === 'dark' ? '#ffffff' : '#000000', 
-              fontWeight: 'bold' 
+              fontWeight: 700 
             }}>
               {availableCourses.length}
             </Typography>
-            <Typography variant="body2" sx={{ 
+            <Typography variant="body1" sx={{ 
               color: theme.palette.mode === 'dark' ? '#ffffff' : 'text.secondary' 
             }}>
               Available Courses
@@ -2893,11 +2893,11 @@ School Administration
           }}>
             <Typography variant="h4" sx={{ 
               color: theme.palette.mode === 'dark' ? '#ffffff' : '#000000', 
-              fontWeight: 'bold' 
+              fontWeight: 700 
             }}>
               {courseFilter !== 'all' ? filteredStudents.length : students.length}
             </Typography>
-            <Typography variant="body2" sx={{ 
+            <Typography variant="body1" sx={{ 
               color: theme.palette.mode === 'dark' ? '#ffffff' : 'text.secondary' 
             }}>
               {courseFilter !== 'all' ? `${courseFilter} Students` : 'Total Students'}
@@ -2914,11 +2914,11 @@ School Administration
           }}>
             <Typography variant="h4" sx={{ 
               color: theme.palette.mode === 'dark' ? '#ffffff' : '#000000', 
-              fontWeight: 'bold' 
+              fontWeight: 700 
             }}>
               {filteredStudents.length}
             </Typography>
-            <Typography variant="body2" sx={{ 
+            <Typography variant="body1" sx={{ 
               color: theme.palette.mode === 'dark' ? '#ffffff' : 'text.secondary' 
             }}>
               {search.trim() ? `Search Results (${filteredStudents.length} found)` : 
@@ -2939,7 +2939,7 @@ School Administration
               bgcolor: '#ffffff', 
               color: '#000000', 
               borderColor: '#000000', 
-              fontSize: '0.75rem',
+              fontSize: '14px',
               fontWeight: 400,
               textTransform: 'none',
               padding: '6px 12px',
@@ -2963,7 +2963,7 @@ School Administration
               bgcolor: '#ffffff', 
               color: '#000000', 
               borderColor: '#000000', 
-              fontSize: '0.75rem',
+              fontSize: '14px',
               fontWeight: 400,
               textTransform: 'none',
               padding: '6px 12px',
@@ -2976,7 +2976,7 @@ School Administration
                 boxShadow: 'none'
               },
               '& .MuiSvgIcon-root': {
-                fontSize: '0.875rem'
+                fontSize: '16px'
               }
             }}
           >
@@ -2989,7 +2989,7 @@ School Administration
               bgcolor: '#ffffff', 
               color: '#000000', 
               borderColor: '#000000', 
-              fontSize: '0.75rem',
+              fontSize: '14px',
               fontWeight: 400,
               textTransform: 'none',
               padding: '6px 12px',
@@ -3013,7 +3013,7 @@ School Administration
               bgcolor: '#ffffff', 
               color: '#000000', 
               borderColor: '#000000', 
-              fontSize: '0.75rem',
+              fontSize: '14px',
               fontWeight: 400,
               textTransform: 'none',
               padding: '6px 12px',
@@ -3032,7 +3032,7 @@ School Administration
               }
             }}
           >
-            <PictureAsPdf sx={{ mr: 0.5, fontSize: '0.875rem', color: 'inherit' }} />
+            <PictureAsPdf sx={{ mr: 0.5, fontSize: '16px', color: 'inherit' }} />
             Export PDF
           </Button>
         </Stack>
@@ -3042,12 +3042,12 @@ School Administration
       <Box sx={{ mb: 3 }}>
         <Typography variant="body1" sx={{ 
           color: theme.palette.mode === 'dark' ? '#ffffff' : '#000000', 
-          fontWeight: 'medium', 
+          fontWeight: 600, 
           mb: 1 
         }}>
           📋 Student Management
         </Typography>
-        <Typography variant="body2" sx={{ 
+        <Typography variant="body1" sx={{ 
           color: theme.palette.mode === 'dark' ? '#ffffff' : 'text.secondary' 
         }}>
           All students are displayed in a unified table below. Use the course filter dropdown to view students from specific courses, 
@@ -3068,7 +3068,7 @@ School Administration
               <Typography variant="h6" sx={{ mb: 2, color: 'text.secondary' }}>
                 🔍 No students found
               </Typography>
-              <Typography variant="body2" sx={{ mb: 2, color: 'text.secondary' }}>
+              <Typography variant="body1" sx={{ mb: 2, color: 'text.secondary' }}>
                 {search.trim() ? `No students match "${search}"` : `No students found in ${courseFilter}`}
               </Typography>
               <Stack direction="row" spacing={2} justifyContent="center">
@@ -3195,9 +3195,9 @@ School Administration
               <TableRow>
                 <TableCell sx={{ 
                   bgcolor: '#800000',
-                  fontWeight: 'bold',
+                  fontWeight: 700,
                   color: '#ffffff',
-                  fontSize: '0.875rem',
+                  fontSize: '16px',
                   padding: '12px 16px',
                   minWidth: '140px',
                   maxWidth: '140px'
@@ -3206,9 +3206,9 @@ School Administration
                 </TableCell>
                 <TableCell sx={{ 
                   bgcolor: '#800000',
-                  fontWeight: 'bold',
+                  fontWeight: 700,
                   color: '#ffffff',
-                  fontSize: '0.875rem',
+                  fontSize: '16px',
                   padding: '12px 16px',
                   minWidth: '120px',
                   maxWidth: '120px'
@@ -3217,9 +3217,9 @@ School Administration
                 </TableCell>
                 <TableCell sx={{ 
                   bgcolor: '#800000',
-                  fontWeight: 'bold',
+                  fontWeight: 700,
                   color: '#ffffff',
-                  fontSize: '0.875rem',
+                  fontSize: '16px',
                   padding: '12px 16px',
                   minWidth: '180px',
                   maxWidth: '180px'
@@ -3228,9 +3228,9 @@ School Administration
                 </TableCell>
                 <TableCell sx={{ 
                   bgcolor: '#800000',
-                  fontWeight: 'bold',
+                  fontWeight: 700,
                   color: '#ffffff',
-                  fontSize: '0.875rem',
+                  fontSize: '16px',
                   padding: '12px 16px',
                   minWidth: '100px',
                   maxWidth: '100px'
@@ -3239,9 +3239,9 @@ School Administration
                 </TableCell>
                 <TableCell sx={{ 
                   bgcolor: '#800000',
-                  fontWeight: 'bold',
+                  fontWeight: 700,
                   color: '#ffffff',
-                  fontSize: '0.875rem',
+                  fontSize: '16px',
                   padding: '12px 16px',
                   minWidth: '120px',
                   maxWidth: '120px'
@@ -3250,9 +3250,9 @@ School Administration
                 </TableCell>
                 <TableCell sx={{ 
                   bgcolor: '#800000',
-                  fontWeight: 'bold',
+                  fontWeight: 700,
                   color: '#ffffff',
-                  fontSize: '0.875rem',
+                  fontSize: '16px',
                   padding: '12px 16px',
                   minWidth: '100px',
                   maxWidth: '100px'
@@ -3261,9 +3261,9 @@ School Administration
                 </TableCell>
                 <TableCell sx={{ 
                   bgcolor: '#800000',
-                  fontWeight: 'bold',
+                  fontWeight: 700,
                   color: '#ffffff',
-                  fontSize: '0.875rem',
+                  fontSize: '16px',
                   padding: '12px 16px',
                   minWidth: '120px',
                   maxWidth: '120px'
@@ -3300,14 +3300,14 @@ School Administration
                           width: 32, 
                           height: 32,
                           bgcolor: theme.palette.mode === 'dark' ? '#800000' : '#1976d2',
-                          fontSize: '0.75rem'
+                          fontSize: '14px'
                         }}
                       >
                         {(student.fullName || `${student.firstName || ''} ${student.lastName || ''}`.trim()).charAt(0)}
                       </Avatar>
                       <Box sx={{ minWidth: 0, flex: 1 }}>
-                        <Typography variant="body2" sx={{ 
-                          fontWeight: 'medium',
+                        <Typography variant="body1" sx={{ 
+                          fontWeight: 600,
                           fontSize: '0.8rem',
                           lineHeight: 1.2,
                           overflow: 'hidden',
@@ -3328,7 +3328,7 @@ School Administration
                   </TableCell>
                   <TableCell sx={{ padding: '8px 12px', minWidth: '120px', maxWidth: '120px' }}>
                     <Tooltip title={student.studentId || 'N/A'} arrow>
-                      <Typography variant="body2" sx={{ 
+                      <Typography variant="body1" sx={{ 
                         fontSize: '0.8rem',
                         lineHeight: 1.2,
                         fontFamily: 'monospace',
@@ -3339,7 +3339,7 @@ School Administration
                     </Tooltip>
                   </TableCell>
                   <TableCell sx={{ padding: '8px 12px', minWidth: '180px', maxWidth: '180px' }}>
-                    <Typography variant="body2" sx={{ 
+                    <Typography variant="body1" sx={{ 
                       fontSize: '0.8rem',
                       lineHeight: 1.2,
                       overflow: 'hidden',
@@ -3356,14 +3356,14 @@ School Administration
                       sx={{ 
                         bgcolor: student.course ? '#e3f2fd' : '#ffebee',
                         color: student.course ? '#1976d2' : '#d32f2f',
-                        fontWeight: 'medium',
+                        fontWeight: 600,
                         fontSize: '0.7rem',
                         height: 20
                       }}
                     />
                   </TableCell>
                   <TableCell sx={{ padding: '8px 12px', minWidth: '120px', maxWidth: '120px' }}>
-                    <Typography variant="body2" sx={{ 
+                    <Typography variant="body1" sx={{ 
                       fontSize: '0.8rem',
                       lineHeight: 1.2
                     }}>
@@ -3377,7 +3377,7 @@ School Administration
                       sx={{ 
                         bgcolor: student.isRegisteredUser ? '#e8f5e8' : '#fff3e0',
                         color: student.isRegisteredUser ? '#2e7d32' : '#f57c00',
-                        fontWeight: 'medium',
+                        fontWeight: 600,
                         fontSize: '0.7rem',
                         height: 20
                       }}
@@ -3995,7 +3995,7 @@ function EditStudentForm({ student, onClose, onSuccess }) {
                     bgcolor: '#ffffff', 
                     color: '#000000', 
                     borderColor: '#000000', 
-                    fontSize: '0.75rem',
+                    fontSize: '14px',
                     fontWeight: 400,
                     textTransform: 'none',
                     padding: '6px 12px',
@@ -4026,7 +4026,7 @@ function EditStudentForm({ student, onClose, onSuccess }) {
                   sx={{ 
                     color: '#666666',
                     padding: '4px',
-                    fontSize: '0.75rem',
+                    fontSize: '14px',
                     fontWeight: 400,
                     textTransform: 'none',
                     minHeight: '32px',
@@ -4046,7 +4046,7 @@ function EditStudentForm({ student, onClose, onSuccess }) {
                   sx={{ 
                     color: '#666666',
                     padding: '4px',
-                    fontSize: '0.75rem',
+                    fontSize: '14px',
                     fontWeight: 400,
                     textTransform: 'none',
                     minHeight: '32px',
@@ -4066,7 +4066,7 @@ function EditStudentForm({ student, onClose, onSuccess }) {
                   sx={{ 
                     color: '#666666',
                     padding: '4px',
-                    fontSize: '0.75rem',
+                    fontSize: '14px',
                     fontWeight: 400,
                     textTransform: 'none',
                     minHeight: '32px',
@@ -4206,7 +4206,7 @@ export default function Students() {
                       <TableCell>{v.date || 'N/A'}</TableCell>
                       <TableCell>{v.time || 'N/A'}</TableCell>
                       <TableCell>
-                        <Typography variant="body2" fontWeight="medium">
+                        <Typography variant="body1" fontWeight="medium">
                           {v.violation}
                         </Typography>
                         {v.description && (
@@ -4217,12 +4217,12 @@ export default function Students() {
                       </TableCell>
                       <TableCell>
                         <Typography 
-                          variant="body2" 
+                          variant="body1" 
                           sx={{ 
                             color: v.classification === 'Grave' ? 'error.main' : 
                                    v.classification === 'Serious' ? 'warning.main' : 
                                    v.classification === 'Major' ? 'info.main' : 'success.main',
-                            fontWeight: 'medium'
+                            fontWeight: 600
                           }}
                         >
                           {v.classification}
@@ -4230,12 +4230,12 @@ export default function Students() {
                       </TableCell>
                       <TableCell>
                         <Typography 
-                          variant="body2" 
+                          variant="body1" 
                           sx={{ 
                             color: v.severity === 'Critical' ? 'error.main' : 
                                    v.severity === 'High' ? 'warning.main' : 
                                    v.severity === 'Medium' ? 'info.main' : 'success.main',
-                            fontWeight: 'medium'
+                            fontWeight: 600
                           }}
                         >
                           {v.severity || 'N/A'}
@@ -4244,7 +4244,7 @@ export default function Students() {
                       <TableCell>{v.location || 'N/A'}</TableCell>
                       <TableCell>{v.reportedBy || 'N/A'}</TableCell>
                       <TableCell>
-                        <Typography variant="body2">
+                        <Typography variant="body1">
                           {v.actionTaken || 'N/A'}
                         </Typography>
                         {v.witnesses && (
@@ -4293,80 +4293,80 @@ export default function Students() {
                     {studentToView.firstName?.charAt(0)}{studentToView.lastName?.charAt(0)}
                   </Avatar>
                 )}
-                <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#800000', mb: 1 }}>
+                <Typography variant="h6" sx={{ fontWeight: 700, color: '#800000', mb: 1 }}>
                   {`${studentToView.firstName || ''} ${studentToView.lastName || ''}`.trim() || 'N/A'}
                 </Typography>
-                <Typography variant="body2" sx={{ color: 'text.secondary', mb: 1 }}>
+                <Typography variant="body1" sx={{ color: 'text.secondary', mb: 1 }}>
                   {studentToView.email || 'N/A'}
                 </Typography>
               </Box>
 
               {/* Student Information */}
               <Box sx={{ bgcolor: 'rgba(128,0,0,0.05)', borderRadius: 2, p: 2 }}>
-                <Typography variant="subtitle1" sx={{ fontWeight: 'bold', color: '#800000', mb: 2 }}>
+                <Typography variant="subtitle1" sx={{ fontWeight: 700, color: '#800000', mb: 2 }}>
                   Student Information
                 </Typography>
                 
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Typography variant="body2" sx={{ fontWeight: 'medium', color: 'text.secondary' }}>
+                    <Typography variant="body1" sx={{ fontWeight: 600, color: 'text.secondary' }}>
                       Student ID:
                     </Typography>
-                    <Typography variant="body2" sx={{ fontWeight: 'bold', fontFamily: 'monospace' }}>
+                    <Typography variant="body1" sx={{ fontWeight: 700, fontFamily: 'monospace' }}>
                       {studentToView.studentId || 'N/A'}
                     </Typography>
                   </Box>
 
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Typography variant="body2" sx={{ fontWeight: 'medium', color: 'text.secondary' }}>
+                    <Typography variant="body1" sx={{ fontWeight: 600, color: 'text.secondary' }}>
                       Last Name:
                     </Typography>
-                    <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
+                    <Typography variant="body1" sx={{ fontWeight: 700 }}>
                       {studentToView.lastName || 'N/A'}
                     </Typography>
                   </Box>
 
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Typography variant="body2" sx={{ fontWeight: 'medium', color: 'text.secondary' }}>
+                    <Typography variant="body1" sx={{ fontWeight: 600, color: 'text.secondary' }}>
                       First Name:
                     </Typography>
-                    <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
+                    <Typography variant="body1" sx={{ fontWeight: 700 }}>
                       {studentToView.firstName || 'N/A'}
                     </Typography>
                   </Box>
 
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Typography variant="body2" sx={{ fontWeight: 'medium', color: 'text.secondary' }}>
+                    <Typography variant="body1" sx={{ fontWeight: 600, color: 'text.secondary' }}>
                       Middle Initial:
                     </Typography>
-                    <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
+                    <Typography variant="body1" sx={{ fontWeight: 700 }}>
                       {studentToView.middleInitial || 'N/A'}
                     </Typography>
                   </Box>
 
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Typography variant="body2" sx={{ fontWeight: 'medium', color: 'text.secondary' }}>
+                    <Typography variant="body1" sx={{ fontWeight: 600, color: 'text.secondary' }}>
                       Sex:
                     </Typography>
-                    <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
+                    <Typography variant="body1" sx={{ fontWeight: 700 }}>
                       {studentToView.sex || 'N/A'}
                     </Typography>
                   </Box>
 
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Typography variant="body2" sx={{ fontWeight: 'medium', color: 'text.secondary' }}>
+                    <Typography variant="body1" sx={{ fontWeight: 600, color: 'text.secondary' }}>
                       Age:
                     </Typography>
-                    <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
+                    <Typography variant="body1" sx={{ fontWeight: 700 }}>
                       {studentToView.age || 'N/A'}
                     </Typography>
                   </Box>
 
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Typography variant="body2" sx={{ fontWeight: 'medium', color: 'text.secondary' }}>
+                    <Typography variant="body1" sx={{ fontWeight: 600, color: 'text.secondary' }}>
                       Birthday:
                     </Typography>
-                    <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
+                    <Typography variant="body1" sx={{ fontWeight: 700 }}>
                       {studentToView.birthdate ? new Date(studentToView.birthdate).toLocaleDateString('en-US', { 
                         year: 'numeric', 
                         month: 'long', 
@@ -4376,10 +4376,10 @@ export default function Students() {
                   </Box>
 
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Typography variant="body2" sx={{ fontWeight: 'medium', color: 'text.secondary' }}>
+                    <Typography variant="body1" sx={{ fontWeight: 600, color: 'text.secondary' }}>
                       Contact Number:
                     </Typography>
-                    <Typography variant="body2" sx={{ fontWeight: 'bold', fontFamily: 'monospace' }}>
+                    <Typography variant="body1" sx={{ fontWeight: 700, fontFamily: 'monospace' }}>
                       {studentToView.contact || 'N/A'}
                     </Typography>
                   </Box>
@@ -4388,11 +4388,11 @@ export default function Students() {
                   {studentToView.transferredFromStudents && (
                     <>
                       <Box sx={{ mt: 2, pt: 2, borderTop: '1px solid', borderColor: 'divider' }}>
-                        <Typography variant="subtitle2" sx={{ fontWeight: 'bold', color: '#2196f3', mb: 1 }}>
+                        <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#2196f3', mb: 1 }}>
                           Transfer Information
                         </Typography>
                         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <Typography variant="body2" sx={{ fontWeight: 'medium', color: 'text.secondary' }}>
+                          <Typography variant="body1" sx={{ fontWeight: 600, color: 'text.secondary' }}>
                             Transfer Status:
                           </Typography>
                           <Chip 
@@ -4401,17 +4401,17 @@ export default function Students() {
                             sx={{ 
                               bgcolor: '#2196f3',
                               color: 'white',
-                              fontSize: '0.75rem',
-                              fontWeight: 'bold'
+                              fontSize: '14px',
+                              fontWeight: 700
                             }} 
                           />
                         </Box>
                         {studentToView.transferDate && (
                           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 1 }}>
-                            <Typography variant="body2" sx={{ fontWeight: 'medium', color: 'text.secondary' }}>
+                            <Typography variant="body1" sx={{ fontWeight: 600, color: 'text.secondary' }}>
                               Transfer Date:
                             </Typography>
-                            <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
+                            <Typography variant="body1" sx={{ fontWeight: 700 }}>
                               {new Date(studentToView.transferDate).toLocaleDateString('en-US', { 
                                 year: 'numeric', 
                                 month: 'long', 
@@ -4438,7 +4438,7 @@ export default function Students() {
               bgcolor: theme.palette.mode === 'dark' ? '#2d2d2d' : '#ffffff', 
               color: theme.palette.mode === 'dark' ? '#ffffff' : '#000000', 
               borderColor: theme.palette.mode === 'dark' ? '#666666' : '#000000', 
-              fontSize: '0.75rem',
+              fontSize: '14px',
               fontWeight: 400,
               textTransform: 'none',
               padding: '6px 12px',
@@ -4461,7 +4461,7 @@ export default function Students() {
               bgcolor: theme.palette.mode === 'dark' ? '#2d2d2d' : '#ffffff', 
               color: theme.palette.mode === 'dark' ? '#ffffff' : '#000000', 
               borderColor: theme.palette.mode === 'dark' ? '#666666' : '#000000', 
-              fontSize: '0.75rem',
+              fontSize: '14px',
               fontWeight: 400,
               textTransform: 'none',
               padding: '6px 12px',

@@ -144,16 +144,15 @@ export default function Overview() {
     
     try {
       // Optimize: Use count queries instead of fetching all documents
-      const [studentsSnapshot, usersSnapshot, violationsSnapshot, activitiesSnapshot, announcementsSnapshot] = await Promise.allSettled([
+      // Note: Only counting from 'students' collection to match StudentList behavior
+      const [studentsSnapshot, violationsSnapshot, activitiesSnapshot, announcementsSnapshot] = await Promise.allSettled([
         getDocs(collection(db, "students")),
-        getDocs(query(collection(db, "users"), where("role", "==", "Student"))),
         getDocs(collection(db, "violations")),
         getDocs(collection(db, "activities")).catch(() => ({ size: 0 })),
         getDocs(collection(db, "announcements")).catch(() => ({ size: 0 }))
       ]);
 
-      const studentsCount = (studentsSnapshot.status === 'fulfilled' ? studentsSnapshot.value.size : 0) + 
-                           (usersSnapshot.status === 'fulfilled' ? usersSnapshot.value.size : 0);
+      const studentsCount = studentsSnapshot.status === 'fulfilled' ? studentsSnapshot.value.size : 0;
       const violationsCount = violationsSnapshot.status === 'fulfilled' ? violationsSnapshot.value.size : 0;
       const activitiesCount = activitiesSnapshot.status === 'fulfilled' ? activitiesSnapshot.value.size : 0;
       const announcementsCount = announcementsSnapshot.status === 'fulfilled' ? announcementsSnapshot.value.size : 0;
@@ -168,7 +167,7 @@ export default function Overview() {
       // Optimize: Generate monthly data only once with cached results
       const monthlyData = await generateOptimizedMonthlyData(
         studentsSnapshot.status === 'fulfilled' ? studentsSnapshot.value.docs : [],
-        usersSnapshot.status === 'fulfilled' ? usersSnapshot.value.docs : [],
+        [], // No longer using users collection for student count
         violationsSnapshot.status === 'fulfilled' ? violationsSnapshot.value.docs : []
       );
 
@@ -215,55 +214,28 @@ export default function Overview() {
     
     try {
       if (collectionName === "students") {
-        // For students, fetch ALL students from both collections and distribute by month
-        const [studentsSnapshot, usersSnapshot] = await Promise.allSettled([
-          getDocs(collection(db, "students")),
-          getDocs(query(collection(db, "users"), where("role", "==", "Student")))
-        ]);
+        // For students, fetch only from students collection to match StudentList behavior
+        const studentsSnapshot = await getDocs(collection(db, "students"));
         
-        // Process students from "students" collection
-        if (studentsSnapshot.status === 'fulfilled') {
-          studentsSnapshot.value.docs.forEach(doc => {
-            const data = doc.data();
-            const createdAt = data[dateField];
-            if (createdAt) {
-              const createdDate = new Date(createdAt);
-              const createdMonth = createdDate.getMonth();
-              const createdYear = createdDate.getFullYear();
-              
-              // Find matching month in our array
-              const monthIndex = months.findIndex(m => 
-                m.monthNumber === createdMonth && m.year === createdYear
-              );
-              
-              if (monthIndex !== -1) {
-                months[monthIndex].count++;
-              }
+        // Process students from "students" collection only
+        studentsSnapshot.docs.forEach(doc => {
+          const data = doc.data();
+          const createdAt = data[dateField];
+          if (createdAt) {
+            const createdDate = new Date(createdAt);
+            const createdMonth = createdDate.getMonth();
+            const createdYear = createdDate.getFullYear();
+            
+            // Find matching month in our array
+            const monthIndex = months.findIndex(m => 
+              m.monthNumber === createdMonth && m.year === createdYear
+            );
+            
+            if (monthIndex !== -1) {
+              months[monthIndex].count++;
             }
-          });
-        }
-        
-        // Process students from "users" collection
-        if (usersSnapshot.status === 'fulfilled') {
-          usersSnapshot.value.docs.forEach(doc => {
-            const data = doc.data();
-            const createdAt = data[dateField];
-            if (createdAt) {
-              const createdDate = new Date(createdAt);
-              const createdMonth = createdDate.getMonth();
-              const createdYear = createdDate.getFullYear();
-              
-              // Find matching month in our array
-              const monthIndex = months.findIndex(m => 
-                m.monthNumber === createdMonth && m.year === createdYear
-              );
-              
-              if (monthIndex !== -1) {
-                months[monthIndex].count++;
-              }
-            }
-          });
-        }
+          }
+        });
       } else {
         // For other collections (violations, etc.), use the original logic
         for (let i = 0; i < months.length; i++) {
