@@ -674,7 +674,6 @@ function LostFound() {
         // Fetch from 'RegisteredStudents' collection (registered students)
         const registeredStudentsQuerySnapshot = await getDocs(collection(db, "RegisteredStudents"));
         const registeredStudentsData = registeredStudentsQuerySnapshot.docs.map(doc => {
->>>>>>> f263fccbd44c277778232a42c3353d38c140fa60
           const data = doc.data();
           // The document ID is the studentId
           const studentId = doc.id;
@@ -1097,7 +1096,6 @@ function CourseDashboard({
         
         // Fetch from 'students' collection (only unregistered students)
         const studentsQuerySnapshot = await getDocs(collection(db, "students"));
-<<<<<<< HEAD
         const unregisteredStudentsData = studentsQuerySnapshot.docs
           .filter(doc => doc.data().isRegistered !== true) // Only unregistered students
           .map(doc => {
@@ -1122,8 +1120,33 @@ function CourseDashboard({
               isRegisteredUser: false // These are unregistered students
             };
           });
-=======
-        const studentsData = studentsQuerySnapshot.docs.map(doc => {
+        
+        // Combine both collections (no duplicates since we filter unregistered students)
+        const allStudents = [...unregisteredStudentsData, ...registeredStudentsData];
+        
+        setStudents(allStudents);
+        setFilteredStudents(allStudents);
+      } catch (error) {
+        console.error("Error fetching course students:", error);
+        setError('Failed to load students. Please try again.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchCourseStudents();
+  }, [selectedCourse, courseName]);
+
+  // Real-time listener for students collection
+  useEffect(() => {
+    console.log('🔄 Setting up real-time listener for students collection...');
+    setLoading(true);
+    
+    const unsubStudents = onSnapshot(
+      collection(db, "students"),
+      (snapshot) => {
+        console.log('📊 Real-time update: Students collection changed');
+        const studentsData = snapshot.docs.map(doc => {
           const data = doc.data();
           return {
             id: doc.id,
@@ -1142,71 +1165,89 @@ function CourseDashboard({
             profilePic: data.profilePic || '',
             createdAt: data.createdAt || '',
             updatedAt: data.updatedAt || '',
-            isRegisteredUser: Boolean(data.isRegistered) // Use isRegistered field from students collection
-          };
-        }).filter(student => !student.isRegistered);
->>>>>>> f263fccbd44c277778232a42c3353d38c140fa60
-        
-        // Fetch from 'RegisteredStudents' collection (registered students)
-        const registeredStudentsQuerySnapshot = await getDocs(collection(db, "RegisteredStudents"));
-        const registeredStudentsData = registeredStudentsQuerySnapshot.docs.map(doc => {
-          const data = doc.data();
-          // The document ID is the studentId
-          const studentId = doc.id;
-          
-          return {
-            id: studentId, // Use studentId as ID
-            firstName: data.firstName || '',
-            lastName: data.lastName || '',
-            fullName: data.fullName || `${data.firstName || ''} ${data.lastName || ''}`.trim(),
-            email: data.registeredEmail || data.email || '', // Use registeredEmail first, then email field
-            course: data.course || '',
-            year: data.year || '',
-            section: data.section || '',
-            studentId: studentId, // Student ID from document ID
-            sex: data.sex || '',
-            age: data.age || '',
-            birthdate: data.birthdate || '',
-            contact: data.contact || '',
-            profilePic: data.profilePic || '',
-            createdAt: data.registeredAt || '',
-            updatedAt: data.updatedAt || '',
-            isRegisteredUser: true // Flag to identify registered users
+            lastUpdated: data.lastUpdated || '', // Add lastUpdated field
+            updatedBy: data.updatedBy || '', // Add updatedBy field
+            isRegisteredUser: Boolean(data.isRegistered), // Use isRegistered field from students collection
+            isRegistered: Boolean(data.isRegistered), // Add this field for consistency
+            registeredAt: data.registeredAt || '',
+            registeredEmail: data.registeredEmail || '',
+            registeredUserId: data.registeredUserId || '',
+            // Add additional fields that might be updated by students
+            middleInitial: data.middleInitial || '',
+            sccNumber: data.sccNumber || '',
+            fatherName: data.fatherName || '',
+            fatherOccupation: data.fatherOccupation || '',
+            motherName: data.motherName || '',
+            motherOccupation: data.motherOccupation || '',
+            guardian: data.guardian || '',
+            guardianOccupation: data.guardianOccupation || '',
+            emergencyContactName: data.emergencyContactName || '',
+            emergencyContactNumber: data.emergencyContactNumber || '',
+            province: data.province || '',
+            municipality: data.municipality || '',
+            barangay: data.barangay || '',
+            address: data.address || '',
+            zipCode: data.zipCode || ''
           };
         });
         
-        // Combine both collections and filter by course (no duplicates since we filter unregistered students)
-        const allStudents = [...unregisteredStudentsData, ...registeredStudentsData];
-        const courseStudents = allStudents.filter(student => student.course === courseName);
+        console.log("Students fetched successfully:", studentsData.length);
         
-        // Sort students by name
-        const sortedStudents = courseStudents.sort((a, b) => {
-          const nameA = (a.fullName || `${a.firstName || ""} ${a.lastName || ""}`.trim()).toLowerCase();
-          const nameB = (b.fullName || `${b.firstName || ""} ${b.lastName || ""}`.trim()).toLowerCase();
-          return nameA.localeCompare(nameB);
-        });
-        
-        console.log(`${courseName} students fetched successfully:`, sortedStudents.length);
-        console.log('📧 Sample student email data:', sortedStudents.slice(0, 3).map(s => ({ 
-          name: s.fullName, 
-          email: s.email, 
-          studentId: s.studentId 
-        })));
-        setStudents(sortedStudents);
-      } catch (error) {
-        console.error("Error fetching students:", error);
-        setStudents([]);
-        setSnackbar({ 
-          open: true, 
-          message: "Error loading students: " + error.message, 
-          severity: "error" 
-        });
-      } finally {
+        setStudents(studentsData);
+        setFilteredStudents(studentsData);
+        console.log('📊 Students state updated:', studentsData.length);
+      },
+      (error) => {
+        console.error('❌ Error listening to students collection:', error);
         setLoading(false);
       }
+    );
+    
+    // Note: No longer need separate RegisteredStudents listener since all students 
+    // (both registered and unregistered) are now stored in the students collection
+    
+    return () => {
+      console.log('🔄 Cleaning up real-time listeners...');
+      unsubStudents();
     };
-    fetchStudents();
-  }, [courseName]);
+  }, []);
+
+  // Keyboard shortcut for search (Ctrl+F or Cmd+F)
+  useEffect(() => {
+    const handleKeyDown = (event) => {
+      if ((event.ctrlKey || event.metaKey) && event.key === 'f') {
+        event.preventDefault();
+        // Focus on search input if it exists
+        const searchInput = document.querySelector('input[placeholder*="Search"]');
+        if (searchInput) {
+          searchInput.focus();
+        }
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+  // Filter students based on search term
+  useEffect(() => {
+    if (!searchTerm.trim()) {
+      setFilteredStudents(students);
+    } else {
+      const filtered = students.filter(student => {
+        const searchLower = searchTerm.toLowerCase();
+        const matchName = (student.fullName || `${student.firstName || ''} ${student.lastName || ''}`.trim()).toLowerCase().includes(searchLower);
+        const matchEmail = (student.email || '').toLowerCase().includes(searchLower);
+        const matchStudentId = (student.studentId || '').toLowerCase().includes(searchLower);
+        const matchCourse = (student.course || '').toLowerCase().includes(searchLower);
+        const matchYear = (student.year || '').toLowerCase().includes(searchLower);
+        const matchSection = (student.section || '').toLowerCase().includes(searchLower);
+        
+        return matchName || matchEmail || matchStudentId || matchCourse || matchYear || matchSection;
+      });
+      setFilteredStudents(filtered);
+    }
+  }, [searchTerm, students]);
 
   // Filter students based on search and year level
   const filteredStudents = students.filter(student => {
@@ -1837,14 +1878,6 @@ function StudentList({
             profilePic: data.profilePic || '',
             createdAt: data.createdAt || '',
             updatedAt: data.updatedAt || '',
-<<<<<<< HEAD
-            isRegisteredUser: data.isRegistered === true // Check the actual isRegistered field
-          };
-        }); // Only show unregistered students
-        
-        console.log('📋 All students from collection:', snapshot.docs.map(doc => ({ id: doc.id, data: doc.data() })));
-        console.log('📋 Unregistered students after filtering:', studentsData.length);
-=======
             lastUpdated: data.lastUpdated || '', // Add lastUpdated field
             updatedBy: data.updatedBy || '', // Add updatedBy field
             isRegisteredUser: Boolean(data.isRegistered), // Use isRegistered field from students collection
@@ -1878,7 +1911,6 @@ function StudentList({
           lastUpdated: s.lastUpdated,
           updatedBy: s.updatedBy
         })));
->>>>>>> f263fccbd44c277778232a42c3353d38c140fa60
         
         // Debug: Count registered vs unregistered
         const registeredCount = studentsData.filter(s => s.isRegisteredUser).length;
@@ -1920,8 +1952,8 @@ function StudentList({
       }
     );
     
-<<<<<<< HEAD
-    // Real-time listener for registered students
+    // Real-time listener for registered students (no longer needed - consolidated approach)
+    /*
     const unsubUsers = onSnapshot(
       query(collection(db, "users"), where("role", "==", "Student")),
       (snapshot) => {
@@ -1974,14 +2006,15 @@ function StudentList({
         setLoading(false);
       }
     );
-=======
+    */
+    
     // Note: No longer need separate RegisteredStudents listener since all students 
     // (both registered and unregistered) are now stored in the students collection
->>>>>>> f263fccbd44c277778232a42c3353d38c140fa60
     
     return () => {
       console.log('🔄 Cleaning up real-time listeners...');
       unsubStudents();
+      // unsubUsers(); // No longer needed
     };
   }, []);
 
