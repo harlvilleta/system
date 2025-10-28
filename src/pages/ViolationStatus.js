@@ -218,7 +218,7 @@ export default function ViolationStatus() {
       </Paper>
 
       {/* Violations Table */}
-      <TableContainer component={Paper} sx={{ maxHeight: 600 }}>
+      <TableContainer component={Paper} sx={{ maxHeight: 600, mr: 3 }}>
         <Table stickyHeader>
           <TableHead>
             <TableRow sx={{ 

@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { Box, Paper, Typography, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, IconButton, Button, Dialog, DialogTitle, DialogContent, DialogActions, TextField, Chip, Snackbar, Alert, useTheme } from '@mui/material';
+import React, { useEffect, useState, useMemo } from 'react';
+import { Box, Paper, Typography, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, IconButton, Button, Dialog, DialogTitle, DialogContent, DialogActions, TextField, Chip, Snackbar, Alert, useTheme, TablePagination, Grid } from '@mui/material';
 import { Visibility, CheckCircle, Cancel, Schedule, Warning } from '@mui/icons-material';
 import { collection, getDocs, updateDoc, addDoc, doc, query, orderBy } from 'firebase/firestore';
 import { db, auth } from '../firebase';
@@ -10,6 +10,8 @@ export default function ActivityRequestsAdmin() {
   const [selected, setSelected] = useState(null);
   const [remarks, setRemarks] = useState('');
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(8);
 
   const load = async () => {
     try {
@@ -23,6 +25,20 @@ export default function ActivityRequestsAdmin() {
   };
 
   useEffect(() => { load(); }, []);
+
+  const handleChangePage = (event, newPage) => {
+    setPage(newPage);
+  };
+
+  const handleChangeRowsPerPage = (event) => {
+    setRowsPerPage(parseInt(event.target.value, 10));
+    setPage(0);
+  };
+
+  const paginatedRequests = useMemo(() => {
+    const startIndex = page * rowsPerPage;
+    return requests.slice(startIndex, startIndex + rowsPerPage);
+  }, [requests, page, rowsPerPage]);
 
   const updateStatus = async (req, status) => {
     try {
@@ -67,121 +83,88 @@ export default function ActivityRequestsAdmin() {
           <TableHead>
             <TableRow>
               <TableCell sx={{ 
-                color: theme.palette.mode === 'dark' ? '#ffffff' : '#800000',
-                fontWeight: 'bold',
-                borderBottom: theme.palette.mode === 'dark' ? '1px solid #404040' : '1px solid #e0e0e0',
-                bgcolor: theme.palette.mode === 'dark' ? 'rgba(128, 0, 0, 0.1)' : '#f5f5f5',
-                border: theme.palette.mode === 'dark' ? '1px solid #404040' : '1px solid #e0e0e0'
+                bgcolor: '#800000',
+                color: '#ffffff',
+                fontWeight: 600,
+                fontSize: '16px',
+                padding: '16px'
               }}>Teacher</TableCell>
               <TableCell sx={{ 
-                color: theme.palette.mode === 'dark' ? '#ffffff' : '#800000',
-                fontWeight: 'bold',
-                borderBottom: theme.palette.mode === 'dark' ? '1px solid #404040' : '1px solid #e0e0e0',
-                bgcolor: theme.palette.mode === 'dark' ? 'rgba(128, 0, 0, 0.1)' : '#f5f5f5',
-                border: theme.palette.mode === 'dark' ? '1px solid #404040' : '1px solid #e0e0e0'
+                bgcolor: '#800000',
+                color: '#ffffff',
+                fontWeight: 600,
+                fontSize: '16px',
+                padding: '16px'
               }}>Department</TableCell>
               <TableCell sx={{ 
-                color: theme.palette.mode === 'dark' ? '#ffffff' : '#800000',
-                fontWeight: 'bold',
-                borderBottom: theme.palette.mode === 'dark' ? '1px solid #404040' : '1px solid #e0e0e0',
-                bgcolor: theme.palette.mode === 'dark' ? 'rgba(128, 0, 0, 0.1)' : '#f5f5f5',
-                border: theme.palette.mode === 'dark' ? '1px solid #404040' : '1px solid #e0e0e0'
+                bgcolor: '#800000',
+                color: '#ffffff',
+                fontWeight: 600,
+                fontSize: '16px',
+                padding: '16px'
               }}>Activity</TableCell>
               <TableCell sx={{ 
-                color: theme.palette.mode === 'dark' ? '#ffffff' : '#800000',
-                fontWeight: 'bold',
-                borderBottom: theme.palette.mode === 'dark' ? '1px solid #404040' : '1px solid #e0e0e0',
-                bgcolor: theme.palette.mode === 'dark' ? 'rgba(128, 0, 0, 0.1)' : '#f5f5f5',
-                border: theme.palette.mode === 'dark' ? '1px solid #404040' : '1px solid #e0e0e0'
+                bgcolor: '#800000',
+                color: '#ffffff',
+                fontWeight: 600,
+                fontSize: '16px',
+                padding: '16px'
               }}>Resource</TableCell>
               <TableCell sx={{ 
-                color: theme.palette.mode === 'dark' ? '#ffffff' : '#800000',
-                fontWeight: 'bold',
-                borderBottom: theme.palette.mode === 'dark' ? '1px solid #404040' : '1px solid #e0e0e0',
-                bgcolor: theme.palette.mode === 'dark' ? 'rgba(128, 0, 0, 0.1)' : '#f5f5f5',
-                border: theme.palette.mode === 'dark' ? '1px solid #404040' : '1px solid #e0e0e0'
+                bgcolor: '#800000',
+                color: '#ffffff',
+                fontWeight: 600,
+                fontSize: '16px',
+                padding: '16px'
               }}>Date</TableCell>
               <TableCell sx={{ 
-                color: theme.palette.mode === 'dark' ? '#ffffff' : '#800000',
-                fontWeight: 'bold',
-                borderBottom: 'none',
-                borderRight: 'none',
-                borderLeft: 'none',
-                borderTop: 'none',
-                bgcolor: theme.palette.mode === 'dark' ? 'rgba(128, 0, 0, 0.1)' : '#f5f5f5'
+                bgcolor: '#800000',
+                color: '#ffffff',
+                fontWeight: 600,
+                fontSize: '16px',
+                padding: '16px'
               }}>Time Range</TableCell>
               <TableCell sx={{ 
-                color: theme.palette.mode === 'dark' ? '#ffffff' : '#800000',
-                fontWeight: 'bold',
-                borderBottom: theme.palette.mode === 'dark' ? '1px solid #404040' : '1px solid #e0e0e0',
-                bgcolor: theme.palette.mode === 'dark' ? 'rgba(128, 0, 0, 0.1)' : '#f5f5f5',
-                border: theme.palette.mode === 'dark' ? '1px solid #404040' : '1px solid #e0e0e0'
+                bgcolor: '#800000',
+                color: '#ffffff',
+                fontWeight: 600,
+                fontSize: '16px',
+                padding: '16px'
               }}>Status</TableCell>
               <TableCell sx={{ 
-                color: theme.palette.mode === 'dark' ? '#ffffff' : '#800000',
-                fontWeight: 'bold',
-                borderBottom: theme.palette.mode === 'dark' ? '1px solid #404040' : '1px solid #e0e0e0',
-                bgcolor: theme.palette.mode === 'dark' ? 'rgba(128, 0, 0, 0.1)' : '#f5f5f5',
-                border: theme.palette.mode === 'dark' ? '1px solid #404040' : '1px solid #e0e0e0'
+                bgcolor: '#800000',
+                color: '#ffffff',
+                fontWeight: 600,
+                fontSize: '16px',
+                padding: '16px'
               }}>Actions</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
-            {requests.map(r => (
+            {paginatedRequests.map(r => (
               <TableRow key={r.id}>
-                <TableCell sx={{
-                  color: theme.palette.mode === 'dark' ? '#ffffff' : '#000000',
-                  borderBottom: theme.palette.mode === 'dark' ? '1px solid #404040' : '1px solid #e0e0e0',
-                  backgroundColor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.05)' : '#ffffff',
-                  backdropFilter: theme.palette.mode === 'dark' ? 'blur(10px)' : 'none',
-                  fontSize: '0.875rem'
-                }}>{r.teacherName}</TableCell>
-                <TableCell sx={{
-                  color: theme.palette.mode === 'dark' ? '#ffffff' : '#000000',
-                  borderBottom: theme.palette.mode === 'dark' ? '1px solid #404040' : '1px solid #e0e0e0',
-                  backgroundColor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.05)' : '#ffffff',
-                  backdropFilter: theme.palette.mode === 'dark' ? 'blur(10px)' : 'none',
-                  fontSize: '0.875rem'
-                }}>{r.department}</TableCell>
-                <TableCell sx={{
-                  color: theme.palette.mode === 'dark' ? '#ffffff' : '#000000',
-                  borderBottom: theme.palette.mode === 'dark' ? '1px solid #404040' : '1px solid #e0e0e0',
-                  backgroundColor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.05)' : '#ffffff',
-                  backdropFilter: theme.palette.mode === 'dark' ? 'blur(10px)' : 'none',
-                  fontSize: '0.875rem'
-                }}>{r.activity}</TableCell>
-                <TableCell sx={{
-                  color: theme.palette.mode === 'dark' ? '#ffffff' : '#000000',
-                  borderBottom: theme.palette.mode === 'dark' ? '1px solid #404040' : '1px solid #e0e0e0',
-                  backgroundColor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.05)' : '#ffffff',
-                  backdropFilter: theme.palette.mode === 'dark' ? 'blur(10px)' : 'none',
-                  fontSize: '0.875rem'
-                }}>{r.resource}</TableCell>
-                <TableCell sx={{
-                  color: theme.palette.mode === 'dark' ? '#ffffff' : '#000000',
-                  borderBottom: theme.palette.mode === 'dark' ? '1px solid #404040' : '1px solid #e0e0e0',
-                  backgroundColor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.05)' : '#ffffff',
-                  backdropFilter: theme.palette.mode === 'dark' ? 'blur(10px)' : 'none',
-                  fontSize: '0.875rem'
-                }}>{new Date(r.date).toLocaleDateString()}</TableCell>
-                <TableCell sx={{
-                  color: theme.palette.mode === 'dark' ? '#ffffff' : '#000000',
-                  borderBottom: 'none',
-                  backgroundColor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.05)' : '#ffffff',
-                  backdropFilter: theme.palette.mode === 'dark' ? 'blur(10px)' : 'none',
-                  fontSize: '0.875rem'
-                }}>
+                <TableCell sx={{ fontSize: 14, fontWeight: 500, padding: '12px 16px' }}>
+                  {r.teacherName}
+                </TableCell>
+                <TableCell sx={{ fontSize: 14, fontWeight: 500, padding: '12px 16px' }}>
+                  {r.department}
+                </TableCell>
+                <TableCell sx={{ fontSize: 14, fontWeight: 500, padding: '12px 16px' }}>
+                  {r.activity}
+                </TableCell>
+                <TableCell sx={{ fontSize: 14, fontWeight: 500, padding: '12px 16px' }}>
+                  {r.resource}
+                </TableCell>
+                <TableCell sx={{ fontSize: 14, fontWeight: 500, padding: '12px 16px' }}>
+                  {new Date(r.date).toLocaleDateString()}
+                </TableCell>
+                <TableCell sx={{ fontSize: 14, fontWeight: 500, padding: '12px 16px' }}>
                   {r.startTime && r.endTime 
                     ? `${r.startTime} - ${r.endTime}`
                     : r.time || 'N/A'
                   }
                 </TableCell>
-                <TableCell sx={{
-                  borderBottom: theme.palette.mode === 'dark' ? '1px solid #404040' : '1px solid #e0e0e0',
-                  backgroundColor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.05)' : '#ffffff',
-                  backdropFilter: theme.palette.mode === 'dark' ? 'blur(10px)' : 'none',
-                  fontSize: '0.875rem'
-                }}>
+                <TableCell sx={{ fontSize: 14, fontWeight: 500, padding: '12px 16px' }}>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                     <Box sx={{ 
                       width: 20, 
@@ -217,12 +200,7 @@ export default function ActivityRequestsAdmin() {
                     </Typography>
                   </Box>
                 </TableCell>
-                <TableCell sx={{
-                  borderBottom: theme.palette.mode === 'dark' ? '1px solid #404040' : '1px solid #e0e0e0',
-                  backgroundColor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.05)' : '#ffffff',
-                  backdropFilter: theme.palette.mode === 'dark' ? 'blur(10px)' : 'none',
-                  fontSize: '0.875rem'
-                }}>
+                <TableCell sx={{ fontSize: 14, fontWeight: 500, padding: '12px 16px' }}>
                   <IconButton 
                     onClick={() => setSelected(r)} 
                     size="small"
@@ -242,31 +220,143 @@ export default function ActivityRequestsAdmin() {
         </Table>
       </TableContainer>
 
+      <TablePagination
+        rowsPerPageOptions={[5, 8, 10, 25]}
+        component="div"
+        count={requests.length}
+        rowsPerPage={rowsPerPage}
+        page={page}
+        onPageChange={handleChangePage}
+        onRowsPerPageChange={handleChangeRowsPerPage}
+        sx={{
+          bgcolor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.05)' : 'transparent',
+          borderTop: theme.palette.mode === 'dark' ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid #e0e0e0'
+        }}
+      />
+
       <Dialog open={!!selected} onClose={() => setSelected(null)} maxWidth="md" fullWidth>
         <DialogTitle>Booking Request Details</DialogTitle>
         <DialogContent>
           {selected && (
             <Box sx={{ mt: 1 }}>
-              <Typography variant="h6" gutterBottom>{selected.activity}</Typography>
-              <Typography variant="subtitle2" color="text.secondary">Teacher Name</Typography>
-              <Typography variant="body1" gutterBottom>{selected.teacherName}</Typography>
-              <Typography variant="subtitle2" color="text.secondary">Department</Typography>
-              <Typography variant="body1" gutterBottom>{selected.department}</Typography>
-              <Typography variant="subtitle2" color="text.secondary">Resource/Place</Typography>
-              <Typography variant="body1" gutterBottom>{selected.resource}</Typography>
-              <Typography variant="subtitle2" color="text.secondary">Date</Typography>
-              <Typography variant="body1" gutterBottom>{new Date(selected.date).toLocaleDateString()}</Typography>
-              <Typography variant="subtitle2" color="text.secondary">Time Range</Typography>
-              <Typography variant="body1" gutterBottom>
-                {selected.startTime && selected.endTime 
-                  ? `${selected.startTime} - ${selected.endTime}`
-                  : selected.time || 'N/A'
-                }
+              <Typography variant="h6" gutterBottom sx={{ mb: 3, color: '#800000' }}>
+                {selected.activity}
               </Typography>
-              <Typography variant="subtitle2" color="text.secondary">Status</Typography>
-              <Typography variant="body1" gutterBottom sx={{ textTransform: 'capitalize' }}>{selected.status}</Typography>
-              <Typography variant="subtitle2" color="text.secondary">Notes</Typography>
-              <Typography variant="body1" gutterBottom>{selected.notes || 'No additional notes'}</Typography>
+              
+              <Grid container spacing={3}>
+                <Grid item xs={12} md={6}>
+                  <Box sx={{ mb: 2 }}>
+                    <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                      👤 Teacher Name
+                    </Typography>
+                    <Typography variant="body1" fontWeight={500}>
+                      {selected.teacherName}
+                    </Typography>
+                  </Box>
+                  
+                  <Box sx={{ mb: 2 }}>
+                    <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                      🏢 Department
+                    </Typography>
+                    <Typography variant="body1" fontWeight={500}>
+                      {selected.department}
+                    </Typography>
+                  </Box>
+                  
+                  <Box sx={{ mb: 2 }}>
+                    <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                      📅 Date
+                    </Typography>
+                    <Typography variant="body1" fontWeight={500}>
+                      {new Date(selected.date).toLocaleDateString()}
+                    </Typography>
+                  </Box>
+                  
+                  <Box sx={{ mb: 2 }}>
+                    <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                      📊 Status
+                    </Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Box sx={{ 
+                        width: 20, 
+                        height: 20, 
+                        bgcolor: 'transparent', 
+                        borderRadius: 1, 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        justifyContent: 'center',
+                        flexShrink: 0
+                      }}>
+                        {selected.status === 'approved' ? (
+                          <CheckCircle sx={{ fontSize: 16, color: '#4caf50' }} />
+                        ) : selected.status === 'rejected' ? (
+                          <Cancel sx={{ fontSize: 16, color: '#f44336' }} />
+                        ) : selected.status === 'pending' ? (
+                          <Schedule sx={{ fontSize: 16, color: '#ff9800' }} />
+                        ) : (
+                          <Warning sx={{ fontSize: 16, color: '#9e9e9e' }} />
+                        )}
+                      </Box>
+                      <Typography 
+                        variant="body1" 
+                        fontWeight={500}
+                        sx={{ 
+                          color: selected.status === 'pending' ? '#ff9800' : 
+                                selected.status === 'approved' ? '#4caf50' : 
+                                selected.status === 'rejected' ? '#f44336' : '#000',
+                          textTransform: 'capitalize'
+                        }}
+                      >
+                        {selected.status}
+                      </Typography>
+                    </Box>
+                  </Box>
+                </Grid>
+                
+                <Grid item xs={12} md={6}>
+                  <Box sx={{ mb: 2 }}>
+                    <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                      🏢 Resource/Place
+                    </Typography>
+                    <Typography variant="body1" fontWeight={500}>
+                      {selected.resource}
+                    </Typography>
+                  </Box>
+                  
+                  <Box sx={{ mb: 2 }}>
+                    <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                      ⏰ Time Range
+                    </Typography>
+                    <Typography variant="body1" fontWeight={500}>
+                      {selected.startTime && selected.endTime 
+                        ? `${selected.startTime} - ${selected.endTime}`
+                        : selected.time || 'N/A'
+                      }
+                    </Typography>
+                  </Box>
+                  
+                  <Box sx={{ mb: 2 }}>
+                    <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                      📝 Notes
+                    </Typography>
+                    <Typography variant="body1" fontWeight={500}>
+                      {selected.notes || 'No additional notes'}
+                    </Typography>
+                  </Box>
+                  
+                  {selected.adminNotes && (
+                    <Box sx={{ mb: 2 }}>
+                      <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                        💬 Admin Notes
+                      </Typography>
+                      <Typography variant="body1" fontWeight={500}>
+                        {selected.adminNotes}
+                      </Typography>
+                    </Box>
+                  )}
+                </Grid>
+              </Grid>
+              
               <TextField 
                 label="Admin Remarks" 
                 value={remarks} 
@@ -274,7 +364,7 @@ export default function ActivityRequestsAdmin() {
                 fullWidth 
                 multiline 
                 minRows={2} 
-                sx={{ mt: 2 }} 
+                sx={{ mt: 3 }} 
                 placeholder="Add your review notes here..."
               />
             </Box>

@@ -384,8 +384,10 @@ export default function TeacherActivityScheduler() {
       }
 
       // Validate required fields
-      if (!bookingForm.teacherName || !bookingForm.department || !bookingForm.activity || 
-          !bookingForm.resource || !bookingForm.date || !bookingForm.startTime || !bookingForm.endTime) {
+      const teacherName = bookingForm.teacherName || userProfile?.fullName || userProfile?.name || currentUser?.displayName || currentUser?.email;
+      if (!teacherName || !bookingForm.department || !bookingForm.activity || 
+          !bookingForm.resource || !bookingForm.date || !bookingForm.startTime || !bookingForm.endTime ||
+          !bookingForm.course || !bookingForm.year || !bookingForm.section) {
         setSnackbar({
           open: true,
           message: 'Please fill in all required fields.',
@@ -405,7 +407,7 @@ export default function TeacherActivityScheduler() {
       }
 
       const bookingData = {
-        teacherName: bookingForm.teacherName,
+        teacherName: teacherName,
         department: bookingForm.department,
         activity: bookingForm.activity,
         resource: bookingForm.resource,
@@ -433,10 +435,10 @@ export default function TeacherActivityScheduler() {
       try {
         await addDoc(collection(db, 'notifications'), {
           title: 'New Activity Booking Request',
-          message: `${bookingForm.teacherName} from ${bookingForm.department} has requested to book ${bookingForm.resource} for ${bookingForm.activity} on ${new Date(bookingForm.date).toLocaleDateString()} at ${bookingForm.time}.`,
+          message: `${teacherName} from ${bookingForm.department} has requested to book ${bookingForm.resource} for ${bookingForm.activity} on ${new Date(bookingForm.date).toLocaleDateString()} at ${bookingForm.time}.`,
           type: 'activity_booking',
           senderId: currentUser.uid,
-          senderName: bookingForm.teacherName,
+          senderName: teacherName,
           senderRole: 'Teacher',
           recipientRole: 'Admin',
           bookingId: bookingRef.id,

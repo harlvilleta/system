@@ -217,55 +217,9 @@ export default function ReceiptReview() {
 
   return (
     <Box sx={{ pt: { xs: 2, sm: 3 }, pl: { xs: 2, sm: 3, md: 4 }, pr: { xs: 2, sm: 3, md: 4 } }}>
-      <Box sx={{ 
-        p: 3,
-        borderRadius: 4,
-        background: theme.palette.mode === 'dark' 
-          ? 'linear-gradient(135deg, rgba(139, 0, 0, 0.15), rgba(165, 42, 42, 0.08))' 
-          : 'linear-gradient(135deg, rgba(139, 0, 0, 0.08), rgba(165, 42, 42, 0.04))',
-        border: theme.palette.mode === 'dark' 
-          ? '1px solid rgba(139, 0, 0, 0.2)' 
-          : '1px solid rgba(139, 0, 0, 0.1)',
-        boxShadow: theme.palette.mode === 'dark' 
-          ? '0 4px 20px rgba(139, 0, 0, 0.2)' 
-          : '0 4px 20px rgba(139, 0, 0, 0.1)',
-        position: 'relative',
-        overflow: 'hidden',
-        mb: 3,
-        '&::before': {
-          content: '""',
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          right: 0,
-          height: '4px',
-          background: 'linear-gradient(90deg, #8B0000, #A52A2A, #8B0000)',
-          borderRadius: '4px 4px 0 0'
-        }
-      }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', position: 'relative', zIndex: 1 }}>
-          <Box sx={{
-            p: 1.5,
-            borderRadius: '50%',
-            bgcolor: theme.palette.mode === 'dark' 
-              ? 'rgba(255, 255, 255, 0.1)' 
-              : 'rgba(139, 0, 0, 0.1)',
-            mr: 2
-          }}>
-            <Receipt sx={{ 
-              fontSize: 28, 
-              color: theme.palette.mode === 'dark' ? '#ffffff' : '#8B0000'
-            }} />
-          </Box>
-          <Typography variant="h4" sx={{ 
-            color: theme.palette.mode === 'dark' ? '#ffffff' : '#8B0000',
-            fontWeight: 700,
-            letterSpacing: '-0.5px'
-          }}>
-            Receipt Review
-          </Typography>
-        </Box>
-      </Box>
+      <Typography variant="h4" sx={{ mb: 3 }}>
+        Receipt Review
+      </Typography>
       
       <Box sx={{ p: 3 }}>
 

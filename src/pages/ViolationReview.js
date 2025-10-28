@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Box,
   Paper,
@@ -26,7 +26,8 @@ import {
   CircularProgress,
   Snackbar,
   Alert,
-  useTheme
+  useTheme,
+  TablePagination
 } from '@mui/material';
 import {
   CheckCircle,
@@ -68,10 +69,24 @@ export default function ViolationReview() {
   const [approvalReason, setApprovalReason] = useState('');
   const [processing, setProcessing] = useState(false);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
+  
+  // Pagination state
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(8);
 
   useEffect(() => {
     fetchViolations();
   }, []);
+
+  // Pagination handlers
+  const handleChangePage = (event, newPage) => {
+    setPage(newPage);
+  };
+
+  const handleChangeRowsPerPage = (event) => {
+    setRowsPerPage(parseInt(event.target.value, 10));
+    setPage(0);
+  };
 
   const fetchViolations = async () => {
     setLoading(true);
@@ -211,6 +226,13 @@ export default function ViolationReview() {
     }
   };
 
+  // Paginated data
+  const paginatedViolations = useMemo(() => {
+    const startIndex = page * rowsPerPage;
+    const endIndex = startIndex + rowsPerPage;
+    return violations.slice(startIndex, endIndex);
+  }, [violations, page, rowsPerPage]);
+
   return (
     <Box sx={{ pt: { xs: 2, sm: 3 }, pl: { xs: 2, sm: 3, md: 4 }, pr: { xs: 2, sm: 3, md: 4 } }}>
       <Typography variant="h4" gutterBottom sx={{ color: theme.palette.mode === 'dark' ? '#ffffff' : '#800000', mb: 2, mt: 1 }}>
@@ -281,7 +303,7 @@ export default function ViolationReview() {
                       </Typography>
                     </TableCell>
                   </TableRow>
-                ) : violations.map((violation) => (
+                ) : paginatedViolations.map((violation) => (
                   <TableRow key={violation.id} hover>
                     <TableCell>
                       <Typography variant="body2" fontWeight={500}>
@@ -387,6 +409,21 @@ export default function ViolationReview() {
                 ))}
               </TableBody>
             </Table>
+            
+            {/* Pagination */}
+            <TablePagination
+              rowsPerPageOptions={[5, 8, 10, 25]}
+              component="div"
+              count={violations.length}
+              rowsPerPage={rowsPerPage}
+              page={page}
+              onPageChange={handleChangePage}
+              onRowsPerPageChange={handleChangeRowsPerPage}
+              sx={{
+                bgcolor: theme.palette.mode === 'dark' ? '#2d2d2d' : '#ffffff',
+                borderTop: theme.palette.mode === 'dark' ? '1px solid #404040' : '1px solid #e0e0e0'
+              }}
+            />
           </TableContainer>
         )}
 

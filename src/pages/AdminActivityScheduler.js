@@ -336,7 +336,7 @@ export default function AdminActivityScheduler() {
   return (
     <Box sx={{ p: { xs: 0.5, sm: 1 }, pt: { xs: 2, sm: 3 }, pl: { xs: 2, sm: 3, md: 4 }, pr: { xs: 2, sm: 3, md: 4 } }}>
       <Typography variant="h4" gutterBottom sx={{ color: theme.palette.mode === 'dark' ? '#ffffff' : '#800000', mb: 2, mt: 1 }}>
-        Activity Scheduler - Admin Panel
+        Activity Scheduler
       </Typography>
       
       <Box sx={{ p: 3, bgcolor: 'background.default', minHeight: '100vh' }}>
@@ -347,54 +347,21 @@ export default function AdminActivityScheduler() {
           <Card
             onClick={() => handleStatsCardClick('all')}
             sx={{ 
-              display: 'flex', 
-              alignItems: 'center', 
-              p: 2, 
-              boxShadow: theme.palette.mode === 'dark' 
-                ? '0 8px 32px rgba(0, 0, 0, 0.3)' 
-                : '0 4px 16px rgba(0, 0, 0, 0.1)', 
-              borderRadius: 2,
+              boxShadow: 2, 
               borderLeft: '4px solid #800000',
-              background: theme.palette.mode === 'dark' 
-                ? 'rgba(255, 255, 255, 0.05)' 
-                : 'rgba(255, 255, 255, 0.8)',
-              backdropFilter: 'blur(10px)',
-              border: theme.palette.mode === 'dark' 
-                ? '1px solid rgba(255, 255, 255, 0.1)' 
-                : '1px solid rgba(255, 255, 255, 0.2)',
-              cursor: 'pointer',
               transition: 'all 0.3s ease',
+              cursor: 'pointer',
               '&:hover': {
-                boxShadow: theme.palette.mode === 'dark' 
-                  ? '0 12px 40px rgba(0, 0, 0, 0.4)' 
-                  : '0 8px 24px rgba(0, 0, 0, 0.15)',
                 transform: 'translateY(-2px)',
-                background: theme.palette.mode === 'dark' 
-                  ? 'rgba(255, 255, 255, 0.08)' 
-                  : 'rgba(255, 255, 255, 0.9)',
-              },
+                boxShadow: 4
+              }
             }}
           >
-            <Box sx={{ 
-              mr: 2, 
-              color: theme.palette.mode === 'dark' ? '#ffffff' : '#800000',
-              '& .MuiSvgIcon-root': {
-                color: theme.palette.mode === 'dark' ? '#ffffff' : '#800000'
-              }
-            }}>
-              <EventAvailable />
-            </Box>
-            <CardContent sx={{ flex: 1, p: '8px !important' }}>
-              <Typography 
-                variant="h4" 
-                fontWeight={700} 
-                sx={{ 
-                  color: theme.palette.mode === 'dark' ? '#ffffff' : '#000000'
-                }}
-              >
+            <CardContent sx={{ textAlign: 'center', py: 3 }}>
+              <Typography variant="h4" sx={{ color: '#000000' }} fontWeight={700}>
                 {stats.total}
               </Typography>
-              <Typography variant="body2" sx={{ color: theme.palette.mode === 'dark' ? '#cccccc' : '#666666' }}>
+              <Typography variant="body2" color="textSecondary" sx={{ mt: 1 }}>
                 Total Bookings
               </Typography>
             </CardContent>
@@ -404,54 +371,21 @@ export default function AdminActivityScheduler() {
           <Card
             onClick={() => handleStatsCardClick('pending')}
             sx={{ 
-              display: 'flex', 
-              alignItems: 'center', 
-              p: 2, 
-              boxShadow: theme.palette.mode === 'dark' 
-                ? '0 8px 32px rgba(0, 0, 0, 0.3)' 
-                : '0 4px 16px rgba(0, 0, 0, 0.1)', 
-              borderRadius: 2,
-              borderLeft: '4px solid #ff9800',
-              background: theme.palette.mode === 'dark' 
-                ? 'rgba(255, 255, 255, 0.05)' 
-                : 'rgba(255, 255, 255, 0.8)',
-              backdropFilter: 'blur(10px)',
-              border: theme.palette.mode === 'dark' 
-                ? '1px solid rgba(255, 255, 255, 0.1)' 
-                : '1px solid rgba(255, 255, 255, 0.2)',
-              cursor: 'pointer',
+              boxShadow: 2, 
+              borderLeft: '4px solid #800000',
               transition: 'all 0.3s ease',
+              cursor: 'pointer',
               '&:hover': {
-                boxShadow: theme.palette.mode === 'dark' 
-                  ? '0 12px 40px rgba(0, 0, 0, 0.4)' 
-                  : '0 8px 24px rgba(0, 0, 0, 0.15)',
                 transform: 'translateY(-2px)',
-                background: theme.palette.mode === 'dark' 
-                  ? 'rgba(255, 255, 255, 0.08)' 
-                  : 'rgba(255, 255, 255, 0.9)',
-              },
+                boxShadow: 4
+              }
             }}
           >
-            <Box sx={{ 
-              mr: 2, 
-              color: theme.palette.mode === 'dark' ? '#ffffff' : '#ff9800',
-              '& .MuiSvgIcon-root': {
-                color: theme.palette.mode === 'dark' ? '#ffffff' : '#ff9800'
-              }
-            }}>
-              <Pending />
-            </Box>
-            <CardContent sx={{ flex: 1, p: '8px !important' }}>
-              <Typography 
-                variant="h4" 
-                fontWeight={700} 
-                sx={{ 
-                  color: theme.palette.mode === 'dark' ? '#ffffff' : '#000000'
-                }}
-              >
+            <CardContent sx={{ textAlign: 'center', py: 3 }}>
+              <Typography variant="h4" sx={{ color: '#000000' }} fontWeight={700}>
                 {stats.pending}
               </Typography>
-              <Typography variant="body2" sx={{ color: theme.palette.mode === 'dark' ? '#cccccc' : '#666666' }}>
+              <Typography variant="body2" color="textSecondary" sx={{ mt: 1 }}>
                 Pending Requests
               </Typography>
             </CardContent>
@@ -461,54 +395,21 @@ export default function AdminActivityScheduler() {
           <Card
             onClick={() => handleStatsCardClick('approved')}
             sx={{ 
-              display: 'flex', 
-              alignItems: 'center', 
-              p: 2, 
-              boxShadow: theme.palette.mode === 'dark' 
-                ? '0 8px 32px rgba(0, 0, 0, 0.3)' 
-                : '0 4px 16px rgba(0, 0, 0, 0.1)', 
-              borderRadius: 2,
-              borderLeft: '4px solid #4caf50',
-              background: theme.palette.mode === 'dark' 
-                ? 'rgba(255, 255, 255, 0.05)' 
-                : 'rgba(255, 255, 255, 0.8)',
-              backdropFilter: 'blur(10px)',
-              border: theme.palette.mode === 'dark' 
-                ? '1px solid rgba(255, 255, 255, 0.1)' 
-                : '1px solid rgba(255, 255, 255, 0.2)',
-              cursor: 'pointer',
+              boxShadow: 2, 
+              borderLeft: '4px solid #800000',
               transition: 'all 0.3s ease',
+              cursor: 'pointer',
               '&:hover': {
-                boxShadow: theme.palette.mode === 'dark' 
-                  ? '0 12px 40px rgba(0, 0, 0, 0.4)' 
-                  : '0 8px 24px rgba(0, 0, 0, 0.15)',
                 transform: 'translateY(-2px)',
-                background: theme.palette.mode === 'dark' 
-                  ? 'rgba(255, 255, 255, 0.08)' 
-                  : 'rgba(255, 255, 255, 0.9)',
-              },
+                boxShadow: 4
+              }
             }}
           >
-            <Box sx={{ 
-              mr: 2, 
-              color: theme.palette.mode === 'dark' ? '#ffffff' : '#4caf50',
-              '& .MuiSvgIcon-root': {
-                color: theme.palette.mode === 'dark' ? '#ffffff' : '#4caf50'
-              }
-            }}>
-              <CheckCircle />
-            </Box>
-            <CardContent sx={{ flex: 1, p: '8px !important' }}>
-              <Typography 
-                variant="h4" 
-                fontWeight={700} 
-                sx={{ 
-                  color: theme.palette.mode === 'dark' ? '#ffffff' : '#000000'
-                }}
-              >
+            <CardContent sx={{ textAlign: 'center', py: 3 }}>
+              <Typography variant="h4" sx={{ color: '#000000' }} fontWeight={700}>
                 {stats.approved}
               </Typography>
-              <Typography variant="body2" sx={{ color: theme.palette.mode === 'dark' ? '#cccccc' : '#666666' }}>
+              <Typography variant="body2" color="textSecondary" sx={{ mt: 1 }}>
                 Approved Requests
               </Typography>
             </CardContent>
@@ -518,54 +419,21 @@ export default function AdminActivityScheduler() {
           <Card
             onClick={() => handleStatsCardClick('rejected')}
             sx={{ 
-              display: 'flex', 
-              alignItems: 'center', 
-              p: 2, 
-              boxShadow: theme.palette.mode === 'dark' 
-                ? '0 8px 32px rgba(0, 0, 0, 0.3)' 
-                : '0 4px 16px rgba(0, 0, 0, 0.1)', 
-              borderRadius: 2,
-              borderLeft: '4px solid #f44336',
-              background: theme.palette.mode === 'dark' 
-                ? 'rgba(255, 255, 255, 0.05)' 
-                : 'rgba(255, 255, 255, 0.8)',
-              backdropFilter: 'blur(10px)',
-              border: theme.palette.mode === 'dark' 
-                ? '1px solid rgba(255, 255, 255, 0.1)' 
-                : '1px solid rgba(255, 255, 255, 0.2)',
-              cursor: 'pointer',
+              boxShadow: 2, 
+              borderLeft: '4px solid #800000',
               transition: 'all 0.3s ease',
+              cursor: 'pointer',
               '&:hover': {
-                boxShadow: theme.palette.mode === 'dark' 
-                  ? '0 12px 40px rgba(0, 0, 0, 0.4)' 
-                  : '0 8px 24px rgba(0, 0, 0, 0.15)',
                 transform: 'translateY(-2px)',
-                background: theme.palette.mode === 'dark' 
-                  ? 'rgba(255, 255, 255, 0.08)' 
-                  : 'rgba(255, 255, 255, 0.9)',
-              },
+                boxShadow: 4
+              }
             }}
           >
-            <Box sx={{ 
-              mr: 2, 
-              color: theme.palette.mode === 'dark' ? '#ffffff' : '#f44336',
-              '& .MuiSvgIcon-root': {
-                color: theme.palette.mode === 'dark' ? '#ffffff' : '#f44336'
-              }
-            }}>
-              <Cancel />
-            </Box>
-            <CardContent sx={{ flex: 1, p: '8px !important' }}>
-              <Typography 
-                variant="h4" 
-                fontWeight={700} 
-                sx={{ 
-                  color: theme.palette.mode === 'dark' ? '#ffffff' : '#000000'
-                }}
-              >
+            <CardContent sx={{ textAlign: 'center', py: 3 }}>
+              <Typography variant="h4" sx={{ color: '#000000' }} fontWeight={700}>
                 {stats.rejected}
               </Typography>
-              <Typography variant="body2" sx={{ color: theme.palette.mode === 'dark' ? '#cccccc' : '#666666' }}>
+              <Typography variant="body2" color="textSecondary" sx={{ mt: 1 }}>
                 Rejected Requests
               </Typography>
             </CardContent>
@@ -809,9 +677,15 @@ export default function AdminActivityScheduler() {
                           <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
                             <Chip 
                               label={booking.department || 'General'} 
-                              color="primary" 
                               size="small" 
-                              variant="outlined"
+                              sx={{
+                                backgroundColor: 'transparent',
+                                color: '#800000',
+                                border: 'none',
+                                '& .MuiChip-label': {
+                                  color: '#800000'
+                                }
+                              }}
                             />
                             <Chip 
                               label={booking.status.charAt(0).toUpperCase() + booking.status.slice(1)} 
@@ -1022,9 +896,15 @@ export default function AdminActivityScheduler() {
                       <TableCell>
                         <Chip 
                           label={booking.department || 'General'} 
-                          color="primary" 
                           size="small" 
-                          variant="outlined"
+                          sx={{
+                            backgroundColor: 'transparent',
+                            color: '#800000',
+                            border: 'none',
+                            '& .MuiChip-label': {
+                              color: '#800000'
+                            }
+                          }}
                         />
                       </TableCell>
                       <TableCell>{booking.resource}</TableCell>

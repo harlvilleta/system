@@ -69,7 +69,7 @@ export default function ViolationRecord() {
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [selectedMeetingStudent, setSelectedMeetingStudent] = useState(null);
   const [statusFilter, setStatusFilter] = useState('all');
-  const [showAddForm, setShowAddForm] = useState(false);
+  const [showAddModal, setShowAddModal] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [historyFilter, setHistoryFilter] = useState({
     name: '',
@@ -82,31 +82,6 @@ export default function ViolationRecord() {
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(8);
 
-  const toggleAddForm = () => {
-    setShowAddForm(!showAddForm);
-    if (showAddForm) {
-      // Reset form when closing
-      setForm({
-        studentId: "",
-        violation: "",
-        classification: "",
-        severity: "",
-        date: "",
-        time: "",
-        location: "",
-        description: "",
-        witnesses: "",
-        actionTaken: "",
-        reportedBy: "",
-        status: "Pending",
-        image: null,
-        studentName: ""
-      });
-      setImageFile(null);
-      setSelectedStudent(null);
-      setStudentInputValue('');
-    }
-  };
 
   // Pagination handlers
   const handleChangePage = (event, newPage) => {
@@ -198,14 +173,28 @@ export default function ViolationRecord() {
   const filtered = (() => {
     const term = search.trim().toLowerCase();
     if (!term) {
-      return sortedByDate.slice(0, 5);
+      return sortedByDate;
     }
     return sortedByDate.filter(v => {
       const name = (v.studentName || '').toLowerCase();
       const id = (v.studentId || '').toLowerCase();
-      return name.startsWith(term) || id.startsWith(term);
+      const violation = (v.violation || '').toLowerCase();
+      const classification = (v.classification || '').toLowerCase();
+      const reporter = (v.reportedBy || '').toLowerCase();
+      return name.includes(term) || 
+             id.includes(term) || 
+             violation.includes(term) || 
+             classification.includes(term) || 
+             reporter.includes(term);
     });
   })();
+
+  // Paginated data
+  const paginatedData = useMemo(() => {
+    const startIndex = page * rowsPerPage;
+    const endIndex = startIndex + rowsPerPage;
+    return filtered.slice(startIndex, endIndex);
+  }, [filtered, page, rowsPerPage]);
 
   // Summary stats
   const total = records.length;
@@ -419,7 +408,7 @@ School Administration
       setImageFile(null);
       setSnackbar({ open: true, message: uploadTimedOut ? "Violation added (image upload failed) - Student notified!" : "Violation added successfully - Student notified!", severity: uploadTimedOut ? "warning" : "success" });
       setDataRefresh(r => r + 1); // refresh table after add
-      setShowAddForm(false); // Close the form after successful submission
+      setShowAddModal(false); // Close the modal after successful submission
     } catch (e) {
       console.error("Error saving violation:", e);
       setSnackbar({ open: true, message: "Error adding violation.", severity: "error" });
@@ -612,12 +601,11 @@ School Administration
         </Grid>
       </Grid>
       {/* Add Violation and History Buttons */}
-      {!showAddForm && (
         <Box sx={{ mb: 3, display: 'flex', justifyContent: 'flex-start', gap: 2 }}>
           <Button
             variant="outlined"
             size="small"
-            onClick={() => setShowAddForm(true)}
+          onClick={() => setShowAddModal(true)}
             sx={{
               bgcolor: '#ffffff',
               color: '#000000',
@@ -665,294 +653,25 @@ School Administration
             History
           </Button>
         </Box>
-      )}
-      
-      {/* Expandable Form */}
-      {showAddForm && (
-        <Paper sx={{ p: { xs: 1, sm: 3 }, mb: 3, maxWidth: 1200, mx: 'auto', borderRadius: 3, boxShadow: 3 }}>
-          <form onSubmit={handleSubmit}>
-          <Grid container spacing={2}>
-            <Grid item xs={12} sm={3}>
-              <Autocomplete
-                options={students.filter(student => {
-                  // Only show suggestions if user has typed at least one character
-                  if (!studentInputValue || studentInputValue.length < 1) {
-                    return false;
-                  }
-                  
-                  // Add null/undefined checks for all properties
-                  const firstName = student.firstName || '';
-                  const lastName = student.lastName || '';
-                  const studentId = student.id || '';
-                  const course = student.course || '';
-                  const year = student.year || '';
-                  
-                  const fullName = `${firstName} ${lastName}`.toLowerCase();
-                  const input = studentInputValue.toLowerCase();
-                  
-                  // Check for exact match first (both first and last names)
-                  if (fullName === input) {
-                    return true;
-                  }
-                  
-                  // Check if input matches first name, last name, full name, or student ID
-                  return firstName.toLowerCase().includes(input) ||
-                         lastName.toLowerCase().includes(input) ||
-                         fullName.includes(input) ||
-                         studentId.toLowerCase().includes(input);
-                }).slice(0, 5)} // Limit to 5 suggestions
-                getOptionLabel={(option) => `${option.firstName || ''} ${option.lastName || ''}`}
-                value={selectedStudent}
-                onChange={(event, newValue) => {
-                  setSelectedStudent(newValue);
-                  setForm(f => ({
-                    ...f,
-                    studentId: newValue ? newValue.id : '',
-                    studentName: newValue ? `${newValue.firstName} ${newValue.lastName}` : ''
-                  }));
-                }}
-                inputValue={studentInputValue}
-                onInputChange={(event, newInputValue) => {
-                  setStudentInputValue(newInputValue);
-                }}
-                open={studentInputValue && studentInputValue.length > 0} // Only open when typing
-                disablePortal={false}
-                PaperComponent={({ children, ...other }) => (
-                  <Paper 
-                    {...other} 
-                    sx={{ 
-                      backgroundColor: theme.palette.mode === 'dark' ? '#2d2d2d' : '#ffffff',
-                      border: theme.palette.mode === 'dark' ? '1px solid #404040' : 'none',
-                      '& .MuiAutocomplete-option': {
-                        color: theme.palette.mode === 'dark' ? '#ffffff' : '#333333',
-                        '&:hover': {
-                          backgroundColor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)',
-                        },
-                      }
-                    }}
-                  >
-                    {children}
-                  </Paper>
-                )}
-                renderInput={(params) => (
-                  <TextField
-                    {...params}
-                    label="Student Name or ID"
-                    required
-                    fullWidth
-                    helperText="Type to search by student name or ID"
-                    placeholder="Start typing student name or ID..."
-                    sx={{
-                      '& .MuiOutlinedInput-root': {
-                        backgroundColor: theme.palette.mode === 'dark' ? '#404040' : '#ffffff',
-                        '& fieldset': {
-                          borderColor: theme.palette.mode === 'dark' ? '#666666' : '#e0e0e0',
-                        },
-                        '&:hover fieldset': {
-                          borderColor: theme.palette.mode === 'dark' ? '#ffffff' : '#b0b0b0',
-                        },
-                        '&.Mui-focused fieldset': {
-                          borderColor: theme.palette.mode === 'dark' ? '#ffffff' : '#800000',
-                        },
-                      },
-                      '& .MuiInputLabel-root': {
-                        color: theme.palette.mode === 'dark' ? '#b0b0b0' : '#666666',
-                      },
-                      '& .MuiInputBase-input': {
-                        color: theme.palette.mode === 'dark' ? '#ffffff' : '#333333',
-                      },
-                      '& .MuiAutocomplete-input': {
-                        color: theme.palette.mode === 'dark' ? '#ffffff' : '#333333',
-                      }
-                    }}
-                  />
-                )}
-                renderOption={(props, option) => (
-                  <Box component="li" {...props}>
-                    <Box>
-                      <Typography variant="body2" fontWeight={500} sx={{ color: theme.palette.mode === 'dark' ? '#ffffff' : 'inherit' }}>
-                        {option.firstName || ''} {option.lastName || ''}
-                      </Typography>
-                      <Typography variant="caption" sx={{ color: theme.palette.mode === 'dark' ? '#b0b0b0' : 'text.secondary' }}>
-                        ID: {option.id || 'N/A'} | {option.course || 'N/A'} - {option.year || 'N/A'}
-                      </Typography>
-                    </Box>
-                  </Box>
-                )}
-                filterOptions={(options, { inputValue }) => {
-                  const filtered = options.filter(option => {
-                    // Add null/undefined checks for all properties
-                    const firstName = option.firstName || '';
-                    const lastName = option.lastName || '';
-                    const studentId = option.id || '';
-                    
-                    const fullName = `${firstName} ${lastName}`.toLowerCase();
-                    const searchTerm = inputValue.toLowerCase();
-                    
-                    // Check for exact match first
-                    if (fullName === searchTerm) {
-                      return true;
-                    }
-                    
-                    // Check if input matches first name, last name, full name, or student ID
-                    return firstName.toLowerCase().includes(searchTerm) ||
-                           lastName.toLowerCase().includes(searchTerm) ||
-                           fullName.includes(searchTerm) ||
-                           studentId.toLowerCase().includes(searchTerm);
-                  });
-                  return filtered.slice(0, 5); // Limit to 5 suggestions
-                }}
-                noOptionsText="No students found"
-                clearOnEscape
-                selectOnFocus
-                handleHomeEndKeys
-              />
-            </Grid>
-            <Grid item xs={12} sm={3}>
-              <TextField label="Violation" name="violation" value={form.violation} onChange={handleFormChange} required fullWidth helperText="Type of violation" />
-            </Grid>
-            <Grid item xs={12} sm={2}>
-              <TextField label="Classification" name="classification" value={form.classification} onChange={handleFormChange} select fullWidth required helperText="Select classification">
-                <MenuItem value="">Select</MenuItem>
-                <MenuItem value="Academic">Academic</MenuItem>
-                <MenuItem value="Behavioral">Behavioral</MenuItem>
-                <MenuItem value="Policy/Rules">Policy/Rules</MenuItem>
-                <MenuItem value="Other">Other</MenuItem>
-              </TextField>
-            </Grid>
-            <Grid item xs={12} sm={2}>
-              <TextField label="Severity" name="severity" value={form.severity} onChange={handleFormChange} select fullWidth required helperText="Severity level">
-                <MenuItem value="">Select</MenuItem>
-                <MenuItem value="Low">Low</MenuItem>
-                <MenuItem value="Medium">Medium</MenuItem>
-                <MenuItem value="High">High</MenuItem>
-                <MenuItem value="Critical">Critical</MenuItem>
-              </TextField>
-            </Grid>
-            <Grid item xs={12} sm={2}>
-              <TextField label="Status" name="status" value={form.status} onChange={handleFormChange} select fullWidth required helperText="Mark as pending or solved">
-                <MenuItem value="Pending">Pending</MenuItem>
-                <MenuItem value="Solved">Solved</MenuItem>
-              </TextField>
-            </Grid>
-            <Grid item xs={12} sm={2}>
-              <TextField label="Date" name="date" type="date" value={form.date} onChange={handleFormChange} InputLabelProps={{ shrink: true }} fullWidth required helperText="Date of violation" />
-            </Grid>
-            <Grid item xs={12} sm={2}>
-              <TextField label="Time" name="time" type="time" value={form.time} onChange={handleFormChange} InputLabelProps={{ shrink: true }} fullWidth helperText="Time (optional)" />
-            </Grid>
-            <Grid item xs={12} sm={2}>
-              <TextField label="Location" name="location" value={form.location} onChange={handleFormChange} fullWidth helperText="Location (optional)" />
-            </Grid>
-            <Grid item xs={12} sm={3}>
-              <TextField label="Reported By" name="reportedBy" value={form.reportedBy} onChange={handleFormChange} fullWidth helperText="Who reported?" />
-            </Grid>
-            <Grid item xs={12} sm={3}>
-              <TextField label="Action Taken" name="actionTaken" value={form.actionTaken} onChange={handleFormChange} fullWidth helperText="Action taken (optional)" />
-            </Grid>
-            <Grid item xs={12} sm={3}>
-              <TextField label="Witnesses" name="witnesses" value={form.witnesses} onChange={handleFormChange} fullWidth helperText="Witnesses (optional)" />
-            </Grid>
-            <Grid item xs={12} sm={6}>
-              <TextField label="Description" name="description" value={form.description} onChange={handleFormChange} fullWidth multiline minRows={2} helperText="Describe the violation (optional)" />
-            </Grid>
-            <Grid item xs={12} sm={3}>
-              <Tooltip title="Attach an image as evidence (optional)">
-                <Button variant="contained" component="label" fullWidth sx={{ bgcolor: '#800000', color: '#fff', '&:hover': { bgcolor: '#6b0000' } }}>
-                  Attach Evidence Image
-                  <input type="file" accept="image/*" hidden onChange={handleImage} />
-                </Button>
-              </Tooltip>
-              {imageFile && (
-                <Box sx={{ mt: 1, display: 'flex', alignItems: 'center', gap: 2 }}>
-                  <Avatar src={imageFile} sx={{ width: 40, height: 40 }} variant="rounded" />
-                  <Button variant="outlined" color="error" size="small" onClick={() => setImageFile(null)}>Remove</Button>
-                </Box>
-              )}
-            </Grid>
-            {/* Buttons row: Cancel and Add Violation */}
-            <Grid item xs={12} sx={{ display: 'flex', justifyContent: 'flex-start' }}>
-              <Stack direction="row" spacing={2}>
-                <Button 
-                  type="button" 
-                  variant="outlined" 
-                  size="small" 
-                  onClick={() => {
-                    setShowAddForm(false);
-                    // Reset form when canceling
-                    setForm({
-                      studentId: "",
-                      violation: "",
-                      classification: "",
-                      severity: "",
-                      date: "",
-                      time: "",
-                      location: "",
-                      description: "",
-                      witnesses: "",
-                      actionTaken: "",
-                      reportedBy: "",
-                      status: "Pending",
-                      image: null,
-                      studentName: ""
-                    });
-                    setImageFile(null);
-                    setSelectedStudent(null);
-                    setStudentInputValue('');
-                  }}
-                  sx={{ 
-                    minWidth: 120, 
-                    maxWidth: 160,
-                    color: theme.palette.mode === 'dark' ? '#ffffff' : '#000',
-                    borderColor: theme.palette.mode === 'dark' ? '#ffffff' : '#000',
-                    '&:hover': {
-                      borderColor: '#d32f2f',
-                      backgroundColor: '#d32f2f',
-                      color: '#fff'
-                    }
-                  }}
-                >
-                  Cancel
-                </Button>
-                <Button type="submit" variant="outlined" size="small" sx={{ 
-                  minWidth: 120, 
-                  maxWidth: 160,
-                  color: theme.palette.mode === 'dark' ? '#ffffff' : '#000',
-                  borderColor: theme.palette.mode === 'dark' ? '#ffffff' : '#000',
-                  '&:hover': {
-                    borderColor: '#800000',
-                    backgroundColor: '#800000',
-                    color: '#fff'
-                  }
-                }}
-                  startIcon={isSubmitting ? <CircularProgress size={14} color="inherit" /> : null}>
-                  {isSubmitting ? "Saving..." : "Add Violation"}
-                </Button>
-              </Stack>
-            </Grid>
-          </Grid>
-          </form>
-        </Paper>
-      )}
 
       {/* History Modal */}
       <Dialog 
         open={showHistory} 
         onClose={() => setShowHistory(false)}
-        maxWidth="xl"
+        maxWidth="lg"
         fullWidth
         PaperProps={{
           sx: {
             borderRadius: 2,
-            maxHeight: '85vh',
-            minHeight: '60vh'
+            maxHeight: '70vh',
+            minHeight: '40vh'
           }
         }}
       >
         <DialogTitle sx={{ 
           bgcolor: '#f8f9fa', 
           borderBottom: '1px solid #e0e0e0',
-          p: 2,
+          p: 1.5,
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center'
@@ -977,11 +696,11 @@ School Administration
         <DialogContent sx={{ p: 0 }}>
           {/* Search Bar Section */}
           <Box sx={{ 
-            p: 2, 
+            p: 1.5, 
             bgcolor: '#fafafa', 
             borderBottom: '1px solid #e0e0e0',
             display: 'flex',
-            justifyContent: 'center'
+            justifyContent: 'flex-start'
           }}>
             <TextField
               value={historyFilter.name}
@@ -989,7 +708,7 @@ School Administration
               placeholder="Search violations..."
               size="small"
               sx={{ 
-                width: '200px',
+                width: '180px',
                 '& .MuiOutlinedInput-root': {
                   bgcolor: '#ffffff',
                   '&:hover': {
@@ -1050,55 +769,55 @@ School Administration
                       bgcolor: '#800000',
                       fontWeight: 700,
                       color: '#ffffff',
-                      fontSize: '16px',
-                      padding: '12px 16px',
-                      minWidth: '140px',
-                      maxWidth: '140px'
+                      fontSize: '14px',
+                      padding: '8px 12px',
+                      minWidth: '120px',
+                      maxWidth: '120px'
                     }}>Name</TableCell>
                     <TableCell sx={{ 
                       bgcolor: '#800000',
                       fontWeight: 700,
                       color: '#ffffff',
-                      fontSize: '16px',
-                      padding: '12px 16px',
-                      minWidth: '120px',
-                      maxWidth: '120px'
+                      fontSize: '14px',
+                      padding: '8px 12px',
+                      minWidth: '100px',
+                      maxWidth: '100px'
                     }}>Student ID</TableCell>
                     <TableCell sx={{ 
                       bgcolor: '#800000',
                       fontWeight: 700,
                       color: '#ffffff',
-                      fontSize: '16px',
-                      padding: '12px 16px',
-                      minWidth: '180px',
-                      maxWidth: '180px'
+                      fontSize: '14px',
+                      padding: '8px 12px',
+                      minWidth: '150px',
+                      maxWidth: '150px'
                     }}>Violation</TableCell>
                     <TableCell sx={{ 
                       bgcolor: '#800000',
                       fontWeight: 700,
                       color: '#ffffff',
-                      fontSize: '16px',
-                      padding: '12px 16px',
-                      minWidth: '120px',
-                      maxWidth: '120px'
+                      fontSize: '14px',
+                      padding: '8px 12px',
+                      minWidth: '100px',
+                      maxWidth: '100px'
                     }}>Date</TableCell>
                     <TableCell sx={{ 
                       bgcolor: '#800000',
                       fontWeight: 700,
                       color: '#ffffff',
-                      fontSize: '16px',
-                      padding: '12px 16px',
-                      minWidth: '140px',
-                      maxWidth: '140px'
+                      fontSize: '14px',
+                      padding: '8px 12px',
+                      minWidth: '120px',
+                      maxWidth: '120px'
                     }}>Location</TableCell>
                     <TableCell sx={{ 
                       bgcolor: '#800000',
                       fontWeight: 700,
                       color: '#ffffff',
-                      fontSize: '16px',
-                      padding: '12px 16px',
-                      minWidth: '120px',
-                      maxWidth: '120px'
+                      fontSize: '14px',
+                      padding: '8px 12px',
+                      minWidth: '100px',
+                      maxWidth: '100px'
                     }} align="center">Actions</TableCell>
                   </TableRow>
                 </TableHead>
@@ -1131,20 +850,26 @@ School Administration
                       >
                         <TableCell sx={{ 
                           fontWeight: 500,
+                          fontSize: '13px',
+                          padding: '8px 12px',
                           borderBottom: '1px solid #f0f0f0'
                         }} onClick={() => setViewViolation(record)}>
                           {record.studentName || 'N/A'}
                         </TableCell>
                         <TableCell sx={{ 
                           fontWeight: 500,
+                          fontSize: '13px',
+                          padding: '8px 12px',
                           borderBottom: '1px solid #f0f0f0'
                         }} onClick={() => setViewViolation(record)}>
                           {record.studentId || 'N/A'}
                         </TableCell>
                         <TableCell sx={{ 
                           fontWeight: 500,
+                          fontSize: '13px',
+                          padding: '8px 12px',
                           borderBottom: '1px solid #f0f0f0',
-                          maxWidth: 200,
+                          maxWidth: 150,
                           overflow: 'hidden',
                           textOverflow: 'ellipsis',
                           whiteSpace: 'nowrap'
@@ -1155,17 +880,24 @@ School Administration
                         </TableCell>
                         <TableCell sx={{ 
                           fontWeight: 500,
+                          fontSize: '13px',
+                          padding: '8px 12px',
                           borderBottom: '1px solid #f0f0f0'
                         }} onClick={() => setViewViolation(record)}>
                           {record.date || 'N/A'}
                         </TableCell>
                         <TableCell sx={{ 
                           fontWeight: 500,
+                          fontSize: '13px',
+                          padding: '8px 12px',
                           borderBottom: '1px solid #f0f0f0'
                         }} onClick={() => setViewViolation(record)}>
                           {record.location || 'N/A'}
                         </TableCell>
-                        <TableCell align="center" sx={{ borderBottom: '1px solid #f0f0f0' }}>
+                        <TableCell align="center" sx={{ 
+                          borderBottom: '1px solid #f0f0f0',
+                          padding: '8px 12px'
+                        }}>
                           <Stack direction="row" spacing={0.5} justifyContent="center">
                             <Tooltip title="View record">
                               <IconButton 
@@ -1251,7 +983,7 @@ School Administration
         </DialogContent>
         
         <DialogActions sx={{ 
-          p: 2, 
+          p: 1.5, 
           bgcolor: '#f8f9fa',
           borderTop: '1px solid #e0e0e0',
           justifyContent: 'center'
@@ -1276,87 +1008,534 @@ School Administration
         </DialogActions>
       </Dialog>
 
+      {/* Add New Violation Modal */}
+      <Dialog 
+        open={showAddModal} 
+        onClose={() => setShowAddModal(false)}
+        maxWidth="lg"
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: 2,
+            maxHeight: '90vh'
+          }
+        }}
+      >
+        <DialogTitle sx={{ 
+          bgcolor: '#f8f9fa', 
+          borderBottom: '1px solid #e0e0e0',
+          p: 2,
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center'
+        }}>
+          <Typography variant="h6" fontWeight={600} sx={{ color: theme.palette.mode === 'dark' ? '#ffffff' : '#800000' }}>
+            Add New Violation
+          </Typography>
+          <IconButton 
+            onClick={() => setShowAddModal(false)}
+            sx={{ 
+              color: '#666666',
+              '&:hover': { 
+                color: '#000000',
+                bgcolor: '#f0f0f0'
+              }
+            }}
+          >
+            ×
+          </IconButton>
+        </DialogTitle>
+        
+        <DialogContent sx={{ p: 3 }}>
+          <form onSubmit={handleSubmit}>
+            <Grid container spacing={2}>
+              <Grid item xs={12} sm={6}>
+                <Autocomplete
+                  options={students.filter(student => {
+                    // Only show suggestions if user has typed at least one character
+                    if (!studentInputValue || studentInputValue.length < 1) {
+                      return false;
+                    }
+                    
+                    // Add null/undefined checks for all properties
+                    const firstName = student.firstName || '';
+                    const lastName = student.lastName || '';
+                    const studentId = student.id || '';
+                    const course = student.course || '';
+                    const year = student.year || '';
+                    
+                    const fullName = `${firstName} ${lastName}`.toLowerCase();
+                    const input = studentInputValue.toLowerCase();
+                    
+                    // Check for exact match first (both first and last names)
+                    if (fullName === input) {
+                      return true;
+                    }
+                    
+                    // Check if input matches first name, last name, full name, or student ID
+                    return firstName.toLowerCase().includes(input) ||
+                           lastName.toLowerCase().includes(input) ||
+                           fullName.includes(input) ||
+                           studentId.toLowerCase().includes(input);
+                  }).slice(0, 5)} // Limit to 5 suggestions
+                  getOptionLabel={(option) => `${option.firstName || ''} ${option.lastName || ''}`}
+                  value={selectedStudent}
+                  onChange={(event, newValue) => {
+                    setSelectedStudent(newValue);
+                    setForm(f => ({
+                      ...f,
+                      studentId: newValue ? newValue.id : '',
+                      studentName: newValue ? `${newValue.firstName} ${newValue.lastName}` : ''
+                    }));
+                  }}
+                  inputValue={studentInputValue}
+                  onInputChange={(event, newInputValue) => {
+                    setStudentInputValue(newInputValue);
+                  }}
+                  open={studentInputValue && studentInputValue.length > 0} // Only open when typing
+                  disablePortal={false}
+                  PaperComponent={({ children, ...other }) => (
+                    <Paper 
+                      {...other} 
+                      sx={{ 
+                        backgroundColor: theme.palette.mode === 'dark' ? '#2d2d2d' : '#ffffff',
+                        border: theme.palette.mode === 'dark' ? '1px solid #404040' : 'none',
+                        '& .MuiAutocomplete-option': {
+                          color: theme.palette.mode === 'dark' ? '#ffffff' : '#333333',
+                          '&:hover': {
+                            backgroundColor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)',
+                          },
+                        }
+                      }}
+                    >
+                      {children}
+                    </Paper>
+                  )}
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      label="Student Name or ID"
+                      required
+                      fullWidth
+                      helperText="Type to search by student name or ID"
+                      placeholder="Start typing student name or ID..."
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          backgroundColor: theme.palette.mode === 'dark' ? '#404040' : '#ffffff',
+                          '& fieldset': {
+                            borderColor: theme.palette.mode === 'dark' ? '#666666' : '#e0e0e0',
+                          },
+                          '&:hover fieldset': {
+                            borderColor: theme.palette.mode === 'dark' ? '#ffffff' : '#b0b0b0',
+                          },
+                          '&.Mui-focused fieldset': {
+                            borderColor: theme.palette.mode === 'dark' ? '#ffffff' : '#800000',
+                          },
+                        },
+                        '& .MuiInputLabel-root': {
+                          color: theme.palette.mode === 'dark' ? '#b0b0b0' : '#666666',
+                        },
+                        '& .MuiInputBase-input': {
+                          color: theme.palette.mode === 'dark' ? '#ffffff' : '#333333',
+                        },
+                        '& .MuiAutocomplete-input': {
+                          color: theme.palette.mode === 'dark' ? '#ffffff' : '#333333',
+                        }
+                      }}
+                    />
+                  )}
+                  renderOption={(props, option) => (
+                    <Box component="li" {...props}>
+                      <Box>
+                        <Typography variant="body2" fontWeight={500} sx={{ color: theme.palette.mode === 'dark' ? '#ffffff' : 'inherit' }}>
+                          {option.firstName || ''} {option.lastName || ''}
+                        </Typography>
+                        <Typography variant="caption" sx={{ color: theme.palette.mode === 'dark' ? '#b0b0b0' : 'text.secondary' }}>
+                          ID: {option.id || 'N/A'} | {option.course || 'N/A'} - {option.year || 'N/A'}
+                        </Typography>
+                      </Box>
+                    </Box>
+                  )}
+                  filterOptions={(options, { inputValue }) => {
+                    const filtered = options.filter(option => {
+                      // Add null/undefined checks for all properties
+                      const firstName = option.firstName || '';
+                      const lastName = option.lastName || '';
+                      const studentId = option.id || '';
+                      
+                      const fullName = `${firstName} ${lastName}`.toLowerCase();
+                      const searchTerm = inputValue.toLowerCase();
+                      
+                      // Check for exact match first
+                      if (fullName === searchTerm) {
+                        return true;
+                      }
+                      
+                      // Check if input matches first name, last name, full name, or student ID
+                      return firstName.toLowerCase().includes(searchTerm) ||
+                             lastName.toLowerCase().includes(searchTerm) ||
+                             fullName.includes(searchTerm) ||
+                             studentId.toLowerCase().includes(searchTerm);
+                    });
+                    return filtered.slice(0, 5); // Limit to 5 suggestions
+                  }}
+                  noOptionsText="No students found"
+                  clearOnEscape
+                  selectOnFocus
+                  handleHomeEndKeys
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField label="Violation" name="violation" value={form.violation} onChange={handleFormChange} required fullWidth helperText="Type of violation" />
+              </Grid>
+              <Grid item xs={12} sm={4}>
+                <TextField label="Classification" name="classification" value={form.classification} onChange={handleFormChange} select fullWidth required helperText="Select classification">
+                  <MenuItem value="">Select</MenuItem>
+                  <MenuItem value="Academic">Academic</MenuItem>
+                  <MenuItem value="Behavioral">Behavioral</MenuItem>
+                  <MenuItem value="Policy/Rules">Policy/Rules</MenuItem>
+                  <MenuItem value="Other">Other</MenuItem>
+                </TextField>
+              </Grid>
+              <Grid item xs={12} sm={4}>
+                <TextField label="Severity" name="severity" value={form.severity} onChange={handleFormChange} select fullWidth required helperText="Severity level">
+                  <MenuItem value="">Select</MenuItem>
+                  <MenuItem value="Low">Low</MenuItem>
+                  <MenuItem value="Medium">Medium</MenuItem>
+                  <MenuItem value="High">High</MenuItem>
+                  <MenuItem value="Critical">Critical</MenuItem>
+                </TextField>
+              </Grid>
+              <Grid item xs={12} sm={4}>
+                <TextField label="Status" name="status" value={form.status} onChange={handleFormChange} select fullWidth required helperText="Mark as pending or solved">
+                  <MenuItem value="Pending">Pending</MenuItem>
+                  <MenuItem value="Solved">Solved</MenuItem>
+                </TextField>
+              </Grid>
+              <Grid item xs={12} sm={4}>
+                <TextField label="Date" name="date" type="date" value={form.date} onChange={handleFormChange} InputLabelProps={{ shrink: true }} fullWidth required helperText="Date of violation" />
+              </Grid>
+              <Grid item xs={12} sm={4}>
+                <TextField label="Time" name="time" type="time" value={form.time} onChange={handleFormChange} InputLabelProps={{ shrink: true }} fullWidth helperText="Time (optional)" />
+              </Grid>
+              <Grid item xs={12} sm={4}>
+                <TextField label="Location" name="location" value={form.location} onChange={handleFormChange} fullWidth helperText="Location (optional)" />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField label="Reported By" name="reportedBy" value={form.reportedBy} onChange={handleFormChange} fullWidth helperText="Who reported?" />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField label="Action Taken" name="actionTaken" value={form.actionTaken} onChange={handleFormChange} fullWidth helperText="Action taken (optional)" />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField label="Witnesses" name="witnesses" value={form.witnesses} onChange={handleFormChange} fullWidth helperText="Witnesses (optional)" />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <Tooltip title="Attach an image as evidence (optional)">
+                  <Button variant="contained" component="label" fullWidth sx={{ bgcolor: '#800000', color: '#fff', '&:hover': { bgcolor: '#6b0000' } }}>
+                    Attach Evidence Image
+                    <input type="file" accept="image/*" hidden onChange={handleImage} />
+                  </Button>
+                </Tooltip>
+                {imageFile && (
+                  <Box sx={{ mt: 1, display: 'flex', alignItems: 'center', gap: 2 }}>
+                    <Avatar src={imageFile} sx={{ width: 40, height: 40 }} variant="rounded" />
+                    <Button variant="outlined" color="error" size="small" onClick={() => setImageFile(null)}>Remove</Button>
+                  </Box>
+                )}
+              </Grid>
+              <Grid item xs={12}>
+                <TextField label="Description" name="description" value={form.description} onChange={handleFormChange} fullWidth multiline minRows={3} helperText="Describe the violation (optional)" />
+              </Grid>
+            </Grid>
+          </form>
+        </DialogContent>
+        
+        <DialogActions sx={{ 
+          p: 2, 
+          bgcolor: '#f8f9fa',
+          borderTop: '1px solid #e0e0e0',
+          justifyContent: 'space-between'
+        }}>
+          <Button 
+            onClick={() => {
+              setShowAddModal(false);
+              // Reset form when canceling
+              setForm({
+                studentId: "",
+                violation: "",
+                classification: "",
+                severity: "",
+                date: "",
+                time: "",
+                location: "",
+                description: "",
+                witnesses: "",
+                actionTaken: "",
+                reportedBy: "",
+                status: "Pending",
+                image: null,
+                studentName: ""
+              });
+              setImageFile(null);
+              setSelectedStudent(null);
+              setStudentInputValue('');
+            }}
+            variant="outlined"
+            sx={{
+              minWidth: 100,
+              bgcolor: '#ffffff',
+              color: '#d32f2f',
+              borderColor: '#d32f2f',
+              '&:hover': {
+                bgcolor: '#d32f2f',
+                color: '#ffffff',
+                borderColor: '#d32f2f'
+              }
+            }}
+          >
+            Cancel
+          </Button>
+          <Button 
+            onClick={handleSubmit}
+            variant="contained"
+            sx={{
+              minWidth: 120,
+              bgcolor: '#800000',
+              color: '#ffffff',
+              '&:hover': {
+                bgcolor: '#6b0000'
+              }
+            }}
+            startIcon={isSubmitting ? <CircularProgress size={16} color="inherit" /> : null}
+            disabled={isSubmitting}
+          >
+            {isSubmitting ? "Saving..." : "Add Violation"}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
       <Divider sx={{ mb: 3 }} />
-      {/* Search and Table */}
-      <Paper sx={{ p: 2, mb: 3, maxWidth: 1200, mx: 'auto', borderRadius: 3, boxShadow: 2 }}>
+      
+      {/* Search Bar */}
+      <Box sx={{ mb: 3 }}>
         <TextField
           value={search}
           onChange={e => setSearch(e.target.value)}
           placeholder="Search by Student ID, Violation, Classification, or Reporter..."
           size="small"
-          sx={{ mb: 2, width: { xs: '100%', sm: '50%' } }}
+          sx={{ 
+            width: { xs: '100%', sm: '50%' },
+            '& .MuiOutlinedInput-root': {
+              bgcolor: theme.palette.mode === 'dark' ? '#404040' : '#ffffff',
+              '&:hover': {
+                '& .MuiOutlinedInput-notchedOutline': {
+                  borderColor: '#800000'
+                }
+              },
+              '&.Mui-focused': {
+                '& .MuiOutlinedInput-notchedOutline': {
+                  borderColor: '#800000'
+                }
+              }
+            }
+          }}
           InputProps={{
             startAdornment: (
               <InputAdornment position="start">
-                <SearchIcon />
+                <SearchIcon sx={{ color: '#800000' }} />
               </InputAdornment>
             )
           }}
         />
-        <TableContainer component={Paper} sx={{ 
-          maxHeight: 500, 
+      </Box>
+
+      {/* Expanded Table Container */}
+      <TableContainer component={Paper} elevation={2} sx={{ 
           width: '100%', 
-          bgcolor: theme.palette.mode === 'dark' ? '#2d2d2d' : 'inherit'
+        bgcolor: theme.palette.mode === 'dark' ? '#2d2d2d' : '#ffffff',
+        borderRadius: 2
         }}>
-          <Table size="small" stickyHeader sx={{ minWidth: 880 }}>
+        <Table stickyHeader>
             <TableHead>
                 <TableRow sx={{ 
                   bgcolor: '#800000' 
                 }}>
                   <TableCell sx={{ 
                     bgcolor: '#800000',
-                    minWidth: 160, 
-                    fontSize: 16, 
-                    fontWeight: 700, 
-                    color: '#ffffff' 
-                  }}>Name</TableCell>
+                color: '#ffffff', 
+                fontWeight: 600,
+                fontSize: '16px',
+                padding: '16px'
+              }}>Student Name</TableCell>
                   <TableCell sx={{ 
                     bgcolor: '#800000',
-                    minWidth: 110, 
-                    fontSize: 16, 
-                    fontWeight: 700, 
-                    color: '#ffffff' 
+                color: '#ffffff', 
+                fontWeight: 600,
+                fontSize: '16px',
+                padding: '16px'
                   }}>Student ID</TableCell>
                   <TableCell sx={{ 
                     bgcolor: '#800000',
-                    minWidth: 180, 
-                    fontSize: 16, 
-                    fontWeight: 700, 
-                    color: '#ffffff' 
+                color: '#ffffff', 
+                fontWeight: 600,
+                fontSize: '16px',
+                padding: '16px'
                   }}>Violation</TableCell>
                   <TableCell sx={{ 
                     bgcolor: '#800000',
-                    minWidth: 110, 
-                    fontSize: 16, 
-                    fontWeight: 700, 
-                    color: '#ffffff' 
+                color: '#ffffff', 
+                fontWeight: 600,
+                fontSize: '16px',
+                padding: '16px'
+              }}>Classification</TableCell>
+              <TableCell sx={{ 
+                bgcolor: '#800000',
+                color: '#ffffff', 
+                fontWeight: 600,
+                fontSize: '16px',
+                padding: '16px'
+              }}>Severity</TableCell>
+              <TableCell sx={{ 
+                bgcolor: '#800000',
+                color: '#ffffff', 
+                fontWeight: 600,
+                fontSize: '16px',
+                padding: '16px'
                   }}>Date</TableCell>
                   <TableCell sx={{ 
                     bgcolor: '#800000',
-                    minWidth: 120, 
-                    fontSize: 16, 
-                    fontWeight: 700, 
-                    color: '#ffffff' 
+                color: '#ffffff', 
+                fontWeight: 600,
+                fontSize: '16px',
+                padding: '16px'
+              }}>Status</TableCell>
+              <TableCell sx={{ 
+                bgcolor: '#800000',
+                color: '#ffffff', 
+                fontWeight: 600,
+                fontSize: '16px',
+                padding: '16px'
                   }} align="center">Actions</TableCell>
                 </TableRow>
             </TableHead>
             <TableBody>
               {filtered.length === 0 ? (
-                <TableRow><TableCell colSpan={5} sx={{ fontSize: 14, fontWeight: 400, textAlign: 'center' }}>No violations found.</TableCell></TableRow>
-              ) : filtered.map((v, idx) => (
+              <TableRow>
+                <TableCell colSpan={8} align="center" sx={{ py: 4 }}>
+                  <Typography variant="h6" color="text.secondary">
+                    No violations found.
+                  </Typography>
+                </TableCell>
+              </TableRow>
+            ) : paginatedData.map((v, idx) => (
                 <TableRow key={v.id || idx} hover sx={{ cursor: 'pointer' }}>
-                  <TableCell sx={{ fontSize: 14, fontWeight: 400 }} onClick={() => setViewViolation(v)}>{v.studentName || 'N/A'}</TableCell>
-                  <TableCell sx={{ fontSize: 14, fontWeight: 400 }} onClick={() => setViewViolation(v)}>{v.studentId || 'N/A'}</TableCell>
-                  <TableCell sx={{ fontSize: 14, fontWeight: 400, maxWidth: 240, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} onClick={() => setViewViolation(v)}>
-                    <Tooltip title={v.violation || ''}><span>{v.violation || 'N/A'}</span></Tooltip>
+                <TableCell 
+                  sx={{ 
+                    fontSize: 14, 
+                    fontWeight: 500,
+                    padding: '12px 16px'
+                  }} 
+                  onClick={() => setViewViolation(v)}
+                >
+                  {v.studentName || 'N/A'}
                   </TableCell>
-                  <TableCell sx={{ fontSize: 14, fontWeight: 400 }} onClick={() => setViewViolation(v)}>{v.date || 'N/A'}</TableCell>
-                  <TableCell align="center">
+                <TableCell 
+                  sx={{ 
+                    fontSize: 14, 
+                    fontWeight: 500,
+                    padding: '12px 16px'
+                  }} 
+                  onClick={() => setViewViolation(v)}
+                >
+                  {v.studentId || 'N/A'}
+                </TableCell>
+                <TableCell 
+                  sx={{ 
+                    fontSize: 14, 
+                    fontWeight: 500,
+                    maxWidth: 200,
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                    padding: '12px 16px'
+                  }} 
+                  onClick={() => setViewViolation(v)}
+                >
+                  <Tooltip title={v.violation || ''}>
+                    <span>{v.violation || 'N/A'}</span>
+                  </Tooltip>
+                </TableCell>
+                <TableCell 
+                  sx={{ 
+                    fontSize: 14, 
+                    fontWeight: 500,
+                    padding: '12px 16px'
+                  }} 
+                  onClick={() => setViewViolation(v)}
+                >
+                  {v.classification || 'N/A'}
+                </TableCell>
+                <TableCell 
+                  sx={{ 
+                    fontSize: 14, 
+                    fontWeight: 500,
+                    padding: '12px 16px'
+                  }} 
+                  onClick={() => setViewViolation(v)}
+                >
+                  <Chip 
+                    label={v.severity || 'N/A'} 
+                    size="small" 
+                    color={
+                      v.severity === 'Critical' ? 'error' :
+                      v.severity === 'High' ? 'error' :
+                      v.severity === 'Medium' ? 'warning' :
+                      v.severity === 'Low' ? 'success' : 'default'
+                    }
+                    variant="outlined"
+                  />
+                </TableCell>
+                <TableCell 
+                  sx={{ 
+                    fontSize: 14, 
+                    fontWeight: 500,
+                    padding: '12px 16px'
+                  }} 
+                  onClick={() => setViewViolation(v)}
+                >
+                  {v.date || 'N/A'}
+                </TableCell>
+                <TableCell 
+                  sx={{ 
+                    fontSize: 14, 
+                    fontWeight: 500,
+                    padding: '12px 16px'
+                  }} 
+                  onClick={() => setViewViolation(v)}
+                >
+                  <Chip 
+                    label={v.status || 'N/A'} 
+                    size="small" 
+                    color={
+                      v.status === 'Solved' ? 'success' :
+                      v.status === 'Pending' ? 'warning' : 'default'
+                    }
+                    variant="outlined"
+                  />
+                </TableCell>
+                <TableCell align="center" sx={{ padding: '12px 16px' }}>
                     <Stack direction="row" spacing={1} justifyContent="center">
                       <Tooltip title="View record">
                         <IconButton 
                           size="small" 
-                          sx={{ color: 'grey.600', '&:hover': { color: '#1976d2' } }} 
+                        sx={{ 
+                          color: '#666666',
+                          '&:hover': { 
+                            color: '#1976d2',
+                            bgcolor: 'rgba(25, 118, 210, 0.1)'
+                          }
+                        }} 
                           onClick={(e) => {
                             e.stopPropagation();
                             setViewViolation(v);
@@ -1370,10 +1549,9 @@ School Administration
                           size="small" 
                           sx={{ 
                             color: '#666666',
-                            padding: '4px',
                             '&:hover': { 
                               color: '#f57c00',
-                              bgcolor: theme.palette.mode === 'dark' ? 'rgba(245, 124, 0, 0.1)' : 'rgba(245, 124, 0, 0.04)'
+                            bgcolor: 'rgba(245, 124, 0, 0.1)'
                             }
                           }} 
                           onClick={(e) => {
@@ -1387,7 +1565,13 @@ School Administration
                       <Tooltip title="Delete record">
                         <IconButton 
                           size="small" 
-                          sx={{ color: 'grey.600', '&:hover': { color: 'error.main' } }} 
+                        sx={{ 
+                          color: '#666666',
+                          '&:hover': { 
+                            color: '#d32f2f',
+                            bgcolor: 'rgba(211, 47, 47, 0.1)'
+                          }
+                        }} 
                           onClick={(e) => {
                             e.stopPropagation();
                             setDeleteConfirm({ open: true, id: v.id });
@@ -1402,8 +1586,22 @@ School Administration
               ))}
             </TableBody>
           </Table>
+        
+        {/* Pagination */}
+        <TablePagination
+          rowsPerPageOptions={[5, 10, 25, 50]}
+          component="div"
+          count={filtered.length}
+          rowsPerPage={rowsPerPage}
+          page={page}
+          onPageChange={handleChangePage}
+          onRowsPerPageChange={handleChangeRowsPerPage}
+          sx={{
+            bgcolor: theme.palette.mode === 'dark' ? '#2d2d2d' : '#ffffff',
+            borderTop: theme.palette.mode === 'dark' ? '1px solid #404040' : '1px solid #e0e0e0'
+          }}
+        />
         </TableContainer>
-      </Paper>
       {/* Image Preview Modal */}
       <Dialog open={!!imagePreview} onClose={() => setImagePreview(null)} maxWidth="md" fullWidth>
         <DialogTitle sx={{ fontWeight: 700, color: 'primary.main' }}>Violation Evidence Image</DialogTitle>
@@ -1648,9 +1846,9 @@ School Administration
                 <Grid item xs={12}>
                   {console.log('🎯 Rendering statistics table for:', selectedMeetingStudent)}
                   {console.log('📊 Current meeting stats:', meetingStats)}
-                  <Paper sx={{ p: 2, mb: 2, bgcolor: '#f8f9fa', borderRadius: 2 }}>
+                  <Paper sx={{ p: 2, mb: 2, bgcolor: '#f8f9fa', borderRadius: 2, border: '3px solid #ff0000' }}>
                     <Typography variant="h6" sx={{ mb: 2, color: '#800000', fontWeight: 600 }}>
-                      Meeting Statistics for {selectedMeetingStudent.firstName} {selectedMeetingStudent.lastName}
+                      🎯 MEETING STATISTICS FOR {selectedMeetingStudent.firstName} {selectedMeetingStudent.lastName} 🎯
                     </Typography>
                     <Grid container spacing={2}>
                       <Grid item xs={6} sm={3}>

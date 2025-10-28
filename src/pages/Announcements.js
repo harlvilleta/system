@@ -438,11 +438,11 @@ export default function Announcements() {
   }
 
   // Use utility functions for each tab
-  const { recent, mainList } = getActiveAnnouncements(announcements, tab === 0 ? search : "");
-  const filteredRecycleBin = getRecycleBinAnnouncements(recycleBin, tab === 1 ? search : "");
-  const filteredCompleted = getCompletedAnnouncements(announcements, tab === 2 ? search : "");
-  const scheduledList = getScheduledAnnouncements(announcements, tab === 3 ? search : "");
-  const expiredList = getExpiredAnnouncements(announcements, tab === 4 ? search : "");
+  const { recent, mainList } = getActiveAnnouncements(announcements, search);
+  const filteredRecycleBin = getRecycleBinAnnouncements(recycleBin, search);
+  const filteredCompleted = getCompletedAnnouncements(announcements, search);
+  const scheduledList = getScheduledAnnouncements(announcements, search);
+  const expiredList = getExpiredAnnouncements(announcements, search);
 
   const total = announcements.length;
   const pinnedCount = announcements.filter(a => a.pinned).length;
@@ -494,15 +494,12 @@ export default function Announcements() {
         Announcements
       </Typography>
       
-      <Box sx={{ maxWidth: 900, mx: 'auto', p: { xs: 1, sm: 3 } }}>
+      <Box sx={{ width: '100%', p: { xs: 0.5, sm: 1 } }}>
         <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
       </Stack>
       
       {/* Quick Access Cards */}
       <Box sx={{ mb: 3 }}>
-        <Typography variant="h6" sx={{ mb: 2, fontWeight: 700, color: '#ffffff' }}>
-          Quick Access
-        </Typography>
         <Box sx={{ 
           display: 'grid',
           gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(4, 1fr)' },
@@ -512,64 +509,43 @@ export default function Announcements() {
             sx={{ 
               cursor: 'pointer',
               transition: 'all 0.3s ease',
-              background: 'transparent',
-              borderLeft: '4px solid #800000',
-              borderRadius: 2,
               boxShadow: 2,
-              border: theme.palette.mode === 'dark' 
-                ? '1px solid rgba(255, 255, 255, 0.1)' 
-                : '1px solid rgba(255, 255, 255, 0.2)',
+              borderLeft: '4px solid #800000',
               '&:hover': {
                 transform: 'translateY(-2px)',
-                boxShadow: theme.palette.mode === 'dark' 
-                  ? '0 12px 40px rgba(0, 0, 0, 0.4)' 
-                  : '0 8px 24px rgba(0, 0, 0, 0.15)',
-                background: theme.palette.mode === 'dark' 
-                  ? 'rgba(255, 255, 255, 0.08)' 
-                  : 'rgba(255, 255, 255, 0.9)',
+                boxShadow: 4
               }
             }}
-            onClick={() => { setTab(0); setSelected([]); }}
+            onClick={() => { setSearch(""); setSelected([]); }}
           >
-            <CardContent sx={{ textAlign: 'center' }}>
-              <Typography variant="h4" fontWeight={700} sx={{ color: '#800000' }}>
+            <CardContent sx={{ textAlign: 'center', py: 3 }}>
+              <Typography variant="h4" fontWeight={700} sx={{ color: '#000000' }}>
                 {recent.length + mainList.length}
               </Typography>
-              <Typography variant="body2" color="textSecondary">
+              <Typography variant="body2" color="textSecondary" sx={{ mt: 1 }}>
                 Active Announcements
               </Typography>
             </CardContent>
           </Card>
 
-
           <Card 
             sx={{ 
               cursor: 'pointer',
               transition: 'all 0.3s ease',
-              background: 'transparent',
-              borderLeft: '4px solid #800000',
-              borderRadius: 2,
               boxShadow: 2,
-              border: theme.palette.mode === 'dark' 
-                ? '1px solid rgba(255, 255, 255, 0.1)' 
-                : '1px solid rgba(255, 255, 255, 0.2)',
+              borderLeft: '4px solid #800000',
               '&:hover': {
                 transform: 'translateY(-2px)',
-                boxShadow: theme.palette.mode === 'dark' 
-                  ? '0 12px 40px rgba(0, 0, 0, 0.4)' 
-                  : '0 8px 24px rgba(0, 0, 0, 0.15)',
-                background: theme.palette.mode === 'dark' 
-                  ? 'rgba(255, 255, 255, 0.08)' 
-                  : 'rgba(255, 255, 255, 0.9)',
+                boxShadow: 4
               }
             }}
-            onClick={() => { setTab(2); setSelected([]); }}
+            onClick={() => { setSearch("completed"); setSelected([]); }}
           >
-            <CardContent sx={{ textAlign: 'center' }}>
-              <Typography variant="h4" fontWeight={700} sx={{ color: '#800000' }}>
+            <CardContent sx={{ textAlign: 'center', py: 3 }}>
+              <Typography variant="h4" fontWeight={700} sx={{ color: '#000000' }}>
                 {filteredCompleted.length}
               </Typography>
-              <Typography variant="body2" color="textSecondary">
+              <Typography variant="body2" color="textSecondary" sx={{ mt: 1 }}>
                 Completed
               </Typography>
             </CardContent>
@@ -579,30 +555,20 @@ export default function Announcements() {
             sx={{ 
               cursor: 'pointer',
               transition: 'all 0.3s ease',
-              background: 'transparent',
-              borderLeft: '4px solid #800000',
-              borderRadius: 2,
               boxShadow: 2,
-              border: theme.palette.mode === 'dark' 
-                ? '1px solid rgba(255, 255, 255, 0.1)' 
-                : '1px solid rgba(255, 255, 255, 0.2)',
+              borderLeft: '4px solid #800000',
               '&:hover': {
                 transform: 'translateY(-2px)',
-                boxShadow: theme.palette.mode === 'dark' 
-                  ? '0 12px 40px rgba(0, 0, 0, 0.4)' 
-                  : '0 8px 24px rgba(0, 0, 0, 0.15)',
-                background: theme.palette.mode === 'dark' 
-                  ? 'rgba(255, 255, 255, 0.08)' 
-                  : 'rgba(255, 255, 255, 0.9)',
+                boxShadow: 4
               }
             }}
-            onClick={() => { setTab(3); setSelected([]); }}
+            onClick={() => { setSearch("scheduled"); setSelected([]); }}
           >
-            <CardContent sx={{ textAlign: 'center' }}>
-              <Typography variant="h4" fontWeight={700} sx={{ color: '#800000' }}>
+            <CardContent sx={{ textAlign: 'center', py: 3 }}>
+              <Typography variant="h4" fontWeight={700} sx={{ color: '#000000' }}>
                 {scheduledList.length}
               </Typography>
-              <Typography variant="body2" color="textSecondary">
+              <Typography variant="body2" color="textSecondary" sx={{ mt: 1 }}>
                 Scheduled
               </Typography>
             </CardContent>
@@ -612,30 +578,20 @@ export default function Announcements() {
             sx={{ 
               cursor: 'pointer',
               transition: 'all 0.3s ease',
-              background: 'transparent',
-              borderLeft: '4px solid #800000',
-              borderRadius: 2,
               boxShadow: 2,
-              border: theme.palette.mode === 'dark' 
-                ? '1px solid rgba(255, 255, 255, 0.1)' 
-                : '1px solid rgba(255, 255, 255, 0.2)',
+              borderLeft: '4px solid #800000',
               '&:hover': {
                 transform: 'translateY(-2px)',
-                boxShadow: theme.palette.mode === 'dark' 
-                  ? '0 12px 40px rgba(0, 0, 0, 0.4)' 
-                  : '0 8px 24px rgba(0, 0, 0, 0.15)',
-                background: theme.palette.mode === 'dark' 
-                  ? 'rgba(255, 255, 255, 0.08)' 
-                  : 'rgba(255, 255, 255, 0.9)',
+                boxShadow: 4
               }
             }}
-            onClick={() => { setTab(4); setSelected([]); }}
+            onClick={() => { setSearch("expired"); setSelected([]); }}
           >
-            <CardContent sx={{ textAlign: 'center' }}>
-              <Typography variant="h4" fontWeight={700} sx={{ color: '#800000' }}>
+            <CardContent sx={{ textAlign: 'center', py: 3 }}>
+              <Typography variant="h4" fontWeight={700} sx={{ color: '#000000' }}>
                 {expiredList.length}
               </Typography>
-              <Typography variant="body2" color="textSecondary">
+              <Typography variant="body2" color="textSecondary" sx={{ mt: 1 }}>
                 Expired
               </Typography>
             </CardContent>
@@ -643,23 +599,156 @@ export default function Announcements() {
         </Box>
       </Box>
 
-      {/* Create Announcement Button */}
+      {/* Search Bar, Filters, and Create Button */}
+      <Box sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
+        {/* Search Bar */}
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, maxWidth: 400, flex: 1, minWidth: 300 }}>
+          <TextField
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Search announcements..."
+            size="small"
+            fullWidth
+            autoFocus
+            sx={{ 
+              '& .MuiOutlinedInput-root': {
+                bgcolor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.9)',
+              color: '#000000',
+                borderRadius: 2,
+                '& fieldset': {
+              borderColor: '#000000',
+                  borderWidth: 2,
+                },
+                '&:hover fieldset': {
+                borderColor: '#800000',
+                  borderWidth: 2,
+                },
+                '&.Mui-focused fieldset': {
+                  borderColor: '#800000',
+                  borderWidth: 2,
+                },
+              },
+              '& .MuiInputBase-input': {
+                color: '#000000',
+                fontWeight: 500,
+                '&::placeholder': {
+                  color: '#666666',
+                  opacity: 1,
+                  fontWeight: 400,
+                },
+              },
+            }}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon sx={{ color: '#000000', opacity: 0.7 }} />
+                </InputAdornment>
+              ),
+              endAdornment: search && (
+                <IconButton 
+                  size="small" 
+                  onClick={() => setSearch("")}
+                  sx={{ color: '#000000', opacity: 0.7 }}
+                >
+                  ×
+                </IconButton>
+              )
+            }}
+          />
+                </Box>
+
+        {/* Filter Buttons */}
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Typography variant="body2" sx={{ color: '#000000', fontWeight: 600, fontSize: '0.9rem', mr: 1 }}>
+          Filters:
+        </Typography>
+        <Chip 
+          label="All" 
+          variant={search === "" ? "filled" : "outlined"}
+          onClick={() => setSearch("")}
+          sx={{ 
+            color: search === "" ? '#ffffff' : '#000000',
+              bgcolor: search === "" ? '#800000' : 'transparent',
+            borderColor: '#000000',
+            borderWidth: 2,
+            fontWeight: 500,
+              '&:hover': {
+                bgcolor: '#800000',
+                color: '#000000',
+                borderColor: '#800000'
+              }
+          }}
+        />
+        <Chip 
+          label="Students" 
+          variant="outlined"
+          onClick={() => setSearch("students")}
+          sx={{ 
+            color: '#000000',
+              bgcolor: 'transparent',
+            borderColor: '#000000',
+            borderWidth: 2,
+            fontWeight: 500,
+              '&:hover': {
+                bgcolor: '#800000',
+                color: '#000000',
+                borderColor: '#800000'
+              }
+          }}
+        />
+        <Chip 
+          label="Teachers" 
+          variant="outlined"
+          onClick={() => setSearch("teachers")}
+          sx={{ 
+            color: '#000000',
+              bgcolor: 'transparent',
+            borderColor: '#000000',
+            borderWidth: 2,
+            fontWeight: 500,
+              '&:hover': {
+                bgcolor: '#800000',
+                color: '#000000',
+                borderColor: '#800000'
+              }
+          }}
+        />
+        <Chip 
+          label="With Photos" 
+          variant="outlined"
+          onClick={() => setSearch("photo")}
+          sx={{ 
+            color: '#000000',
+              bgcolor: 'transparent',
+            borderColor: '#000000',
+            borderWidth: 2,
+            fontWeight: 500,
+              '&:hover': {
+                bgcolor: '#800000',
+                color: '#000000',
+                borderColor: '#800000'
+              }
+          }}
+        />
+      </Box>
+
+        {/* Create Announcement Button - Right Side */}
         {userRole === 'Admin' && (
-        <Box sx={{ mb: 3, display: 'flex', justifyContent: 'center' }}>
           <Button 
             variant="outlined" 
             onClick={() => setFormModalOpen(true)}
-            sx={{
+          sx={{
               color: '#000000',
               backgroundColor: '#ffffff',
-              borderColor: '#000000',
+                borderColor: '#000000',
               borderWidth: '1px',
-              fontWeight: 400,
+                fontWeight: 400,
               fontSize: '0.875rem',
               textTransform: 'none',
               fontFamily: 'inherit',
               px: 3,
               py: 1,
+              minWidth: '160px',
               '&:hover': {
                 backgroundColor: '#800000',
                 color: '#ffffff',
@@ -670,293 +759,14 @@ export default function Announcements() {
           >
             + Create Announcement
           </Button>
-        </Box>
         )}
-
-      <Tabs 
-        value={tab} 
-        onChange={(_, v) => { setTab(v); setSelected([]); }} 
-        sx={{ 
-          mb: 2,
-          '& .MuiTab-root': {
-            color: '#ffffff !important',
-            fontWeight: 400,
-            '&.Mui-selected': {
-              color: '#ffffff !important',
-              fontWeight: 700
-            },
-            '&:hover': {
-              color: '#ffffff !important'
-            }
-          },
-          '& .MuiTab-root.Mui-selected': {
-            color: '#ffffff !important',
-            fontWeight: 700
-          },
-          '& .MuiTab-root:not(.Mui-selected)': {
-            color: '#ffffff !important',
-            fontWeight: 400
-          },
-          '& .MuiTab-root *': {
-            color: '#ffffff !important'
-          },
-          '& .MuiTab-root.Mui-selected *': {
-            color: '#ffffff !important',
-            fontWeight: 700
-          },
-          '& .MuiTabs-indicator': {
-            display: 'none'
-          }
-        }}
-      >
-        <Tab 
-          label="Active" 
-          sx={{ 
-            color: '#ffffff !important',
-            fontWeight: tab === 0 ? 700 : 400,
-            '&.Mui-selected': {
-              color: '#ffffff !important',
-              fontWeight: 700
-            }
-          }}
-        />
-        {userRole === 'Admin' && (
-          <>
-            <Tab 
-              label="Recycle Bin" 
-              sx={{ 
-                color: '#ffffff !important',
-                fontWeight: tab === 1 ? 700 : 400,
-                '&.Mui-selected': {
-                  color: '#ffffff !important',
-                  fontWeight: 700
-                }
-              }}
-              onClick={() => {
-                setTab(1);
-                setSelected([]);
-              }}
-            />
-            <Tab 
-              label="Completed" 
-              sx={{ 
-                color: '#ffffff !important',
-                fontWeight: tab === 2 ? 700 : 400,
-                '&.Mui-selected': {
-                  color: '#ffffff !important',
-                  fontWeight: 700
-                }
-              }}
-              onClick={() => {
-                setTab(2);
-                setSelected([]);
-              }}
-            />
-            <Tab 
-              label={
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  Scheduled
-                  {scheduledList.length > 0 && (
-                    <Chip 
-                      label={scheduledList.length} 
-                      size="small" 
-                      sx={{ 
-                        bgcolor: '#0288d1', 
-                        color: 'white', 
-                        fontSize: '0.7rem',
-                        height: '20px',
-                        minWidth: '20px'
-                      }} 
-                    />
-                  )}
-                </Box>
-              }
-              sx={{ 
-                color: '#ffffff !important',
-                fontWeight: tab === 3 ? 700 : 400,
-                '&.Mui-selected': {
-                  color: '#ffffff !important',
-                  fontWeight: 700
-                }
-              }}
-              onClick={() => {
-                setTab(3);
-                setSelected([]);
-              }}
-            />
-            <Tab 
-              label={
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  Expired
-                  {expiredList.length > 0 && (
-                    <Chip 
-                      label={expiredList.length} 
-                      size="small" 
-                      sx={{ 
-                        bgcolor: '#d32f2f', 
-                        color: 'white', 
-                        fontSize: '0.7rem',
-                        height: '20px',
-                        minWidth: '20px'
-                      }} 
-                    />
-                  )}
-                </Box>
-              }
-              sx={{ 
-                color: '#ffffff !important',
-                fontWeight: tab === 4 ? 700 : 400,
-                '&.Mui-selected': {
-                  color: '#ffffff !important',
-                  fontWeight: 700
-                }
-              }}
-              onClick={() => {
-                setTab(4);
-                setSelected([]);
-              }}
-            />
-          </>
-        )}
-      </Tabs>
-      
-
-      {/* Filter and Sort Options */}
-      <Box sx={{ mb: 2, display: 'flex', flexWrap: 'wrap', gap: 2, alignItems: 'center' }}>
-        <Typography variant="body2" sx={{ color: '#ffffff', fontWeight: 600, fontSize: '0.9rem' }}>
-          Filters:
-        </Typography>
-        <Chip 
-          label="All" 
-          variant={search === "" ? "filled" : "outlined"}
-          onClick={() => setSearch("")}
-          sx={{ 
-            color: search === "" ? '#ffffff' : '#000000',
-            bgcolor: search === "" ? '#800000' : 'rgba(255, 255, 255, 0.9)',
-            borderColor: '#000000',
-            borderWidth: 2,
-            fontWeight: 500,
-            '&:hover': {
-              bgcolor: '#800000',
-              color: '#ffffff',
-              borderColor: '#800000'
-            }
-          }}
-        />
-        <Chip 
-          label="Students" 
-          variant="outlined"
-          onClick={() => setSearch("students")}
-          sx={{ 
-            color: '#000000',
-            bgcolor: 'rgba(255, 255, 255, 0.9)',
-            borderColor: '#000000',
-            borderWidth: 2,
-            fontWeight: 500,
-            '&:hover': {
-              bgcolor: '#800000',
-              color: '#ffffff',
-              borderColor: '#800000'
-            }
-          }}
-        />
-        <Chip 
-          label="Teachers" 
-          variant="outlined"
-          onClick={() => setSearch("teachers")}
-          sx={{ 
-            color: '#000000',
-            bgcolor: 'rgba(255, 255, 255, 0.9)',
-            borderColor: '#000000',
-            borderWidth: 2,
-            fontWeight: 500,
-            '&:hover': {
-              bgcolor: '#800000',
-              color: '#ffffff',
-              borderColor: '#800000'
-            }
-          }}
-        />
-        <Chip 
-          label="With Photos" 
-          variant="outlined"
-          onClick={() => setSearch("photo")}
-          sx={{ 
-            color: '#000000',
-            bgcolor: 'rgba(255, 255, 255, 0.9)',
-            borderColor: '#000000',
-            borderWidth: 2,
-            fontWeight: 500,
-            '&:hover': {
-              bgcolor: '#800000',
-              color: '#ffffff',
-              borderColor: '#800000'
-            }
-          }}
-        />
-      </Box>
-
-      {/* Search Bar */}
-      <Box sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1, maxWidth: 500 }}>
-        <TextField
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          placeholder="Search announcements..."
-          size="small"
-          fullWidth
-          autoFocus
-          sx={{
-            '& .MuiOutlinedInput-root': {
-              bgcolor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.9)',
-              color: '#000000',
-              borderRadius: 2,
-              '& fieldset': {
-                borderColor: '#000000',
-                borderWidth: 2,
-              },
-              '&:hover fieldset': {
-                borderColor: '#800000',
-                borderWidth: 2,
-              },
-              '&.Mui-focused fieldset': {
-                borderColor: '#800000',
-                borderWidth: 2,
-              },
-            },
-            '& .MuiInputBase-input': {
-              color: '#000000',
-              fontWeight: 500,
-              '&::placeholder': {
-                color: '#666666',
-                opacity: 1,
-                fontWeight: 400,
-              },
-            },
-          }}
-          InputProps={{
-            startAdornment: (
-              <InputAdornment position="start">
-                <SearchIcon sx={{ color: '#000000', opacity: 0.7 }} />
-              </InputAdornment>
-            ),
-            endAdornment: search && (
-              <IconButton 
-                size="small" 
-                onClick={() => setSearch("")}
-                sx={{ color: '#000000', opacity: 0.7 }}
-              >
-                ×
-              </IconButton>
-            )
-          }}
-        />
       </Box>
 
       {/* Recent Announcements Section (only in Active tab) */}
-      {tab === 0 && recent.length > 0 && (
+      {recent.length > 0 && (
         <Box sx={{ mb: 3 }}>
-          <Typography variant="h6" sx={{ mb: 1, fontWeight: 700, color: '#4caf50' }}>
-            🔥 Recent Announcements
+          <Typography variant="h6" sx={{ mb: 1, fontWeight: 700, color: '#800000' }}>
+            Recent Announcements
           </Typography>
           <Stack spacing={2}>
             {recent.map(a => (
@@ -1066,7 +876,7 @@ export default function Announcements() {
         </Box>
       )}
       {/* Main List for current tab */}
-      {tab === 0 && (
+      {(
         <Box sx={{ mb: 4 }}>
           <Typography variant="h6" sx={{ mb: 1, fontWeight: 700 }}>All Active Announcements</Typography>
           {selected.length > 0 && userRole === 'Admin' && (
@@ -1151,7 +961,7 @@ export default function Announcements() {
       )}
 
       
-      {tab === 2 && (
+      {filteredCompleted.length > 0 && (
         <Box sx={{ mb: 4 }}>
           <Typography variant="h6" sx={{ mb: 1, fontWeight: 700 }}>Completed Announcements</Typography>
           {filteredCompleted.length === 0 ? (
@@ -1210,7 +1020,7 @@ export default function Announcements() {
           ))}
         </Box>
       )}
-      {tab === 3 && (
+      {scheduledList.length > 0 && (
         <Box sx={{ mb: 4 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
             <Typography variant="h6" sx={{ fontWeight: 700, color: '#0288d1' }}>
@@ -1312,7 +1122,7 @@ export default function Announcements() {
           ))}
         </Box>
       )}
-      {tab === 4 && (
+      {expiredList.length > 0 && (
         <Box sx={{ mb: 4 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
             <Typography variant="h6" sx={{ fontWeight: 700, color: '#d32f2f' }}>
@@ -1414,7 +1224,7 @@ export default function Announcements() {
           ))}
         </Box>
       )}
-      {tab === 1 && (
+      {userRole === 'Admin' && filteredRecycleBin.length > 0 && (
         <Box sx={{ mb: 4 }}>
           <Typography variant="h6" sx={{ mb: 1, fontWeight: 700 }}>Recycle Bin</Typography>
           {filteredRecycleBin.length === 0 ? (

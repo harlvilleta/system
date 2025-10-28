@@ -124,7 +124,7 @@ function ActivityForm({ onActivityAdded }) {
   );
 }
 
-function SummaryCard({ stats }) {
+function SummaryCard({ stats, onCardClick }) {
   const theme = useTheme();
   return (
     <Box sx={{ mb: 3 }}>
@@ -134,52 +134,20 @@ function SummaryCard({ stats }) {
       <Grid container spacing={2}>
         <Grid item xs={12} sm={6} md={3}>
           <Card sx={{ 
-            display: 'flex', 
-            alignItems: 'center', 
-            p: 2, 
-            boxShadow: theme.palette.mode === 'dark' 
-              ? '0 8px 32px rgba(0, 0, 0, 0.3)' 
-              : '0 4px 16px rgba(0, 0, 0, 0.1)', 
-            borderRadius: 2,
+            boxShadow: 2, 
             borderLeft: '4px solid #800000',
-            background: theme.palette.mode === 'dark' 
-              ? 'rgba(255, 255, 255, 0.05)' 
-              : 'rgba(255, 255, 255, 0.8)',
-            backdropFilter: 'blur(10px)',
-            border: theme.palette.mode === 'dark' 
-              ? '1px solid rgba(255, 255, 255, 0.1)' 
-              : '1px solid rgba(255, 255, 255, 0.2)',
             transition: 'all 0.3s ease',
+            cursor: 'pointer',
             '&:hover': {
-              boxShadow: theme.palette.mode === 'dark' 
-                ? '0 12px 40px rgba(0, 0, 0, 0.4)' 
-                : '0 8px 24px rgba(0, 0, 0, 0.15)',
               transform: 'translateY(-2px)',
-              background: theme.palette.mode === 'dark' 
-                ? 'rgba(255, 255, 255, 0.08)' 
-                : 'rgba(255, 255, 255, 0.9)',
-            },
-          }}>
-            <Box sx={{ 
-              mr: 2, 
-              color: theme.palette.mode === 'dark' ? '#ffffff' : '#666666',
-              '& .MuiSvgIcon-root': {
-                color: theme.palette.mode === 'dark' ? '#ffffff' : '#666666'
-              }
-            }}>
-              <Event fontSize="large" />
-            </Box>
-            <CardContent sx={{ flex: 1, p: '8px !important' }}>
-              <Typography 
-                variant="h4" 
-                fontWeight={700} 
-                sx={{ 
-                  color: '#800000'
-                }}
-              >
+              boxShadow: 4
+            }
+          }} onClick={() => onCardClick('all')}>
+            <CardContent sx={{ textAlign: 'center', py: 3 }}>
+              <Typography variant="h4" sx={{ color: '#000000' }} fontWeight={700}>
                 {stats.total}
               </Typography>
-              <Typography variant="body2" sx={{ color: theme.palette.mode === 'dark' ? '#cccccc' : '#666666' }}>
+              <Typography variant="body2" color="textSecondary" sx={{ mt: 1 }}>
                 Total
               </Typography>
             </CardContent>
@@ -187,52 +155,20 @@ function SummaryCard({ stats }) {
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
           <Card sx={{ 
-            display: 'flex', 
-            alignItems: 'center', 
-            p: 2, 
-            boxShadow: theme.palette.mode === 'dark' 
-              ? '0 8px 32px rgba(0, 0, 0, 0.3)' 
-              : '0 4px 16px rgba(0, 0, 0, 0.1)', 
-            borderRadius: 2,
-            borderLeft: '4px solid #ff9800',
-            background: theme.palette.mode === 'dark' 
-              ? 'rgba(255, 255, 255, 0.05)' 
-              : 'rgba(255, 255, 255, 0.8)',
-            backdropFilter: 'blur(10px)',
-            border: theme.palette.mode === 'dark' 
-              ? '1px solid rgba(255, 255, 255, 0.1)' 
-              : '1px solid rgba(255, 255, 255, 0.2)',
+            boxShadow: 2, 
+            borderLeft: '4px solid #800000',
             transition: 'all 0.3s ease',
+            cursor: 'pointer',
             '&:hover': {
-              boxShadow: theme.palette.mode === 'dark' 
-                ? '0 12px 40px rgba(0, 0, 0, 0.4)' 
-                : '0 8px 24px rgba(0, 0, 0, 0.15)',
               transform: 'translateY(-2px)',
-              background: theme.palette.mode === 'dark' 
-                ? 'rgba(255, 255, 255, 0.08)' 
-                : 'rgba(255, 255, 255, 0.9)',
-            },
-          }}>
-            <Box sx={{ 
-              mr: 2, 
-              color: theme.palette.mode === 'dark' ? '#ffffff' : '#666666',
-              '& .MuiSvgIcon-root': {
-                color: theme.palette.mode === 'dark' ? '#ffffff' : '#666666'
-              }
-            }}>
-              <Schedule fontSize="large" />
-            </Box>
-            <CardContent sx={{ flex: 1, p: '8px !important' }}>
-              <Typography 
-                variant="h4" 
-                fontWeight={700} 
-                sx={{ 
-                  color: '#800000'
-                }}
-              >
+              boxShadow: 4
+            }
+          }} onClick={() => onCardClick('scheduled')}>
+            <CardContent sx={{ textAlign: 'center', py: 3 }}>
+              <Typography variant="h4" sx={{ color: '#000000' }} fontWeight={700}>
                 {stats.scheduled}
               </Typography>
-              <Typography variant="body2" sx={{ color: theme.palette.mode === 'dark' ? '#cccccc' : '#666666' }}>
+              <Typography variant="body2" color="textSecondary" sx={{ mt: 1 }}>
                 Scheduled
               </Typography>
             </CardContent>
@@ -240,52 +176,20 @@ function SummaryCard({ stats }) {
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
           <Card sx={{ 
-            display: 'flex', 
-            alignItems: 'center', 
-            p: 2, 
-            boxShadow: theme.palette.mode === 'dark' 
-              ? '0 8px 32px rgba(0, 0, 0, 0.3)' 
-              : '0 4px 16px rgba(0, 0, 0, 0.1)', 
-            borderRadius: 2,
-            borderLeft: '4px solid #4caf50',
-            background: theme.palette.mode === 'dark' 
-              ? 'rgba(255, 255, 255, 0.05)' 
-              : 'rgba(255, 255, 255, 0.8)',
-            backdropFilter: 'blur(10px)',
-            border: theme.palette.mode === 'dark' 
-              ? '1px solid rgba(255, 255, 255, 0.1)' 
-              : '1px solid rgba(255, 255, 255, 0.2)',
+            boxShadow: 2, 
+            borderLeft: '4px solid #800000',
             transition: 'all 0.3s ease',
+            cursor: 'pointer',
             '&:hover': {
-              boxShadow: theme.palette.mode === 'dark' 
-                ? '0 12px 40px rgba(0, 0, 0, 0.4)' 
-                : '0 8px 24px rgba(0, 0, 0, 0.15)',
               transform: 'translateY(-2px)',
-              background: theme.palette.mode === 'dark' 
-                ? 'rgba(255, 255, 255, 0.08)' 
-                : 'rgba(255, 255, 255, 0.9)',
-            },
-          }}>
-            <Box sx={{ 
-              mr: 2, 
-              color: theme.palette.mode === 'dark' ? '#ffffff' : '#666666',
-              '& .MuiSvgIcon-root': {
-                color: theme.palette.mode === 'dark' ? '#ffffff' : '#666666'
-              }
-            }}>
-              <CheckCircle fontSize="large" />
-            </Box>
-            <CardContent sx={{ flex: 1, p: '8px !important' }}>
-              <Typography 
-                variant="h4" 
-                fontWeight={700} 
-                sx={{ 
-                  color: '#800000'
-                }}
-              >
+              boxShadow: 4
+            }
+          }} onClick={() => onCardClick('completed')}>
+            <CardContent sx={{ textAlign: 'center', py: 3 }}>
+              <Typography variant="h4" sx={{ color: '#000000' }} fontWeight={700}>
                 {stats.completed}
               </Typography>
-              <Typography variant="body2" sx={{ color: theme.palette.mode === 'dark' ? '#cccccc' : '#666666' }}>
+              <Typography variant="body2" color="textSecondary" sx={{ mt: 1 }}>
                 Completed
               </Typography>
             </CardContent>
@@ -293,52 +197,20 @@ function SummaryCard({ stats }) {
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
           <Card sx={{ 
-            display: 'flex', 
-            alignItems: 'center', 
-            p: 2, 
-            boxShadow: theme.palette.mode === 'dark' 
-              ? '0 8px 32px rgba(0, 0, 0, 0.3)' 
-              : '0 4px 16px rgba(0, 0, 0, 0.1)', 
-            borderRadius: 2,
-            borderLeft: '4px solid #9c27b0',
-            background: theme.palette.mode === 'dark' 
-              ? 'rgba(255, 255, 255, 0.05)' 
-              : 'rgba(255, 255, 255, 0.8)',
-            backdropFilter: 'blur(10px)',
-            border: theme.palette.mode === 'dark' 
-              ? '1px solid rgba(255, 255, 255, 0.1)' 
-              : '1px solid rgba(255, 255, 255, 0.2)',
+            boxShadow: 2, 
+            borderLeft: '4px solid #800000',
             transition: 'all 0.3s ease',
+            cursor: 'pointer',
             '&:hover': {
-              boxShadow: theme.palette.mode === 'dark' 
-                ? '0 12px 40px rgba(0, 0, 0, 0.4)' 
-                : '0 8px 24px rgba(0, 0, 0, 0.15)',
               transform: 'translateY(-2px)',
-              background: theme.palette.mode === 'dark' 
-                ? 'rgba(255, 255, 255, 0.08)' 
-                : 'rgba(255, 255, 255, 0.9)',
-            },
-          }}>
-            <Box sx={{ 
-              mr: 2, 
-              color: theme.palette.mode === 'dark' ? '#ffffff' : '#666666',
-              '& .MuiSvgIcon-root': {
-                color: theme.palette.mode === 'dark' ? '#ffffff' : '#666666'
-              }
-            }}>
-              <Category fontSize="large" />
-            </Box>
-            <CardContent sx={{ flex: 1, p: '8px !important' }}>
-              <Typography 
-                variant="h4" 
-                fontWeight={700} 
-                sx={{ 
-                  color: '#800000'
-                }}
-              >
+              boxShadow: 4
+            }
+          }} onClick={() => onCardClick('categories')}>
+            <CardContent sx={{ textAlign: 'center', py: 3 }}>
+              <Typography variant="h4" sx={{ color: '#000000' }} fontWeight={700}>
                 {stats.categories}
               </Typography>
-              <Typography variant="body2" sx={{ color: theme.palette.mode === 'dark' ? '#cccccc' : '#666666' }}>
+              <Typography variant="body2" color="textSecondary" sx={{ mt: 1 }}>
                 Categories
               </Typography>
             </CardContent>
@@ -445,12 +317,12 @@ function HistoryModal({ activities, onView, onEdit, onDelete, search, onSearch, 
         <TableContainer sx={{ maxHeight: 'calc(70vh - 200px)', overflow: 'auto' }}>
           <Table stickyHeader>
             <TableHead>
-              <TableRow sx={{ bgcolor: '#f5f5f5' }}>
-                <TableCell sx={{ fontWeight: 600, color: theme.palette.mode === 'dark' ? '#ffffff' : '#000000' }}>Title</TableCell>
-                <TableCell sx={{ fontWeight: 600, color: theme.palette.mode === 'dark' ? '#ffffff' : '#000000' }}>Date</TableCell>
-                <TableCell sx={{ fontWeight: 600, color: theme.palette.mode === 'dark' ? '#ffffff' : '#000000' }}>Status</TableCell>
-                <TableCell sx={{ fontWeight: 600, color: theme.palette.mode === 'dark' ? '#ffffff' : '#000000' }}>Category</TableCell>
-                <TableCell sx={{ fontWeight: 600, color: theme.palette.mode === 'dark' ? '#ffffff' : '#000000' }}>Actions</TableCell>
+              <TableRow>
+                <TableCell sx={{ bgcolor: '#800000', color: '#ffffff', fontWeight: 600, fontSize: '16px', padding: '16px' }}>Title</TableCell>
+                <TableCell sx={{ bgcolor: '#800000', color: '#ffffff', fontWeight: 600, fontSize: '16px', padding: '16px' }}>Date</TableCell>
+                <TableCell sx={{ bgcolor: '#800000', color: '#ffffff', fontWeight: 600, fontSize: '16px', padding: '16px' }}>Status</TableCell>
+                <TableCell sx={{ bgcolor: '#800000', color: '#ffffff', fontWeight: 600, fontSize: '16px', padding: '16px' }}>Category</TableCell>
+                <TableCell sx={{ bgcolor: '#800000', color: '#ffffff', fontWeight: 600, fontSize: '16px', padding: '16px' }}>Actions</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
@@ -478,14 +350,26 @@ function HistoryModal({ activities, onView, onEdit, onDelete, search, onSearch, 
                       {activity.date ? new Date(activity.date).toLocaleDateString() : 'N/A'}
                     </TableCell>
                     <TableCell>
-                      <Chip 
-                        label={activity.completed ? 'Completed' : 'Scheduled'} 
-                        color={activity.completed ? 'success' : 'warning'}
-                        size="small"
-                      />
+                      <Typography 
+                        variant="body2" 
+                        sx={{ 
+                          color: activity.completed ? '#4caf50' : '#ff9800',
+                          fontWeight: 500
+                        }}
+                      >
+                        {activity.completed ? 'Completed' : 'Scheduled'}
+                      </Typography>
                     </TableCell>
                     <TableCell>
-                      <Chip label={activity.category} size="small" variant="outlined" />
+                      <Typography 
+                        variant="body2" 
+                        sx={{ 
+                          color: '#800000',
+                          fontWeight: 500
+                        }}
+                      >
+                        {activity.category}
+                      </Typography>
                     </TableCell>
                     <TableCell>
                       <Stack direction="row" spacing={1}>
@@ -494,7 +378,6 @@ function HistoryModal({ activities, onView, onEdit, onDelete, search, onSearch, 
                           onClick={() => onView(activity)}
                           sx={{
                             '&:hover': { 
-                              color: '#1976d2',
                               bgcolor: 'rgba(25, 118, 210, 0.04)'
                             }
                           }}
@@ -505,10 +388,8 @@ function HistoryModal({ activities, onView, onEdit, onDelete, search, onSearch, 
                           size="small"
                           onClick={() => onEdit(activity)}
                           sx={{
-                            color: '#666666',
                             padding: '4px',
                             '&:hover': { 
-                              color: '#f57c00',
                               bgcolor: 'rgba(245, 124, 0, 0.04)'
                             }
                           }}
@@ -519,9 +400,8 @@ function HistoryModal({ activities, onView, onEdit, onDelete, search, onSearch, 
                           size="small"
                           onClick={() => onDelete(activity)}
                           sx={{
-                            color: 'grey.600',
                             '&:hover': {
-                              color: '#d32f2f'
+                              bgcolor: 'rgba(211, 47, 47, 0.04)'
                             }
                           }}
                         >
@@ -728,6 +608,8 @@ export default function Activity() {
   const [eventSnackbar, setEventSnackbar] = useState({ open: false, message: '', severity: 'success' });
   const [showHistory, setShowHistory] = useState(false);
   const [searchHistory, setSearchHistory] = useState("");
+  const [activityFilter, setActivityFilter] = useState('all'); // 'all', 'scheduled', 'completed', 'categories'
+  const [openActivitiesModal, setOpenActivitiesModal] = useState(false);
 
   // Summary stats
   const stats = {
@@ -736,6 +618,15 @@ export default function Activity() {
     completed: activities.filter(a => a.completed).length,
     categories: Array.from(new Set(activities.map(a => a.category))).length
   };
+
+  // Filter activities based on selected filter
+  const filteredActivities = activities.filter(activity => {
+    if (activityFilter === 'all') return true;
+    if (activityFilter === 'scheduled') return !activity.completed;
+    if (activityFilter === 'completed') return activity.completed;
+    if (activityFilter === 'categories') return true; // Show all for categories view
+    return true;
+  });
 
   useEffect(() => {
     const fetchActivities = async () => {
@@ -751,6 +642,11 @@ export default function Activity() {
   }, [refresh]);
 
   const handleActivityAdded = () => setRefresh(r => !r);
+
+  const handleCardClick = (filter) => {
+    setActivityFilter(filter);
+    setOpenActivitiesModal(true);
+  };
 
   const handleMarkCompleted = async (activity) => {
     try {
@@ -831,7 +727,7 @@ export default function Activity() {
           {/* Schedule Event approval removed */}
         </Grid>
         <Grid item xs={12}>
-          <SummaryCard stats={stats} />
+          <SummaryCard stats={stats} onCardClick={handleCardClick} />
           <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
           <ExportButton activities={activities} />
             <HistoryButton onClick={() => setShowHistory(true)} />
@@ -839,9 +735,6 @@ export default function Activity() {
         </Grid>
         <Grid item xs={12}>
           <ActivityForm onActivityAdded={handleActivityAdded} />
-        </Grid>
-        <Grid item xs={12}>
-          <ScheduledActivities activities={activities} onMarkCompleted={handleMarkCompleted} onViewActivity={setViewActivity} search={searchScheduled} onSearch={setSearchScheduled} />
         </Grid>
       </Grid>
       
@@ -1027,6 +920,124 @@ export default function Activity() {
           )}
         </DialogContent>
       </Dialog>
+      
+      {/* Activities Modal */}
+      <Dialog 
+        open={openActivitiesModal} 
+        onClose={() => setOpenActivitiesModal(false)} 
+        maxWidth="lg" 
+        fullWidth
+        disableEscapeKeyDown
+        disableBackdropClick
+      >
+        <DialogTitle>
+          <Typography variant="h5" fontWeight={700}>
+            {activityFilter === 'all' && 'All Activities'}
+            {activityFilter === 'scheduled' && 'Scheduled Activities'}
+            {activityFilter === 'completed' && 'Completed Activities'}
+            {activityFilter === 'categories' && 'Activity Categories'}
+          </Typography>
+        </DialogTitle>
+        <DialogContent>
+          <TableContainer component={Paper} sx={{ maxHeight: 600 }}>
+            <Table stickyHeader>
+              <TableHead>
+                <TableRow>
+                  <TableCell sx={{ bgcolor: '#800000', color: '#ffffff', fontWeight: 600, fontSize: '16px', padding: '16px' }}>
+                    Title
+                  </TableCell>
+                  <TableCell sx={{ bgcolor: '#800000', color: '#ffffff', fontWeight: 600, fontSize: '16px', padding: '16px' }}>
+                    Category
+                  </TableCell>
+                  <TableCell sx={{ bgcolor: '#800000', color: '#ffffff', fontWeight: 600, fontSize: '16px', padding: '16px' }}>
+                    Date
+                  </TableCell>
+                  <TableCell sx={{ bgcolor: '#800000', color: '#ffffff', fontWeight: 600, fontSize: '16px', padding: '16px' }}>
+                    Time
+                  </TableCell>
+                  <TableCell sx={{ bgcolor: '#800000', color: '#ffffff', fontWeight: 600, fontSize: '16px', padding: '16px' }}>
+                    Location
+                  </TableCell>
+                  <TableCell sx={{ bgcolor: '#800000', color: '#ffffff', fontWeight: 600, fontSize: '16px', padding: '16px' }}>
+                    Status
+                  </TableCell>
+                  <TableCell sx={{ bgcolor: '#800000', color: '#ffffff', fontWeight: 600, fontSize: '16px', padding: '16px' }}>
+                    Actions
+                  </TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {filteredActivities.map((activity) => (
+                  <TableRow key={activity.id} hover>
+                    <TableCell sx={{ fontSize: 14, fontWeight: 500, padding: '12px 16px' }}>
+                      {activity.title}
+                    </TableCell>
+                    <TableCell sx={{ fontSize: 14, fontWeight: 500, padding: '12px 16px' }}>
+                      <Typography 
+                        variant="body2" 
+                        sx={{ 
+                          color: '#800000',
+                          fontWeight: 500
+                        }}
+                      >
+                        {activity.category}
+                      </Typography>
+                    </TableCell>
+                    <TableCell sx={{ fontSize: 14, fontWeight: 500, padding: '12px 16px' }}>
+                      {activity.date}
+                    </TableCell>
+                    <TableCell sx={{ fontSize: 14, fontWeight: 500, padding: '12px 16px' }}>
+                      {activity.time}
+                    </TableCell>
+                    <TableCell sx={{ fontSize: 14, fontWeight: 500, padding: '12px 16px' }}>
+                      {activity.location}
+                    </TableCell>
+                    <TableCell sx={{ fontSize: 14, fontWeight: 500, padding: '12px 16px' }}>
+                      <Typography 
+                        variant="body2" 
+                        sx={{ 
+                          color: activity.completed ? '#4caf50' : '#ff9800',
+                          fontWeight: 500
+                        }}
+                      >
+                        {activity.completed ? 'Completed' : 'Scheduled'}
+                      </Typography>
+                    </TableCell>
+                    <TableCell sx={{ fontSize: 14, fontWeight: 500, padding: '12px 16px' }}>
+                      <Stack direction="row" spacing={1}>
+                        <IconButton 
+                          size="small" 
+                          onClick={() => setViewActivity(activity)}
+                          sx={{ 
+                            '&:hover': { bgcolor: 'rgba(128, 0, 0, 0.1)' }
+                          }}
+                        >
+                          <Visibility fontSize="small" />
+                        </IconButton>
+                        <IconButton 
+                          size="small" 
+                          onClick={() => setEditActivity(activity)}
+                          sx={{ 
+                            '&:hover': { bgcolor: 'rgba(128, 0, 0, 0.1)' }
+                          }}
+                        >
+                          <Edit fontSize="small" />
+                        </IconButton>
+                      </Stack>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setOpenActivitiesModal(false)} variant="outlined">
+            Close
+          </Button>
+        </DialogActions>
+      </Dialog>
+      
       <Snackbar open={snackbar.open} autoHideDuration={4000} onClose={() => setSnackbar({ ...snackbar, open: false })}>
         <Alert onClose={() => setSnackbar({ ...snackbar, open: false })} severity={snackbar.severity} sx={{ width: '100%' }}>
           {snackbar.message}
