@@ -541,7 +541,91 @@ export default function Overview() {
         </Typography>
       </Box>
       
-
+      {/* Statistics Cards */}
+      <Grid container spacing={3} sx={{ mb: 4 }}>
+        {statCards.map((card, index) => (
+          <Grid item xs={12} sm={6} md={3} key={index}>
+            <Card 
+              sx={{ 
+                p: 2,
+                height: '100%',
+                cursor: 'pointer',
+                transition: 'all 0.3s ease-in-out',
+                background: isDark 
+                  ? 'linear-gradient(135deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.02) 100%)'
+                  : 'linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%)',
+                border: isDark ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(0,0,0,0.08)',
+                boxShadow: isDark 
+                  ? '0 4px 20px rgba(0,0,0,0.3)'
+                  : '0 4px 20px rgba(0,0,0,0.08)',
+                '&:hover': {
+                  transform: 'translateY(-4px)',
+                  boxShadow: isDark 
+                    ? '0 8px 30px rgba(128,0,0,0.3)'
+                    : '0 8px 30px rgba(128,0,0,0.15)',
+                  border: `1px solid ${card.color}`,
+                },
+                position: 'relative',
+                overflow: 'hidden',
+                '&::before': {
+                  content: '""',
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  height: '4px',
+                  background: `linear-gradient(90deg, ${card.color}, ${card.color}88)`,
+                }
+              }}
+              onClick={() => navigate(card.to)}
+            >
+              <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <Box>
+                    <Typography 
+                      variant="h3" 
+                      sx={{ 
+                        fontWeight: 700,
+                        color: isDark ? '#ffffff' : '#2c3e50',
+                        fontSize: { xs: '1.8rem', sm: '2.2rem', md: '2.5rem' },
+                        lineHeight: 1.2,
+                        mb: 0.5
+                      }}
+                    >
+                      {card.value.toLocaleString()}
+                    </Typography>
+                    <Typography 
+                      variant="body1" 
+                      sx={{ 
+                        color: isDark ? '#b0b0b0' : '#64748b',
+                        fontWeight: 600,
+                        fontSize: '0.95rem',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.5px'
+                      }}
+                    >
+                      {card.label}
+                    </Typography>
+                  </Box>
+                  <Box 
+                    sx={{ 
+                      color: card.color,
+                      opacity: 0.8,
+                      transition: 'all 0.3s ease',
+                      '&:hover': {
+                        opacity: 1,
+                        transform: 'scale(1.1)'
+                      }
+                    }}
+                  >
+                    {card.icon}
+                  </Box>
+                </Box>
+              </CardContent>
+            </Card>
+          </Grid>
+        ))}
+      </Grid>
 
       {/* Monthly Charts - Side by Side */}
       <Grid container spacing={3} sx={{ mt: 2 }}>
