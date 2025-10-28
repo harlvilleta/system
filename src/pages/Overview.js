@@ -571,46 +571,49 @@ export default function Overview() {
               onClick={() => navigate(card.to)}
             >
               <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <Box>
-                    <Typography 
-                      variant="h3" 
-                      sx={{ 
-                        fontWeight: 700,
-                        color: isDark ? '#ffffff' : '#2c3e50',
-                        fontSize: { xs: '1.8rem', sm: '2.2rem', md: '2.5rem' },
-                        lineHeight: 1.2,
-                        mb: 0.5
-                      }}
-                    >
-                      {card.value.toLocaleString()}
-                    </Typography>
-                    <Typography 
-                      variant="body1" 
-                      sx={{ 
-                        color: isDark ? '#b0b0b0' : '#64748b',
-                        fontWeight: 600,
-                        fontSize: '0.95rem',
-                        textTransform: 'uppercase',
-                        letterSpacing: '0.5px'
-                      }}
-                    >
-                      {card.label}
-                    </Typography>
-                  </Box>
+                <Box sx={{ 
+                  display: 'flex', 
+                  flexDirection: 'column', 
+                  alignItems: 'center', 
+                  justifyContent: 'center',
+                  textAlign: 'center',
+                  height: '100%',
+                  gap: 1
+                }}>
                   <Box 
                     sx={{ 
                       color: card.color,
-                      opacity: 0.8,
+                      opacity: 0.9,
                       transition: 'all 0.3s ease',
-                      '&:hover': {
-                        opacity: 1,
-                        transform: 'scale(1.1)'
-                      }
+                      mb: 1
                     }}
                   >
                     {card.icon}
                   </Box>
+                  <Typography 
+                    variant="h3" 
+                    sx={{ 
+                      fontWeight: 700,
+                      color: isDark ? '#ffffff' : '#2c3e50',
+                      fontSize: { xs: '1.8rem', sm: '2.2rem', md: '2.5rem' },
+                      lineHeight: 1.2,
+                      mb: 0.5
+                    }}
+                  >
+                    {card.value.toLocaleString()}
+                  </Typography>
+                  <Typography 
+                    variant="body1" 
+                    sx={{ 
+                      color: isDark ? '#b0b0b0' : '#64748b',
+                      fontWeight: 600,
+                      fontSize: '0.95rem',
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.5px'
+                    }}
+                  >
+                    {card.label}
+                  </Typography>
                 </Box>
               </CardContent>
             </Card>
