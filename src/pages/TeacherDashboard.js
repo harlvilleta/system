@@ -21,7 +21,14 @@ import {
   useTheme,
   DialogTitle,
   DialogContent,
-  DialogActions
+  DialogActions,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  TextField
 } from '@mui/material';
 import { 
   Dashboard, 
@@ -41,7 +48,11 @@ import {
   Info,
   Report,
   Campaign,
-  People
+  People,
+  Search,
+  Refresh,
+  MeetingRoom,
+  Visibility
 } from '@mui/icons-material';
 import { auth, db } from '../firebase';
 import { collection, query, where, getDocs, onSnapshot, orderBy } from 'firebase/firestore';
@@ -52,14 +63,19 @@ export default function TeacherDashboard() {
   const [currentUser, setCurrentUser] = useState(null);
   const [userProfile, setUserProfile] = useState(null);
   const [violations, setViolations] = useState([]);
+  const [myViolations, setMyViolations] = useState([]);
   const [activities, setActivities] = useState([]);
   const [announcements, setAnnouncements] = useState([]);
-  const [mySchedulesCount, setMySchedulesCount] = useState(0);
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [meetingsCount, setMeetingsCount] = useState(0);
   const [reportsModalOpen, setReportsModalOpen] = useState(false);
   const [allActivities, setAllActivities] = useState([]);
+  const [activityRequestsCount, setActivityRequestsCount] = useState(0);
+  const [violationSearchQuery, setViolationSearchQuery] = useState('');
+  const [meetingModalOpen, setMeetingModalOpen] = useState(false);
+  const [selectedViolationForMeeting, setSelectedViolationForMeeting] = useState(null);
+  const [violationMeetings, setViolationMeetings] = useState([]);
   
 
   
@@ -95,7 +111,7 @@ export default function TeacherDashboard() {
     }
 
     let dataLoadedCount = 0;
-    const totalDataSources = 7; // violations, announcements, notifications, meetings, activity_requests, lost_items, found_items
+    const totalDataSources = 6; // violations, announcements, notifications, meetings, activity_requests, lost_items, found_items
     let hasSetLoading = false;
 
     const checkAndSetLoading = () => {
@@ -162,6 +178,7 @@ export default function TeacherDashboard() {
           status: doc.data().status || 'pending'
         }));
         setActivities(violationsData);
+        setMyViolations(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
         
         // Update allActivities with new violations
         setAllActivities(prev => {
@@ -193,6 +210,7 @@ export default function TeacherDashboard() {
               status: doc.data().status || 'pending'
             }));
             setActivities(violationsData);
+            setMyViolations(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
             
             // Update allActivities with new violations
             setAllActivities(prev => {
@@ -250,7 +268,6 @@ export default function TeacherDashboard() {
     const idSet = new Set();
     let unsubMeetingsA = null;
     let unsubMeetingsB = null;
-    let unsubMySchedules = null;
     try {
       const participantsValues = [currentUser.email, currentUser.uid].filter(Boolean);
       if (participantsValues.length > 0) {
@@ -285,39 +302,6 @@ export default function TeacherDashboard() {
           setMeetingsCount(idSet.size);
         });
       }
-      // My schedules/bookings created by this teacher
-      try {
-        if (currentUser?.uid) {
-          const qMySchedules = query(
-            collection(db, 'activity_bookings'),
-            where('teacherId', '==', currentUser.uid)
-          );
-          unsubMySchedules = onSnapshot(qMySchedules, (snapshot) => {
-            const countById = snapshot.size;
-            if (countById > 0) {
-              setMySchedulesCount(countById);
-              return;
-            }
-            // Fallback by email if legacy data
-            if (currentUser?.email) {
-              const qByEmail = query(
-                collection(db, 'activity_bookings'),
-                where('teacherEmail', '==', currentUser.email)
-              );
-              getDocs(qByEmail)
-                .then((s) => setMySchedulesCount(s.size))
-                .catch(() => setMySchedulesCount(0));
-            } else {
-              setMySchedulesCount(0);
-            }
-          });
-        } else {
-          setMySchedulesCount(0);
-        }
-      } catch (err) {
-        console.error('Error setting up my schedules listener:', err);
-        setMySchedulesCount(0);
-      }
 
     } catch (e) {
       console.error('Error setting up meetings listeners:', e);
@@ -328,11 +312,14 @@ export default function TeacherDashboard() {
     let activityRequestsUnsubscribe = null;
     try {
       const activityRequestsQuery = query(
-        collection(db, 'activity_requests'),
+        collection(db, 'activity_bookings'),
         where('teacherId', '==', currentUser.uid),
         orderBy('createdAt', 'desc')
       );
       activityRequestsUnsubscribe = onSnapshot(activityRequestsQuery, (snapshot) => {
+        console.log('Activity requests snapshot size:', snapshot.size);
+        console.log('Activity requests docs:', snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+        
         const activityRequestsData = snapshot.docs.map(doc => ({ 
           id: doc.id, 
           ...doc.data(),
@@ -344,6 +331,10 @@ export default function TeacherDashboard() {
           status: doc.data().status || 'pending'
         }));
         
+        // Set activity requests count
+        setActivityRequestsCount(snapshot.size);
+        console.log('Set activity requests count to:', snapshot.size);
+        
         // Update allActivities with new activity requests
         setAllActivities(prev => {
           const filtered = prev.filter(activity => activity.type !== 'activity_request');
@@ -354,7 +345,22 @@ export default function TeacherDashboard() {
         checkAndSetLoading();
       }, (error) => {
         console.error('Error fetching activity requests:', error);
-        checkAndSetLoading();
+        // Try fallback query by teacherEmail
+        console.log('Trying fallback query by teacherEmail...');
+        const fallbackQuery = query(
+          collection(db, 'activity_bookings'),
+          where('teacherEmail', '==', currentUser.email),
+          orderBy('createdAt', 'desc')
+        );
+        onSnapshot(fallbackQuery, (fallbackSnapshot) => {
+          console.log('Fallback query result size:', fallbackSnapshot.size);
+          setActivityRequestsCount(fallbackSnapshot.size);
+          checkAndSetLoading();
+        }, (fallbackError) => {
+          console.error('Fallback query also failed:', fallbackError);
+          setActivityRequestsCount(0);
+          checkAndSetLoading();
+        });
       });
     } catch (error) {
       console.error('Error setting up activity requests query:', error);
@@ -444,7 +450,6 @@ export default function TeacherDashboard() {
       notificationsUnsubscribe();
       if (unsubMeetingsA) unsubMeetingsA();
       if (unsubMeetingsB) unsubMeetingsB();
-      if (unsubMySchedules) unsubMySchedules();
       if (activityRequestsUnsubscribe) activityRequestsUnsubscribe();
       if (lostItemsUnsubscribe) lostItemsUnsubscribe();
       if (foundItemsUnsubscribe) foundItemsUnsubscribe();
@@ -478,14 +483,19 @@ export default function TeacherDashboard() {
     return notifications.filter(notification => !notification.read).length;
   };
 
-  const myReportsCount = violations.filter(v => (
-    v.reportedBy === currentUser?.uid || v.reportedByEmail === currentUser?.email
-  )).length;
+  const myReportsCount = myViolations.length;
 
   const getMyReports = () => {
-    return violations.filter(v => (
-      v.reportedBy === currentUser?.uid || v.reportedByEmail === currentUser?.email
-    ));
+    if (!violationSearchQuery) {
+      return myViolations;
+    }
+    
+    return myViolations.filter(report => 
+      (report.studentName || report.studentId || '').toLowerCase().includes(violationSearchQuery.toLowerCase()) ||
+      (report.violationType || report.violation || '').toLowerCase().includes(violationSearchQuery.toLowerCase()) ||
+      (report.description || report.details || '').toLowerCase().includes(violationSearchQuery.toLowerCase()) ||
+      (report.status || '').toLowerCase().includes(violationSearchQuery.toLowerCase())
+    );
   };
 
   const getRecentViolations = () => {
@@ -500,6 +510,80 @@ export default function TeacherDashboard() {
   const getRecentAnnouncements = () => {
     return announcements.slice(0, 3);
   };
+
+  // Get all violations reported by this teacher
+  const getAllTeacherViolations = () => {
+    return myViolations;
+  };
+
+  // Get resolved violations reported by this teacher
+  const getResolvedViolations = () => {
+    return myViolations.filter(violation => 
+      violation.status === 'Solved' || violation.status === 'solved' ||
+      violation.status === 'Approved' || violation.status === 'approved'
+    );
+  };
+
+  // Handle viewing meetings for a specific violation
+  const handleViewMeetingForViolation = async (violation) => {
+    setSelectedViolationForMeeting(violation);
+    setMeetingModalOpen(true);
+    
+    try {
+      // Fetch meetings related to this violation's student
+      const studentId = violation.studentId || violation.studentIdNumber;
+      const studentName = violation.studentName;
+      
+      if (!studentId && !studentName) {
+        setViolationMeetings([]);
+        return;
+      }
+
+      // Query meetings by student ID or student name
+      let meetingsQuery;
+      if (studentId) {
+        meetingsQuery = query(
+          collection(db, 'meetings'),
+          where('studentId', '==', studentId)
+        );
+      } else {
+        meetingsQuery = query(
+          collection(db, 'meetings'),
+          where('studentName', '==', studentName)
+        );
+      }
+
+      const meetingsSnapshot = await getDocs(meetingsQuery);
+      const meetingsData = meetingsSnapshot.docs.map(doc => ({ 
+        id: doc.id, 
+        ...doc.data() 
+      }));
+
+      // Also check for meetings where the current teacher is involved
+      const teacherMeetingsQuery = query(
+        collection(db, 'meetings'),
+        where('participants', 'array-contains', currentUser?.email || currentUser?.uid)
+      );
+      
+      const teacherMeetingsSnapshot = await getDocs(teacherMeetingsQuery);
+      const teacherMeetingsData = teacherMeetingsSnapshot.docs.map(doc => ({ 
+        id: doc.id, 
+        ...doc.data() 
+      }));
+
+      // Combine and deduplicate meetings
+      const allMeetings = [...meetingsData, ...teacherMeetingsData];
+      const uniqueMeetings = allMeetings.filter((meeting, index, self) => 
+        index === self.findIndex(m => m.id === meeting.id)
+      );
+
+      setViolationMeetings(uniqueMeetings);
+    } catch (error) {
+      console.error('Error fetching meetings for violation:', error);
+      setViolationMeetings([]);
+    }
+  };
+
 
 
   return (
@@ -563,7 +647,7 @@ export default function TeacherDashboard() {
       <Grid container spacing={{ xs: 1, sm: 2 }} sx={{ mb: 1 }}>
         <Grid item xs={12} sm={6} md={3}>
           <Card
-            onClick={() => setReportsModalOpen(true)}
+            onClick={() => navigate('/teacher-reports')}
             sx={{
               display: 'flex',
               alignItems: 'center',
@@ -593,7 +677,7 @@ export default function TeacherDashboard() {
 
         <Grid item xs={12} sm={6} md={3}>
           <Card
-            onClick={() => navigate('/teacher-violation-records')}
+            onClick={() => navigate('/teacher-schedule')}
             sx={{
               display: 'flex',
               alignItems: 'center',
@@ -625,7 +709,7 @@ export default function TeacherDashboard() {
 
         <Grid item xs={12} sm={6} md={3}>
           <Card
-            onClick={() => navigate('/teacher-activity-scheduler')}
+            onClick={() => navigate('/teacher-activity-requests')}
             sx={{
               display: 'flex',
               alignItems: 'center',
@@ -644,10 +728,10 @@ export default function TeacherDashboard() {
           >
             <CardContent sx={{ flex: 1, p: '8px !important', textAlign: 'center' }}>
               <Typography variant="h4" fontWeight={700} sx={{ color: theme.palette.mode === 'dark' ? '#ffffff' : '#000000' }}>
-                {mySchedulesCount.toLocaleString()}
+                {activityRequestsCount.toLocaleString()}
               </Typography>
               <Typography variant="body2" sx={{ color: theme.palette.mode === 'dark' ? '#ffffff' : 'text.secondary' }}>
-                My Schedules
+                Activity Requests
               </Typography>
             </CardContent>
           </Card>
@@ -706,24 +790,6 @@ export default function TeacherDashboard() {
                 <Typography variant="h6" fontWeight={700} sx={{ color: theme.palette.mode === 'dark' ? '#ffffff' : '#000000' }}>
                   Recent Activity Log
                 </Typography>
-                <Button 
-                  size="small" 
-                  variant="outlined"
-                  onClick={() => navigate('/teacher-reports')}
-                  sx={{ 
-                    textTransform: 'none',
-                    bgcolor: '#fff', 
-                    color: '#000', 
-                    borderColor: '#000', 
-                    '&:hover': { 
-                      bgcolor: '#800000', 
-                      color: '#fff', 
-                      borderColor: '#800000' 
-                    }
-                  }}
-                >
-                  View All
-                </Button>
               </Box>
               
               {getRecentActivities().length > 0 ? (
@@ -931,6 +997,189 @@ export default function TeacherDashboard() {
         </Grid>
       </Grid>
 
+      {/* Resolved Violations Table */}
+      <Grid container spacing={3} sx={{ mt: 2 }}>
+        <Grid item xs={12}>
+          <Card sx={{ 
+            border: 'none',
+            boxShadow: 3,
+            bgcolor: theme.palette.mode === 'dark' ? '#333333' : 'transparent',
+            borderRadius: 2,
+            height: '500px',
+            display: 'flex',
+            flexDirection: 'column'
+          }}>
+            <CardContent sx={{ flex: 1, overflow: 'auto', p: 2 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+                <Typography variant="h6" fontWeight={700} sx={{ color: theme.palette.mode === 'dark' ? '#ffffff' : '#000000' }}>
+                  My Violation Records
+                </Typography>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Chip 
+                    label={`${getAllTeacherViolations().length} Total`} 
+                    size="small"
+                    sx={{ 
+                      fontWeight: 500,
+                      backgroundColor: '#1976d2',
+                      color: '#ffffff',
+                      '& .MuiChip-label': {
+                        color: '#ffffff'
+                      }
+                    }}
+                  />
+                  <Chip 
+                    label={`${getResolvedViolations().length} Resolved`} 
+                    size="small"
+                    sx={{ 
+                      fontWeight: 500,
+                      backgroundColor: '#4caf50',
+                      color: '#ffffff',
+                      '& .MuiChip-label': {
+                        color: '#ffffff'
+                      }
+                    }}
+                  />
+                </Box>
+              </Box>
+              
+              {getAllTeacherViolations().length > 0 ? (
+                <TableContainer sx={{ maxHeight: '400px', overflow: 'auto' }}>
+                  <Table stickyHeader>
+                    <TableHead>
+                      <TableRow>
+                        <TableCell sx={{ fontWeight: 600, backgroundColor: theme.palette.mode === 'dark' ? '#333333' : '#f5f5f5' }}>
+                          Student Name
+                        </TableCell>
+                        <TableCell sx={{ fontWeight: 600, backgroundColor: theme.palette.mode === 'dark' ? '#333333' : '#f5f5f5' }}>
+                          Violation Type
+                        </TableCell>
+                        <TableCell sx={{ fontWeight: 600, backgroundColor: theme.palette.mode === 'dark' ? '#333333' : '#f5f5f5' }}>
+                          Classification
+                        </TableCell>
+                        <TableCell sx={{ fontWeight: 600, backgroundColor: theme.palette.mode === 'dark' ? '#333333' : '#f5f5f5' }}>
+                          Severity
+                        </TableCell>
+                        <TableCell sx={{ fontWeight: 600, backgroundColor: theme.palette.mode === 'dark' ? '#333333' : '#f5f5f5' }}>
+                          Date
+                        </TableCell>
+                        <TableCell sx={{ fontWeight: 600, backgroundColor: theme.palette.mode === 'dark' ? '#333333' : '#f5f5f5' }}>
+                          Location
+                        </TableCell>
+                        <TableCell sx={{ fontWeight: 600, backgroundColor: theme.palette.mode === 'dark' ? '#333333' : '#f5f5f5' }}>
+                          Status
+                        </TableCell>
+                        <TableCell sx={{ fontWeight: 600, backgroundColor: theme.palette.mode === 'dark' ? '#333333' : '#f5f5f5' }}>
+                          Actions
+                        </TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {getAllTeacherViolations().map((violation) => (
+                        <TableRow key={violation.id} hover>
+                          <TableCell>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                              <Avatar sx={{ 
+                                bgcolor: violation.status === 'Solved' || violation.status === 'solved' ? '#4caf50' : '#ff9800', 
+                                width: 32, 
+                                height: 32 
+                              }}>
+                                <CheckCircle sx={{ fontSize: 16 }} />
+                              </Avatar>
+                              <Typography variant="body2" fontWeight={500}>
+                                {violation.studentName || violation.studentId || 'Unknown Student'}
+                              </Typography>
+                            </Box>
+                          </TableCell>
+                          <TableCell>
+                            <Typography variant="body2">
+                              {violation.violationType || violation.violation || 'Not specified'}
+                            </Typography>
+                          </TableCell>
+                          <TableCell>
+                            <Typography variant="body2">
+                              {violation.classification || 'Not specified'}
+                            </Typography>
+                          </TableCell>
+                          <TableCell>
+                            <Chip 
+                              label={violation.severity || 'Not specified'} 
+                              size="small"
+                              color={
+                                violation.severity === 'Critical' ? 'error' :
+                                violation.severity === 'High' ? 'error' :
+                                violation.severity === 'Medium' ? 'warning' :
+                                violation.severity === 'Low' ? 'success' : 'default'
+                              }
+                              variant="outlined"
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <Typography variant="body2">
+                              {new Date(violation.date || violation.createdAt).toLocaleDateString()}
+                            </Typography>
+                          </TableCell>
+                          <TableCell>
+                            <Typography variant="body2">
+                              {violation.location || 'Not specified'}
+                            </Typography>
+                          </TableCell>
+                          <TableCell>
+                            <Chip 
+                              label={violation.status || 'Pending'} 
+                              size="small"
+                              color={
+                                violation.status === 'Solved' || violation.status === 'solved' ? 'success' :
+                                violation.status === 'Pending' || violation.status === 'pending' ? 'warning' :
+                                violation.status === 'Approved' || violation.status === 'approved' ? 'success' : 'default'
+                              }
+                              sx={{ fontWeight: 500 }}
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <Button
+                              size="small"
+                              variant="outlined"
+                              onClick={() => handleViewMeetingForViolation(violation)}
+                              sx={{ 
+                                textTransform: 'none',
+                                bgcolor: '#fff', 
+                                color: '#000', 
+                                borderColor: '#000', 
+                                '&:hover': { 
+                                  bgcolor: '#800000', 
+                                  color: '#fff', 
+                                  borderColor: '#800000' 
+                                }
+                              }}
+                            >
+                              View Meeting
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              ) : (
+                <Box sx={{ textAlign: 'center', py: 4 }}>
+                  <CheckCircle sx={{ 
+                    fontSize: 48, 
+                    color: theme.palette.mode === 'dark' ? '#ffffff' : '#333333', 
+                    mb: 1 
+                  }} />
+                  <Typography variant="h6" sx={{ color: theme.palette.mode === 'dark' ? '#ffffff' : 'text.secondary', mb: 1 }}>
+                    No Violations Reported
+                  </Typography>
+                  <Typography variant="body2" sx={{ color: theme.palette.mode === 'dark' ? '#ffffff' : 'text.secondary' }}>
+                    Your reported violations will appear here.
+                  </Typography>
+                </Box>
+              )}
+            </CardContent>
+          </Card>
+        </Grid>
+      </Grid>
+
       
       {/* My Reports Modal */}
       <Dialog 
@@ -951,72 +1200,121 @@ export default function TeacherDashboard() {
         }}>
           My Reports ({myReportsCount})
         </DialogTitle>
+        
+        {/* Search Bar */}
+        <Box sx={{ p: 2, pb: 1 }}>
+          <TextField
+            placeholder="Search violations by student name, type, description, or status..."
+            value={violationSearchQuery}
+            onChange={(e) => setViolationSearchQuery(e.target.value)}
+            InputProps={{
+              startAdornment: <Search sx={{ mr: 1, color: 'text.secondary' }} />,
+            }}
+            sx={{
+              width: '400px',
+              '& .MuiOutlinedInput-root': {
+                borderRadius: 2,
+                backgroundColor: theme.palette.mode === 'dark' ? '#333333' : '#ffffff',
+              },
+              '& .MuiInputBase-input': {
+                fontSize: '0.9rem',
+              }
+            }}
+            size="small"
+          />
+        </Box>
+        
         <DialogContent sx={{ p: 0 }}>
           {getMyReports().length > 0 ? (
-            <List sx={{ maxHeight: '60vh', overflow: 'auto' }}>
-              {getMyReports().map((report, index) => (
-                <React.Fragment key={report.id}>
-                  <ListItem sx={{ px: 3, py: 2 }}>
-                    <ListItemAvatar>
-                      <Avatar sx={{ bgcolor: '#ff9800', width: 40, height: 40 }}>
-                        <Warning sx={{ fontSize: 20 }} />
-                      </Avatar>
-                    </ListItemAvatar>
-                    <ListItemText
-                      primary={
-                        <Typography variant="subtitle1" fontWeight={600}>
-                          {report.studentName || report.studentId || 'Unknown Student'}
-                        </Typography>
-                      }
-                      secondary={
-                        <Box>
-                          <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
-                            <strong>Violation:</strong> {report.violationType || report.violation || 'Not specified'}
-                          </Typography>
-                          <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
-                            <strong>Description:</strong> {report.description || report.details || 'No description provided'}
-                          </Typography>
-                          <Typography variant="caption" color="text.secondary">
-                            <strong>Date:</strong> {new Date(report.date || report.createdAt).toLocaleDateString()}
+            <TableContainer sx={{ maxHeight: '60vh', overflow: 'auto' }}>
+              <Table stickyHeader>
+                <TableHead>
+                  <TableRow>
+                    <TableCell sx={{ fontWeight: 600, backgroundColor: theme.palette.mode === 'dark' ? '#333333' : '#f5f5f5' }}>
+                      Student Name
+                    </TableCell>
+                    <TableCell sx={{ fontWeight: 600, backgroundColor: theme.palette.mode === 'dark' ? '#333333' : '#f5f5f5' }}>
+                      Violation Type
+                    </TableCell>
+                    <TableCell sx={{ fontWeight: 600, backgroundColor: theme.palette.mode === 'dark' ? '#333333' : '#f5f5f5' }}>
+                      Description
+                    </TableCell>
+                    <TableCell sx={{ fontWeight: 600, backgroundColor: theme.palette.mode === 'dark' ? '#333333' : '#f5f5f5' }}>
+                      Date
+                    </TableCell>
+                    <TableCell sx={{ fontWeight: 600, backgroundColor: theme.palette.mode === 'dark' ? '#333333' : '#f5f5f5' }}>
+                      Status
+                    </TableCell>
+                    <TableCell sx={{ fontWeight: 600, backgroundColor: theme.palette.mode === 'dark' ? '#333333' : '#f5f5f5' }}>
+                      Actions
+                    </TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {getMyReports().map((report) => (
+                    <TableRow key={report.id} hover>
+                      <TableCell>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <Avatar sx={{ bgcolor: '#ff9800', width: 32, height: 32 }}>
+                            <Warning sx={{ fontSize: 16 }} />
+                          </Avatar>
+                          <Typography variant="body2" fontWeight={500}>
+                            {report.studentName || report.studentId || 'Unknown Student'}
                           </Typography>
                         </Box>
-                      }
-                    />
-                    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 1 }}>
-                      <Chip 
-                        label={report.status || 'Pending'} 
-                        size="small"
-                        color={report.status === 'Approved' ? 'success' : 
-                               report.status === 'Denied' ? 'error' : 'warning'}
-                        sx={{ fontWeight: 500 }}
-                      />
-                      <Button
-                        size="small"
-                        variant="outlined"
-                        onClick={() => {
-                          setReportsModalOpen(false);
-                          navigate('/teacher-reports');
-                        }}
-                        sx={{ 
-                          textTransform: 'none',
-                          bgcolor: '#fff', 
-                          color: '#000', 
-                          borderColor: '#000', 
-                          '&:hover': { 
-                            bgcolor: '#800000', 
-                            color: '#fff', 
-                            borderColor: '#800000' 
-                          }
-                        }}
-                      >
-                        View Details
-                      </Button>
-                    </Box>
-                  </ListItem>
-                  {index < getMyReports().length - 1 && <Divider />}
-                </React.Fragment>
-              ))}
-            </List>
+                      </TableCell>
+                      <TableCell>
+                        <Typography variant="body2">
+                          {report.violationType || report.violation || 'Not specified'}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Typography variant="body2" sx={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {report.description || report.details || 'No description provided'}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Typography variant="body2">
+                          {new Date(report.date || report.createdAt).toLocaleDateString()}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Chip 
+                          label={report.status || 'Pending'} 
+                          size="small"
+                          color={report.status === 'Approved' ? 'success' : 
+                                 report.status === 'Denied' ? 'error' : 'warning'}
+                          sx={{ fontWeight: 500 }}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Button
+                          size="small"
+                          variant="outlined"
+                          onClick={() => {
+                            setReportsModalOpen(false);
+                            navigate('/teacher-reports');
+                          }}
+                          sx={{ 
+                            textTransform: 'none',
+                            bgcolor: '#fff', 
+                            color: '#000', 
+                            borderColor: '#000', 
+                            '&:hover': { 
+                              bgcolor: '#800000', 
+                              color: '#fff', 
+                              borderColor: '#800000' 
+                            }
+                          }}
+                        >
+                          View Details
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
           ) : (
             <Box sx={{ textAlign: 'center', py: 4 }}>
               <Warning sx={{ fontSize: 48, color: 'text.secondary', mb: 1 }} />
@@ -1066,6 +1364,166 @@ export default function TeacherDashboard() {
             }}
           >
             View All Reports
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Meeting Modal */}
+      <Dialog 
+        open={meetingModalOpen} 
+        onClose={() => setMeetingModalOpen(false)}
+        maxWidth="md"
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: 2,
+            maxHeight: '80vh'
+          }
+        }}
+      >
+        <DialogTitle sx={{ 
+          fontWeight: 600,
+          color: '#800000',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 1
+        }}>
+          <MeetingRoom />
+          Meetings for Violation
+        </DialogTitle>
+        
+        <DialogContent sx={{ p: 0 }}>
+          {selectedViolationForMeeting && (
+            <Box sx={{ p: 2, borderBottom: '1px solid #e0e0e0' }}>
+              <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 1 }}>
+                Student: {selectedViolationForMeeting.studentName || selectedViolationForMeeting.studentId || 'Unknown'}
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Violation: {selectedViolationForMeeting.violationType || selectedViolationForMeeting.violation || 'Not specified'}
+              </Typography>
+            </Box>
+          )}
+          
+          {violationMeetings.length > 0 ? (
+            <TableContainer sx={{ maxHeight: '60vh', overflow: 'auto' }}>
+              <Table stickyHeader>
+                <TableHead>
+                  <TableRow>
+                    <TableCell sx={{ fontWeight: 600, backgroundColor: theme.palette.mode === 'dark' ? '#333333' : '#f5f5f5' }}>
+                      Purpose
+                    </TableCell>
+                    <TableCell sx={{ fontWeight: 600, backgroundColor: theme.palette.mode === 'dark' ? '#333333' : '#f5f5f5' }}>
+                      Location
+                    </TableCell>
+                    <TableCell sx={{ fontWeight: 600, backgroundColor: theme.palette.mode === 'dark' ? '#333333' : '#f5f5f5' }}>
+                      Date
+                    </TableCell>
+                    <TableCell sx={{ fontWeight: 600, backgroundColor: theme.palette.mode === 'dark' ? '#333333' : '#f5f5f5' }}>
+                      Time
+                    </TableCell>
+                    <TableCell sx={{ fontWeight: 600, backgroundColor: theme.palette.mode === 'dark' ? '#333333' : '#f5f5f5' }}>
+                      Status
+                    </TableCell>
+                    <TableCell sx={{ fontWeight: 600, backgroundColor: theme.palette.mode === 'dark' ? '#333333' : '#f5f5f5' }}>
+                      Description
+                    </TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {violationMeetings.map((meeting) => (
+                    <TableRow key={meeting.id} hover>
+                      <TableCell>
+                        <Typography variant="body2" fontWeight={500}>
+                          {meeting.purpose || 'Not specified'}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Typography variant="body2">
+                          {meeting.location || 'Not specified'}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Typography variant="body2">
+                          {meeting.date ? new Date(meeting.date).toLocaleDateString() : 'Not specified'}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Typography variant="body2">
+                          {meeting.time || 'Not specified'}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Chip 
+                          label={meeting.status || 'Scheduled'} 
+                          size="small"
+                          color={
+                            meeting.status === 'Completed' ? 'success' :
+                            meeting.status === 'Scheduled' ? 'primary' :
+                            meeting.status === 'Cancelled' ? 'error' : 'default'
+                          }
+                          sx={{ fontWeight: 500 }}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Typography variant="body2" sx={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {meeting.description || 'No description provided'}
+                        </Typography>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          ) : (
+            <Box sx={{ textAlign: 'center', py: 4 }}>
+              <MeetingRoom sx={{ fontSize: 48, color: 'text.secondary', mb: 1 }} />
+              <Typography variant="h6" color="text.secondary" sx={{ mb: 1 }}>
+                No Meetings Found
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                No meetings have been scheduled for this violation yet.
+              </Typography>
+            </Box>
+          )}
+        </DialogContent>
+        
+        <DialogActions sx={{ p: 2, bgcolor: '#f5f5f5' }}>
+          <Button 
+            onClick={() => setMeetingModalOpen(false)}
+            variant="outlined"
+            sx={{ 
+              textTransform: 'none',
+              bgcolor: '#fff', 
+              color: '#000', 
+              borderColor: '#000', 
+              '&:hover': { 
+                bgcolor: '#800000', 
+                color: '#fff', 
+                borderColor: '#800000' 
+              }
+            }}
+          >
+            Close
+          </Button>
+          <Button 
+            onClick={() => {
+              setMeetingModalOpen(false);
+              navigate('/violation-record/create-meeting');
+            }}
+            variant="outlined"
+            sx={{ 
+              textTransform: 'none',
+              bgcolor: '#fff', 
+              color: '#000', 
+              borderColor: '#000', 
+              '&:hover': { 
+                bgcolor: '#800000', 
+                color: '#fff', 
+                borderColor: '#800000' 
+              }
+            }}
+          >
+            Create New Meeting
           </Button>
         </DialogActions>
       </Dialog>

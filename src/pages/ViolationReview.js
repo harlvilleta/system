@@ -151,13 +151,41 @@ export default function ViolationReview() {
         priority: 'high'
       });
 
-      // Create notification for the teacher
+      // Create comprehensive notification for the teacher
+      const teacherNotificationMessage = `
+✅ VIOLATION REPORT DECISION
+
+Dear ${selectedViolation.reportedByName || 'Teacher'},
+
+Your violation report has been reviewed and ${newStatus.toLowerCase()} by the administration.
+
+📋 REPORT DETAILS:
+• Student: ${selectedViolation.studentName || 'N/A'}
+• Student ID: ${selectedViolation.studentId || 'N/A'}
+• Violation Type: ${selectedViolation.violationType || selectedViolation.violation || 'N/A'}
+• Severity: ${selectedViolation.severity || 'N/A'}
+• Date Reported: ${selectedViolation.date || 'N/A'}
+• Location: ${selectedViolation.location || 'N/A'}
+
+📝 ADMIN DECISION: ${newStatus}
+${approvalReason ? `Reason: ${approvalReason}` : ''}
+
+${newStatus === 'Approved' ? 
+  '✅ The violation has been approved and appropriate action will be taken.' : 
+  '❌ The violation report has been denied. Please review the reason provided above.'}
+
+For any questions or concerns, please contact the administration office.
+
+Best regards,
+School Administration
+      `.trim();
+
       await addDoc(collection(db, 'notifications'), {
         recipientId: selectedViolation.reportedBy,
         recipientEmail: selectedViolation.reportedByEmail,
         recipientName: selectedViolation.reportedByName,
-        title: `Violation Report ${newStatus}`,
-        message: `Your violation report for ${selectedViolation.studentName} (${selectedViolation.violationType}) has been ${newStatus.toLowerCase()}.${approvalReason ? ` Reason: ${approvalReason}` : ''}`,
+        title: `🎯 Violation Report ${newStatus}: ${selectedViolation.studentName}`,
+        message: teacherNotificationMessage,
         type: 'violation_decision',
         violationId: selectedViolation.id,
         senderId: 'admin',
@@ -165,7 +193,17 @@ export default function ViolationReview() {
         senderName: 'Administration',
         read: false,
         createdAt: new Date().toISOString(),
-        priority: 'high'
+        priority: 'high',
+        violationDetails: {
+          studentName: selectedViolation.studentName,
+          studentId: selectedViolation.studentId,
+          violationType: selectedViolation.violationType || selectedViolation.violation,
+          severity: selectedViolation.severity,
+          date: selectedViolation.date,
+          location: selectedViolation.location,
+          decision: newStatus,
+          reason: approvalReason
+        }
       });
 
       // Log the admin decision

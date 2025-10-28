@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { Typography, Box, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Button, TextField, Grid, Chip, Avatar, InputAdornment, IconButton, Dialog, DialogTitle, DialogContent, DialogActions, Card, CardContent, CardHeader, Divider, Tooltip, CircularProgress, Snackbar, Alert, Stack, Autocomplete, useTheme, TablePagination } from "@mui/material";
-import { collection, getDocs, addDoc, doc, deleteDoc, updateDoc, query, where } from "firebase/firestore";
-import { db } from "../firebase";
+import { collection, getDocs, addDoc, doc, deleteDoc, updateDoc, query, where, orderBy } from "firebase/firestore";
+import { db, auth } from "../firebase";
 import { validateStudentId } from "../utils/studentValidation";
 import SearchIcon from '@mui/icons-material/Search';
+import RefreshIcon from '@mui/icons-material/Refresh';
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { storage } from "../firebase";
 import { MenuItem } from "@mui/material";
@@ -78,6 +79,12 @@ export default function ViolationRecord() {
     location: ''
   });
   
+  // Teacher-specific state
+  const [currentUser, setCurrentUser] = useState(null);
+  const [userProfile, setUserProfile] = useState(null);
+  const [teacherViolations, setTeacherViolations] = useState([]);
+  const [teacherViolationsLoading, setTeacherViolationsLoading] = useState(false);
+  
   // Pagination state
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(8);
@@ -118,11 +125,57 @@ export default function ViolationRecord() {
   };
 
   useEffect(() => {
+    const unsubscribe = auth.onAuthStateChanged(async (user) => {
+      setCurrentUser(user);
+      
+      if (user) {
+        try {
+          // Fetch user profile
+          const userDoc = await getDocs(query(collection(db, 'users'), where('uid', '==', user.uid)));
+          if (!userDoc.empty) {
+            setUserProfile(userDoc.docs[0].data());
+          }
+        } catch (error) {
+          console.error('Error fetching user profile:', error);
+        }
+      }
+    });
+
+    return unsubscribe;
+  }, []);
+
+  useEffect(() => {
     const fetchViolations = async () => {
       try {
+        // Fetch all violations from the violations collection
         const snap = await getDocs(collection(db, "violations"));
-        setRecords(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+        const violationsData = snap.docs.map(doc => ({ 
+          id: doc.id, 
+          ...doc.data(),
+          // Normalize field names for consistent display
+          violation: doc.data().violation || doc.data().violationType || 'N/A',
+          studentName: doc.data().studentName || 'N/A',
+          studentId: doc.data().studentId || doc.data().studentIdNumber || 'N/A',
+          reportedBy: doc.data().reportedBy || doc.data().reportedByName || 'N/A',
+          // Ensure we have all necessary fields
+          classification: doc.data().classification || 'N/A',
+          severity: doc.data().severity || 'N/A',
+          date: doc.data().date || 'N/A',
+          time: doc.data().time || 'N/A',
+          location: doc.data().location || 'N/A',
+          description: doc.data().description || 'N/A',
+          witnesses: doc.data().witnesses || 'N/A',
+          actionTaken: doc.data().actionTaken || 'N/A',
+          status: doc.data().status || 'Pending',
+          createdAt: doc.data().createdAt || doc.data().timestamp || new Date().toISOString()
+        }));
+        
+        console.log('📊 Fetched violations:', violationsData.length);
+        console.log('📋 Sample violation:', violationsData[0]);
+        
+        setRecords(violationsData);
       } catch (e) {
+        console.error('Error fetching violations:', e);
         setRecords([]);
       }
     };
@@ -147,6 +200,73 @@ export default function ViolationRecord() {
     };
     fetchStudents();
   }, [dataRefresh]);
+
+  // Fetch teacher violations when user is authenticated
+  useEffect(() => {
+    if (currentUser?.uid) {
+      fetchTeacherViolations();
+    }
+  }, [currentUser, dataRefresh]);
+
+  const fetchTeacherViolations = async () => {
+    if (!currentUser?.uid && !currentUser?.email) {
+      console.log('No current user available for fetching teacher violations');
+      setTeacherViolations([]);
+      return;
+    }
+
+    setTeacherViolationsLoading(true);
+    try {
+      console.log('Fetching teacher violations for user:', { uid: currentUser.uid, email: currentUser.email });
+      
+      // Use the same approach as TeacherDashboard - try reportedBy first, then email
+      const violationsQuery = query(
+        collection(db, 'violations'),
+        where('reportedBy', '==', currentUser.uid),
+        orderBy('createdAt', 'desc')
+      );
+      
+      const snapshot = await getDocs(violationsQuery);
+      let violationsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      
+      console.log('Fetched teacher violations by UID:', violationsData.length);
+      
+      // If no results by UID, try by email
+      if (violationsData.length === 0 && currentUser?.email) {
+        console.log('No violations found by UID, trying by email...');
+        const violationsByEmailQuery = query(
+          collection(db, 'violations'),
+          where('reportedByEmail', '==', currentUser.email),
+          orderBy('createdAt', 'desc')
+        );
+        const emailSnapshot = await getDocs(violationsByEmailQuery);
+        violationsData = emailSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        console.log('Fetched teacher violations by email:', violationsData.length);
+      }
+      
+      // If still no results, try by reportedByName
+      if (violationsData.length === 0 && userProfile?.fullName) {
+        console.log('No violations found by email, trying by name...');
+        const violationsByNameQuery = query(
+          collection(db, 'violations'),
+          where('reportedByName', '==', userProfile.fullName),
+          orderBy('createdAt', 'desc')
+        );
+        const nameSnapshot = await getDocs(violationsByNameQuery);
+        violationsData = nameSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        console.log('Fetched teacher violations by name:', violationsData.length);
+      }
+      
+      console.log('Final teacher violations data:', violationsData);
+      setTeacherViolations(violationsData);
+      
+    } catch (error) {
+      console.error('Error fetching teacher violations:', error);
+      setTeacherViolations([]);
+    } finally {
+      setTeacherViolationsLoading(false);
+    }
+  };
 
   // Fetch meetings when modal opens
   useEffect(() => {
@@ -178,14 +298,27 @@ export default function ViolationRecord() {
     return sortedByDate.filter(v => {
       const name = (v.studentName || '').toLowerCase();
       const id = (v.studentId || '').toLowerCase();
-      const violation = (v.violation || '').toLowerCase();
+      const violation = (v.violation || v.violationType || '').toLowerCase();
       const classification = (v.classification || '').toLowerCase();
-      const reporter = (v.reportedBy || '').toLowerCase();
+      const reporter = (v.reportedBy || v.reportedByName || '').toLowerCase();
+      const location = (v.location || '').toLowerCase();
+      const description = (v.description || '').toLowerCase();
+      const witnesses = (v.witnesses || '').toLowerCase();
+      const actionTaken = (v.actionTaken || '').toLowerCase();
+      const severity = (v.severity || '').toLowerCase();
+      const status = (v.status || '').toLowerCase();
+      
       return name.includes(term) || 
              id.includes(term) || 
              violation.includes(term) || 
              classification.includes(term) || 
-             reporter.includes(term);
+             reporter.includes(term) ||
+             location.includes(term) ||
+             description.includes(term) ||
+             witnesses.includes(term) ||
+             actionTaken.includes(term) ||
+             severity.includes(term) ||
+             status.includes(term);
     });
   })();
 
@@ -472,12 +605,48 @@ School Administration
     e.preventDefault();
     setMeetingSubmitting(true);
     try {
-      await addDoc(collection(db, 'meetings'), {
-        ...meetingForm,
-        createdAt: new Date().toISOString(),
-      });
-      // Find student email
+      // Prepare participants array
+      const participants = [];
+      
+      // Add student to participants
       const student = students.find(s => s.id === meetingForm.studentId || `${s.firstName} ${s.lastName}` === meetingForm.studentName);
+      if (student && student.email) {
+        participants.push(student.email);
+      }
+      
+      // Add current teacher to participants
+      if (currentUser?.email) {
+        participants.push(currentUser.email);
+      }
+      if (currentUser?.uid) {
+        participants.push(currentUser.uid);
+      }
+
+      const meetingData = {
+        studentId: meetingForm.studentId || '',
+        studentName: meetingForm.studentName || '',
+        location: meetingForm.location || '',
+        purpose: meetingForm.purpose || '',
+        date: meetingForm.date || '',
+        time: meetingForm.time || '',
+        description: meetingForm.description || '',
+        participants: participants,
+        createdAt: new Date().toISOString(),
+        type: 'meeting',
+        status: 'Scheduled'
+      };
+
+      // Only add teacher fields if currentUser is available
+      if (currentUser?.uid) {
+        meetingData.teacherUid = currentUser.uid;
+        meetingData.teacherEmail = currentUser.email || '';
+        meetingData.teacherName = userProfile?.fullName || currentUser?.displayName || 'Teacher';
+        meetingData.organizer = currentUser.uid;
+      }
+
+      await addDoc(collection(db, 'meetings'), meetingData);
+      
+      // Send email notification to student
       if (student && student.email) {
         // Send email notification
         await emailjs.send(
@@ -600,6 +769,166 @@ School Administration
           </Card>
         </Grid>
       </Grid>
+
+      {/* Teacher Violations Section */}
+      {currentUser && (
+        <Paper elevation={2} sx={{ 
+          p: 2, 
+          mb: 3, 
+          bgcolor: theme.palette.mode === 'dark' ? '#2d2d2d' : '#fafafa',
+          border: theme.palette.mode === 'dark' ? '1px solid #404040' : 'none'
+        }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+            <Typography variant="h6" gutterBottom sx={{ 
+              fontWeight: 600, 
+              mb: 0,
+              color: theme.palette.mode === 'dark' ? '#ffffff' : 'inherit'
+            }}>
+              My Reported Violations ({teacherViolations.length})
+            </Typography>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <IconButton 
+                onClick={fetchTeacherViolations}
+                size="small"
+                disabled={teacherViolationsLoading}
+                sx={{ 
+                  color: theme.palette.mode === 'dark' ? '#ffffff' : '#000000',
+                  '&:hover': {
+                    backgroundColor: theme.palette.mode === 'dark' ? '#404040' : '#f5f5f5'
+                  }
+                }}
+                title="Refresh violations"
+              >
+                {teacherViolationsLoading ? (
+                  <CircularProgress size={16} />
+                ) : (
+                  <RefreshIcon fontSize="small" />
+                )}
+              </IconButton>
+              <Chip 
+                label={`${teacherViolations.filter(v => v.status === 'Solved' || v.status === 'solved').length} Resolved`} 
+                size="small"
+                sx={{ 
+                  fontWeight: 500,
+                  backgroundColor: '#4caf50',
+                  color: '#ffffff',
+                  '& .MuiChip-label': {
+                    color: '#ffffff'
+                  }
+                }}
+              />
+              <Chip 
+                label={`${teacherViolations.filter(v => v.status === 'Pending' || v.status === 'pending').length} Pending`} 
+                size="small"
+                sx={{ 
+                  fontWeight: 500,
+                  backgroundColor: '#ff9800',
+                  color: '#ffffff',
+                  '& .MuiChip-label': {
+                    color: '#ffffff'
+                  }
+                }}
+              />
+            </Box>
+          </Box>
+          
+          {teacherViolations.length > 0 ? (
+            <TableContainer sx={{ maxHeight: '300px', overflow: 'auto' }}>
+              <Table stickyHeader size="small">
+                <TableHead>
+                  <TableRow>
+                    <TableCell sx={{ fontWeight: 600, backgroundColor: theme.palette.mode === 'dark' ? '#333333' : '#f5f5f5' }}>
+                      Student Name
+                    </TableCell>
+                    <TableCell sx={{ fontWeight: 600, backgroundColor: theme.palette.mode === 'dark' ? '#333333' : '#f5f5f5' }}>
+                      Violation Type
+                    </TableCell>
+                    <TableCell sx={{ fontWeight: 600, backgroundColor: theme.palette.mode === 'dark' ? '#333333' : '#f5f5f5' }}>
+                      Severity
+                    </TableCell>
+                    <TableCell sx={{ fontWeight: 600, backgroundColor: theme.palette.mode === 'dark' ? '#333333' : '#f5f5f5' }}>
+                      Date
+                    </TableCell>
+                    <TableCell sx={{ fontWeight: 600, backgroundColor: theme.palette.mode === 'dark' ? '#333333' : '#f5f5f5' }}>
+                      Status
+                    </TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {teacherViolations.map((violation) => (
+                    <TableRow key={violation.id} hover>
+                      <TableCell>
+                        <Typography variant="body2" fontWeight={500}>
+                          {violation.studentName || violation.studentId || 'Unknown Student'}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Typography variant="body2">
+                          {violation.violationType || violation.violation || 'Not specified'}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Chip 
+                          label={violation.severity || 'Not specified'} 
+                          size="small"
+                          color={
+                            violation.severity === 'Critical' ? 'error' :
+                            violation.severity === 'High' ? 'error' :
+                            violation.severity === 'Medium' ? 'warning' :
+                            violation.severity === 'Low' ? 'success' : 'default'
+                          }
+                          variant="outlined"
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Typography variant="body2">
+                          {new Date(violation.date || violation.createdAt).toLocaleDateString()}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Chip 
+                          label={violation.status || 'Pending'} 
+                          size="small"
+                          color={
+                            violation.status === 'Solved' || violation.status === 'solved' ? 'success' :
+                            violation.status === 'Pending' || violation.status === 'pending' ? 'warning' : 'default'
+                          }
+                          variant="outlined"
+                        />
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          ) : (
+            <Box sx={{ textAlign: 'center', py: 4 }}>
+              <Typography variant="h6" sx={{ color: theme.palette.mode === 'dark' ? '#ffffff' : 'text.secondary', mb: 1 }}>
+                No Violations Reported Yet
+              </Typography>
+              <Typography variant="body2" sx={{ color: theme.palette.mode === 'dark' ? '#ffffff' : 'text.secondary', mb: 2 }}>
+                Your reported violations will appear here.
+              </Typography>
+              <Typography variant="body2" sx={{ color: theme.palette.mode === 'dark' ? '#ffffff' : 'text.secondary', fontSize: '0.75rem', mb: 1 }}>
+                Debug Info: User: {currentUser?.email || 'Not authenticated'} | UID: {currentUser?.uid || 'N/A'}
+              </Typography>
+              <Typography variant="body2" sx={{ color: theme.palette.mode === 'dark' ? '#ffffff' : 'text.secondary', fontSize: '0.75rem', mb: 1 }}>
+                Profile: {userProfile?.fullName || 'N/A'} | Total violations: {teacherViolations.length}
+              </Typography>
+              <Button 
+                variant="outlined" 
+                size="small" 
+                onClick={fetchTeacherViolations}
+                disabled={teacherViolationsLoading}
+                sx={{ mt: 1 }}
+              >
+                {teacherViolationsLoading ? 'Loading...' : 'Refresh Data'}
+              </Button>
+            </Box>
+          )}
+        </Paper>
+      )}
+
       {/* Add Violation and History Buttons */}
         <Box sx={{ mb: 3, display: 'flex', justifyContent: 'flex-start', gap: 2 }}>
           <Button
@@ -705,7 +1034,7 @@ School Administration
             <TextField
               value={historyFilter.name}
               onChange={(e) => setHistoryFilter({...historyFilter, name: e.target.value})}
-              placeholder="Search violations..."
+              placeholder="Search by Student Name/ID, Violation Type, Reporter, Location..."
               size="small"
               sx={{ 
                 width: '180px',
@@ -741,13 +1070,21 @@ School Administration
               const filteredHistory = searchTerm ? records.filter(record => {
                 const name = (record.studentName || '').toLowerCase();
                 const id = (record.studentId || '').toLowerCase();
-                const violation = (record.violation || '').toLowerCase();
+                const violation = (record.violation || record.violationType || '').toLowerCase();
                 const location = (record.location || '').toLowerCase();
+                const reporter = (record.reportedBy || record.reportedByName || '').toLowerCase();
+                const description = (record.description || '').toLowerCase();
+                const severity = (record.severity || '').toLowerCase();
+                const status = (record.status || '').toLowerCase();
                 
                 return name.includes(searchTerm) || 
                        id.includes(searchTerm) || 
                        violation.includes(searchTerm) || 
-                       location.includes(searchTerm);
+                       location.includes(searchTerm) ||
+                       reporter.includes(searchTerm) ||
+                       description.includes(searchTerm) ||
+                       severity.includes(searchTerm) ||
+                       status.includes(searchTerm);
               }) : records;
 
               // Get paginated records
@@ -818,13 +1155,22 @@ School Administration
                       padding: '8px 12px',
                       minWidth: '100px',
                       maxWidth: '100px'
+                    }}>Reported By</TableCell>
+                    <TableCell sx={{ 
+                      bgcolor: '#800000',
+                      fontWeight: 700,
+                      color: '#ffffff',
+                      fontSize: '14px',
+                      padding: '8px 12px',
+                      minWidth: '100px',
+                      maxWidth: '100px'
                     }} align="center">Actions</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
                   {filteredHistory.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={6} sx={{ 
+                      <TableCell colSpan={7} sx={{ 
                         textAlign: 'center', 
                         py: 4,
                         color: '#666666',
@@ -893,6 +1239,14 @@ School Administration
                           borderBottom: '1px solid #f0f0f0'
                         }} onClick={() => setViewViolation(record)}>
                           {record.location || 'N/A'}
+                        </TableCell>
+                        <TableCell sx={{ 
+                          fontWeight: 500,
+                          fontSize: '13px',
+                          padding: '8px 12px',
+                          borderBottom: '1px solid #f0f0f0'
+                        }} onClick={() => setViewViolation(record)}>
+                          {record.reportedBy || record.reportedByName || 'N/A'}
                         </TableCell>
                         <TableCell align="center" sx={{ 
                           borderBottom: '1px solid #f0f0f0',
@@ -1322,7 +1676,7 @@ School Administration
         <TextField
           value={search}
           onChange={e => setSearch(e.target.value)}
-          placeholder="Search by Student ID, Violation, Classification, or Reporter..."
+          placeholder="Search by Student Name/ID, Violation Type, Reporter, Location, Description, Status..."
           size="small"
           sx={{ 
             width: { xs: '100%', sm: '50%' },
@@ -1409,7 +1763,14 @@ School Administration
                 fontWeight: 600,
                 fontSize: '16px',
                 padding: '16px'
-              }}>Status</TableCell>
+                  }}>Status</TableCell>
+              <TableCell sx={{ 
+                bgcolor: '#800000',
+                color: '#ffffff', 
+                fontWeight: 600,
+                fontSize: '16px',
+                padding: '16px'
+                  }}>Reported By</TableCell>
               <TableCell sx={{ 
                 bgcolor: '#800000',
                 color: '#ffffff', 
@@ -1422,7 +1783,7 @@ School Administration
             <TableBody>
               {filtered.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} align="center" sx={{ py: 4 }}>
+                <TableCell colSpan={9} align="center" sx={{ py: 4 }}>
                   <Typography variant="h6" color="text.secondary">
                     No violations found.
                   </Typography>
@@ -1523,6 +1884,16 @@ School Administration
                     }
                     variant="outlined"
                   />
+                </TableCell>
+                <TableCell 
+                  sx={{ 
+                    fontSize: 14, 
+                    fontWeight: 500,
+                    padding: '12px 16px'
+                  }} 
+                  onClick={() => setViewViolation(v)}
+                >
+                  {v.reportedBy || v.reportedByName || 'N/A'}
                 </TableCell>
                 <TableCell align="center" sx={{ padding: '12px 16px' }}>
                     <Stack direction="row" spacing={1} justifyContent="center">

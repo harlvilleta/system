@@ -97,31 +97,91 @@ export default function ViolationCreateMeeting() {
   const handleMeetingSubmit = async (e) => {
     e.preventDefault();
     setMeetingSubmitting(true);
+    
+    console.log('Starting meeting creation...');
+    console.log('Meeting form data:', meetingForm);
+    console.log('Available teachers:', teachers.length);
+    console.log('Available students:', students.length);
+    
     try {
+      // Validate required fields
+      if (!meetingForm.studentName) {
+        throw new Error('Student name is required');
+      }
+      if (!meetingForm.purpose) {
+        throw new Error('Meeting purpose is required');
+      }
+      if (!meetingForm.location) {
+        throw new Error('Meeting location is required');
+      }
+      if (!meetingForm.date) {
+        throw new Error('Meeting date is required');
+      }
+      if (!meetingForm.time) {
+        throw new Error('Meeting time is required');
+      }
+
       // Prepare participants array
       const participants = [];
       const student = students.find(s => `${s.firstName} ${s.lastName}` === meetingForm.studentName);
+      console.log('Found student:', student);
+      
       if (student && student.email) {
         participants.push(student.email);
       }
       
       // Add teacher to participants if specified
       if (meetingForm.teacherName) {
-        const teacher = teachers.find(t => t.fullName === meetingForm.teacherName);
-        if (teacher && teacher.email) {
-          participants.push(teacher.email);
+        const teacher = teachers.find(t => 
+          t.fullName === meetingForm.teacherName || 
+          t.displayName === meetingForm.teacherName || 
+          t.email === meetingForm.teacherName
+        );
+        console.log('Found teacher:', teacher);
+        
+        if (teacher) {
+          // Add both email and UID to participants for better detection
+          if (teacher.email) {
+            participants.push(teacher.email);
+          }
+          if (teacher.uid) {
+            participants.push(teacher.uid);
+          }
         }
       }
 
       const meetingData = {
-        ...meetingForm,
+        studentName: meetingForm.studentName || '',
+        location: meetingForm.location || '',
+        purpose: meetingForm.purpose || '',
+        date: meetingForm.date || '',
+        time: meetingForm.time || '',
+        description: meetingForm.description || '',
+        teacherName: meetingForm.teacherName || '',
         participants: participants,
         createdAt: new Date().toISOString(),
         type: 'meeting',
         status: 'Scheduled' // Set default status
       };
 
-      await addDoc(collection(db, 'meetings'), meetingData);
+      // Only add teacher fields if a teacher is selected
+      if (meetingForm.teacherName) {
+        const selectedTeacher = teachers.find(t => 
+          t.fullName === meetingForm.teacherName || 
+          t.displayName === meetingForm.teacherName || 
+          t.email === meetingForm.teacherName
+        );
+        
+        if (selectedTeacher) {
+          meetingData.teacherUid = selectedTeacher.uid;
+          meetingData.teacherEmail = selectedTeacher.email || '';
+        }
+      }
+
+      console.log('Meeting data to be saved:', meetingData);
+
+      const docRef = await addDoc(collection(db, 'meetings'), meetingData);
+      console.log('Meeting created successfully with ID:', docRef.id);
       
       // Send email notification to student
       if (student && student.email) {
@@ -144,7 +204,11 @@ export default function ViolationCreateMeeting() {
 
       // Send notification to teacher if specified
       if (meetingForm.teacherName) {
-        const teacher = teachers.find(t => t.fullName === meetingForm.teacherName);
+        const teacher = teachers.find(t => 
+          t.fullName === meetingForm.teacherName || 
+          t.displayName === meetingForm.teacherName || 
+          t.email === meetingForm.teacherName
+        );
         if (teacher && teacher.email) {
           try {
             await addDoc(collection(db, 'notifications'), {
@@ -154,7 +218,7 @@ export default function ViolationCreateMeeting() {
               type: 'meeting',
               read: false,
               createdAt: new Date().toISOString(),
-              meetingId: meetingData.id
+              meetingId: docRef.id
             });
           } catch (notificationError) {
             console.error("Teacher notification failed:", notificationError);
@@ -180,7 +244,9 @@ export default function ViolationCreateMeeting() {
         teacherName: ''
       });
     } catch (e) {
-      setMeetingSnackbar({ open: true, message: 'Failed to create meeting.', severity: 'error' });
+      console.error('Meeting creation failed:', e);
+      const errorMessage = e.message || 'Failed to create meeting. Please try again.';
+      setMeetingSnackbar({ open: true, message: errorMessage, severity: 'error' });
     }
     setMeetingSubmitting(false);
   };
@@ -369,21 +435,90 @@ export default function ViolationCreateMeeting() {
               />
             </Grid>
             <Grid item xs={12} md={6}>
-              <TextField
-                select
-                label="Teacher Name (Optional)"
-                name="teacherName"
-                value={meetingForm.teacherName}
-                onChange={handleMeetingFormChange}
-                fullWidth
-                helperText="Select the teacher for the meeting (optional)"
-              >
-                {teachers.map(t => (
-                  <MenuItem key={t.id} value={t.fullName || t.displayName || t.email}>
-                    {t.fullName || t.displayName || t.email}
-                  </MenuItem>
-                ))}
-              </TextField>
+              <Autocomplete
+                options={teachers}
+                getOptionLabel={(option) => `${option.fullName || option.displayName || option.email} (${option.email})`}
+                value={teachers.find(t => t.fullName === meetingForm.teacherName) || null}
+                onChange={(event, newValue) => {
+                  setMeetingForm(prev => ({
+                    ...prev,
+                    teacherName: newValue ? newValue.fullName || newValue.displayName || newValue.email : ''
+                  }));
+                }}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label="Teacher Name (Optional)"
+                    name="teacherName"
+                    fullWidth
+                    helperText="Type to search for a teacher"
+                    placeholder="Start typing teacher name..."
+                  />
+                )}
+                renderOption={(props, option) => (
+                  <Box component="li" {...props}>
+                    <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+                      <Typography variant="body2" fontWeight={500}>
+                        {option.fullName || option.displayName || option.email}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        {option.email}
+                      </Typography>
+                    </Box>
+                  </Box>
+                )}
+                filterOptions={(options, { inputValue }) => {
+                  if (!inputValue || inputValue.length < 2) {
+                    return []; // Don't show any options when typing less than 2 characters
+                  }
+                  
+                  const searchTerm = inputValue.toLowerCase().trim();
+                  const filtered = options.filter(option => {
+                    const fullName = (option.fullName || option.displayName || '').toLowerCase();
+                    const email = (option.email || '').toLowerCase();
+                    
+                    // Exact email match (highest priority)
+                    if (email === searchTerm) return true;
+                    
+                    // Email starts with search term
+                    if (email.startsWith(searchTerm)) return true;
+                    
+                    // Name starts with search term
+                    if (fullName.startsWith(searchTerm)) return true;
+                    
+                    // Name contains search term as whole word
+                    if (fullName.includes(` ${searchTerm}`)) return true;
+                    
+                    return false;
+                  });
+                  
+                  // Sort results: exact email matches first, then email starts with, then name matches
+                  return filtered.sort((a, b) => {
+                    const aEmail = (a.email || '').toLowerCase();
+                    const bEmail = (b.email || '').toLowerCase();
+                    const aName = (a.fullName || a.displayName || '').toLowerCase();
+                    const bName = (b.fullName || b.displayName || '').toLowerCase();
+                    
+                    // Exact email match gets highest priority
+                    if (aEmail === searchTerm && bEmail !== searchTerm) return -1;
+                    if (bEmail === searchTerm && aEmail !== searchTerm) return 1;
+                    
+                    // Email starts with gets second priority
+                    if (aEmail.startsWith(searchTerm) && !bEmail.startsWith(searchTerm)) return -1;
+                    if (bEmail.startsWith(searchTerm) && !aEmail.startsWith(searchTerm)) return 1;
+                    
+                    // Name starts with gets third priority
+                    if (aName.startsWith(searchTerm) && !bName.startsWith(searchTerm)) return -1;
+                    if (bName.startsWith(searchTerm) && !aName.startsWith(searchTerm)) return 1;
+                    
+                    return 0;
+                  }).slice(0, 5);
+                }}
+                noOptionsText="No teachers found"
+                isOptionEqualToValue={(option, value) => option.id === value?.id}
+                openOnFocus={false}
+                disablePortal={false}
+              />
             </Grid>
             <Grid item xs={12} md={6}>
               <TextField 

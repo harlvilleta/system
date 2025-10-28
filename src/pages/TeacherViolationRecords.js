@@ -174,6 +174,7 @@ export default function TeacherViolationRecords() {
     }
   };
 
+
   const filterStudents = (searchText) => {
     if (!searchText || searchText.trim() === '') {
       setFilteredStudents([]);

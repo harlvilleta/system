@@ -13,9 +13,11 @@ import {
 import { db } from "../firebase";
 import { collection, query, where, orderBy, onSnapshot, doc, updateDoc, getDocs } from "firebase/firestore";
 import { auth } from "../firebase";
+import { useNavigate } from "react-router-dom";
 
 export default function TeacherNotifications() {
   const theme = useTheme();
+  const navigate = useNavigate();
   const [notifications, setNotifications] = useState([]);
   const [meetingNotifications, setMeetingNotifications] = useState([]);
   const [lostFoundNotifications, setLostFoundNotifications] = useState([]);
