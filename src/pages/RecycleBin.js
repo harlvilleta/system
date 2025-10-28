@@ -261,7 +261,13 @@ export default function RecycleBin() {
               <ListItem><ListItemText primary="Recycle bin is empty." /></ListItem>
             ) : announcements.map(a => (
               <React.Fragment key={a.id}>
-                <ListItem alignItems="flex-start"
+                <ListItem 
+                  alignItems="flex-start"
+                  sx={{
+                    '&:hover': {
+                      backgroundColor: 'transparent !important'
+                    }
+                  }}
                   secondaryAction={
                     <>
                       <IconButton edge="end" aria-label="restore" onClick={() => handleRestoreAnnouncement(a)} disabled={isSubmitting}>
@@ -297,7 +303,13 @@ export default function RecycleBin() {
               <ListItem><ListItemText primary="Recycle bin is empty." /></ListItem>
             ) : activities.map(a => (
               <React.Fragment key={a.id}>
-                <ListItem alignItems="flex-start"
+                <ListItem 
+                  alignItems="flex-start"
+                  sx={{
+                    '&:hover': {
+                      backgroundColor: 'transparent !important'
+                    }
+                  }}
                   secondaryAction={
                     <>
                       <IconButton edge="end" aria-label="restore" onClick={() => handleRestoreActivity(a)} disabled={isSubmitting}>
@@ -333,7 +345,13 @@ export default function RecycleBin() {
               <ListItem><ListItemText primary="Recycle bin is empty." /></ListItem>
             ) : lostFound.map(item => (
               <React.Fragment key={item.id}>
-                <ListItem alignItems="flex-start"
+                <ListItem 
+                  alignItems="flex-start"
+                  sx={{
+                    '&:hover': {
+                      backgroundColor: 'transparent !important'
+                    }
+                  }}
                   secondaryAction={
                     <>
                       <IconButton edge="end" aria-label="restore" onClick={() => handleRestoreLostFound(item)} disabled={isSubmitting}>
@@ -369,7 +387,13 @@ export default function RecycleBin() {
               <ListItem><ListItemText primary="Recycle bin is empty." /></ListItem>
             ) : violations.map(v => (
               <React.Fragment key={v.id}>
-                <ListItem alignItems="flex-start"
+                <ListItem 
+                  alignItems="flex-start"
+                  sx={{
+                    '&:hover': {
+                      backgroundColor: 'transparent !important'
+                    }
+                  }}
                   secondaryAction={
                     <>
                       <IconButton edge="end" aria-label="restore" onClick={() => handleRestoreViolation(v)} disabled={isSubmitting}>
@@ -405,7 +429,13 @@ export default function RecycleBin() {
               <ListItem><ListItemText primary="Recycle bin is empty." /></ListItem>
             ) : students.map(s => (
               <React.Fragment key={s.id}>
-                <ListItem alignItems="flex-start"
+                <ListItem 
+                  alignItems="flex-start"
+                  sx={{
+                    '&:hover': {
+                      backgroundColor: 'transparent !important'
+                    }
+                  }}
                   secondaryAction={
                     <>
                       <IconButton edge="end" aria-label="restore" onClick={() => handleRestoreStudent(s)} disabled={isSubmitting}>

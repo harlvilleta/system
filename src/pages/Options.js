@@ -83,10 +83,11 @@ export default function Options() {
       </Box>
       
       {/* Options Grid */}
-      <Grid container spacing={3} sx={{ mb: 3 }}>
+      <Grid container spacing={4} sx={{ mb: 3 }}>
         <Grid item xs={12} sm={6} md={4}>
           <Card sx={{ 
             height: '100%',
+            minHeight: '280px',
             cursor: 'pointer',
             transition: 'all 0.3s ease-in-out',
             borderLeft: '4px solid #800000',
@@ -96,12 +97,12 @@ export default function Options() {
               borderLeft: '4px solid #a00000'
             }
           }} onClick={() => navigate('/profile')}>
-            <CardContent sx={{ textAlign: 'center', p: 3 }}>
-              <SecurityIcon sx={{ fontSize: 48, mb: 2, color: theme.palette.mode === 'dark' ? '#ffffff' : 'inherit' }} />
-              <Typography variant="h6" fontWeight={600} sx={{ color: theme.palette.mode === 'dark' ? '#ffffff' : 'black' }}>
+            <CardContent sx={{ textAlign: 'center', p: 4 }}>
+              <SecurityIcon sx={{ fontSize: 64, mb: 3, color: theme.palette.mode === 'dark' ? '#ffffff' : 'inherit' }} />
+              <Typography variant="h5" fontWeight={600} sx={{ color: theme.palette.mode === 'dark' ? '#ffffff' : 'black' }}>
                 Security Settings
               </Typography>
-              <Typography variant="body2" sx={{ color: theme.palette.mode === 'dark' ? '#ffffff' : 'text.secondary', mt: 1 }}>
+              <Typography variant="body1" sx={{ color: theme.palette.mode === 'dark' ? '#ffffff' : 'text.secondary', mt: 2 }}>
                 Change password, email, and security preferences
               </Typography>
             </CardContent>
@@ -111,6 +112,7 @@ export default function Options() {
         <Grid item xs={12} sm={6} md={4}>
           <Card sx={{ 
             height: '100%',
+            minHeight: '280px',
             cursor: 'pointer',
             transition: 'all 0.3s ease-in-out',
             borderLeft: '4px solid #800000',
@@ -120,12 +122,12 @@ export default function Options() {
               borderLeft: '4px solid #a00000'
             }
           }} onClick={() => setOpenSecurity(true)}>
-            <CardContent sx={{ textAlign: 'center', p: 3 }}>
-              <DeleteIcon sx={{ fontSize: 48, mb: 2, color: theme.palette.mode === 'dark' ? '#ffffff' : 'inherit' }} />
-              <Typography variant="h6" fontWeight={600} sx={{ color: theme.palette.mode === 'dark' ? '#ffffff' : 'black' }}>
+            <CardContent sx={{ textAlign: 'center', p: 4 }}>
+              <DeleteIcon sx={{ fontSize: 64, mb: 3, color: theme.palette.mode === 'dark' ? '#ffffff' : 'inherit' }} />
+              <Typography variant="h5" fontWeight={600} sx={{ color: theme.palette.mode === 'dark' ? '#ffffff' : 'black' }}>
                 Recycle Bin
               </Typography>
-              <Typography variant="body2" sx={{ color: theme.palette.mode === 'dark' ? '#ffffff' : 'text.secondary', mt: 1 }}>
+              <Typography variant="body1" sx={{ color: theme.palette.mode === 'dark' ? '#ffffff' : 'text.secondary', mt: 2 }}>
                 View and restore deleted items
               </Typography>
             </CardContent>
@@ -135,6 +137,7 @@ export default function Options() {
         <Grid item xs={12} sm={6} md={4}>
           <Card sx={{ 
             height: '100%',
+            minHeight: '280px',
             cursor: 'pointer',
             transition: 'all 0.3s ease-in-out',
             borderLeft: '4px solid #800000',
@@ -144,12 +147,12 @@ export default function Options() {
               borderLeft: '4px solid #a00000'
             }
           }} onClick={() => setOpenAccount(true)}>
-            <CardContent sx={{ textAlign: 'center', p: 3 }}>
-              <ListAlt sx={{ fontSize: 48, mb: 2, color: theme.palette.mode === 'dark' ? '#ffffff' : 'inherit' }} />
-              <Typography variant="h6" fontWeight={600} sx={{ color: theme.palette.mode === 'dark' ? '#ffffff' : 'black' }}>
+            <CardContent sx={{ textAlign: 'center', p: 4 }}>
+              <ListAlt sx={{ fontSize: 64, mb: 3, color: theme.palette.mode === 'dark' ? '#ffffff' : 'inherit' }} />
+              <Typography variant="h5" fontWeight={600} sx={{ color: theme.palette.mode === 'dark' ? '#ffffff' : 'black' }}>
                 History
               </Typography>
-              <Typography variant="body2" sx={{ color: theme.palette.mode === 'dark' ? '#ffffff' : 'text.secondary', mt: 1 }}>
+              <Typography variant="body1" sx={{ color: theme.palette.mode === 'dark' ? '#ffffff' : 'text.secondary', mt: 2 }}>
                 View system activity and history logs
               </Typography>
             </CardContent>

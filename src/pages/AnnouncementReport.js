@@ -5,7 +5,8 @@ import {
   query, 
   updateDoc, 
   doc, 
-  addDoc 
+  addDoc,
+  deleteDoc 
 } from "firebase/firestore";
 import { db } from "../firebase";
 import React, { useEffect, useState } from "react";
@@ -39,7 +40,10 @@ import {
   Avatar,
   Divider,
   IconButton,
-  Tooltip
+  Tooltip,
+  TablePagination,
+  InputAdornment,
+  Stack
 } from "@mui/material";
 import {
   CheckCircle,
@@ -50,7 +54,13 @@ import {
   Schedule,
   Warning,
   CheckCircleOutline,
-  CancelOutlined
+  CancelOutlined,
+  Edit as EditIcon,
+  Delete as DeleteIcon,
+  Search,
+  Print,
+  Download,
+  Refresh
 } from "@mui/icons-material";
 import { useTheme } from "@mui/material/styles";
 
@@ -75,10 +85,20 @@ export default function AnnouncementReport() {
   const [approvalAction, setApprovalAction] = useState('');
   const [approvalReason, setApprovalReason] = useState('');
   const [processing, setProcessing] = useState(false);
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(8);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [editDialog, setEditDialog] = useState(false);
+  const [editForm, setEditForm] = useState({ title: '', message: '', category: '', priority: 'Normal' });
 
   useEffect(() => {
     fetchAnnouncements();
   }, []);
+
+  // Reset page when search term changes
+  useEffect(() => {
+    setPage(0);
+  }, [searchTerm]);
 
   const fetchAnnouncements = async () => {
     setLoading(true);
@@ -99,6 +119,38 @@ export default function AnnouncementReport() {
   const handleViewDetails = (announcement) => {
     setSelectedAnnouncement(announcement);
     setViewDialog(true);
+  };
+
+  const handleEdit = (announcement) => {
+    setSelectedAnnouncement(announcement);
+    setEditForm({
+      title: announcement.title || '',
+      message: announcement.message || '',
+      category: announcement.category || 'General',
+      priority: announcement.priority || 'Normal'
+    });
+    setEditDialog(true);
+  };
+
+  const handleDelete = async (announcement) => {
+    if (window.confirm(`Are you sure you want to delete "${announcement.title}"?`)) {
+      try {
+        await deleteDoc(doc(db, "announcements", announcement.id));
+        setSnackbar({ 
+          open: true, 
+          message: 'Announcement deleted successfully.', 
+          severity: 'success' 
+        });
+        fetchAnnouncements(); // Refresh the list
+      } catch (error) {
+        console.error('Error deleting announcement:', error);
+        setSnackbar({ 
+          open: true, 
+          message: 'Error deleting announcement. Please try again.', 
+          severity: 'error' 
+        });
+      }
+    }
   };
 
   const handleApprovalAction = (announcement, action) => {
@@ -205,11 +257,163 @@ export default function AnnouncementReport() {
     }
   };
 
+  const handleChangePage = (event, newPage) => {
+    setPage(newPage);
+  };
+
+  const handleChangeRowsPerPage = (event) => {
+    setRowsPerPage(parseInt(event.target.value, 10));
+    setPage(0);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!selectedAnnouncement) return;
+
+    setProcessing(true);
+    try {
+      await updateDoc(doc(db, "announcements", selectedAnnouncement.id), {
+        title: editForm.title,
+        message: editForm.message,
+        category: editForm.category,
+        priority: editForm.priority,
+        updatedAt: new Date().toISOString()
+      });
+
+      setSnackbar({ 
+        open: true, 
+        message: 'Announcement updated successfully.', 
+        severity: 'success' 
+      });
+
+      setEditDialog(false);
+      setSelectedAnnouncement(null);
+      fetchAnnouncements(); // Refresh the list
+
+    } catch (error) {
+      console.error('Error updating announcement:', error);
+      setSnackbar({ 
+        open: true, 
+        message: 'Error updating announcement. Please try again.', 
+        severity: 'error' 
+      });
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  const handlePrint = (announcement) => {
+    const printWindow = window.open('', '_blank');
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>${announcement.title}</title>
+          <style>
+            body { font-family: Arial, sans-serif; margin: 20px; }
+            .header { border-bottom: 2px solid #800000; padding-bottom: 10px; margin-bottom: 20px; }
+            .content { line-height: 1.6; }
+            .meta { color: #666; font-size: 14px; margin-top: 20px; }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <h1>${announcement.title}</h1>
+          </div>
+          <div class="content">
+            <p>${announcement.message}</p>
+          </div>
+          <div class="meta">
+            <p><strong>Category:</strong> ${announcement.category || 'General'}</p>
+            <p><strong>Priority:</strong> ${announcement.priority || 'Normal'}</p>
+            <p><strong>Date:</strong> ${formatDate(announcement.createdAt)}</p>
+          </div>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+    printWindow.print();
+  };
+
+  const handleDownload = (announcement) => {
+    const data = {
+      title: announcement.title,
+      message: announcement.message,
+      category: announcement.category || 'General',
+      priority: announcement.priority || 'Normal',
+      createdAt: formatDate(announcement.createdAt),
+      teacher: getTeacherInfo(announcement).name
+    };
+
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${announcement.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleRefresh = () => {
+    fetchAnnouncements();
+    setSnackbar({ 
+      open: true, 
+      message: 'Data refreshed successfully.', 
+      severity: 'success' 
+    });
+  };
+
+  // Filter announcements based on search term
+  const filteredAnnouncements = announcements.filter(announcement =>
+    announcement.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    announcement.message?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    announcement.category?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    getTeacherInfo(announcement).name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
   return (
     <Box sx={{ pt: { xs: 2, sm: 3 }, pl: { xs: 2, sm: 3, md: 4 }, pr: { xs: 2, sm: 3, md: 4 } }}>
       <Typography variant="h4" gutterBottom fontWeight={700} sx={{ color: theme.palette.mode === 'dark' ? '#ffffff' : '#800000', mb: 2, mt: 1 }}>
-        Announcement Report
+        Announcement History
       </Typography>
+
+      {/* Search Bar and Actions */}
+      <Box sx={{ mb: 3, display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 2 }}>
+        <TextField
+          placeholder="Search announcements..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          sx={{
+            minWidth: 300,
+            '& .MuiOutlinedInput-root': {
+              borderRadius: 2,
+            }
+          }}
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <Search sx={{ color: 'text.secondary' }} />
+              </InputAdornment>
+            ),
+          }}
+        />
+        <Button
+          variant="outlined"
+          startIcon={<Refresh />}
+          onClick={handleRefresh}
+          sx={{
+            borderColor: '#800000',
+            color: '#800000',
+            '&:hover': {
+              backgroundColor: '#800000',
+              color: '#ffffff',
+              borderColor: '#800000'
+            }
+          }}
+        >
+          Refresh
+        </Button>
+      </Box>
 
       {loading ? (
         <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '40vh' }}>
@@ -228,20 +432,21 @@ export default function AnnouncementReport() {
                 <TableCell sx={{ fontWeight: 600, color: theme.palette.mode === 'dark' ? '#ffffff' : '#000000' }}>Teacher</TableCell>
                 <TableCell sx={{ fontWeight: 600, color: theme.palette.mode === 'dark' ? '#ffffff' : '#000000' }}>Category</TableCell>
                 <TableCell sx={{ fontWeight: 600, color: theme.palette.mode === 'dark' ? '#ffffff' : '#000000' }}>Priority</TableCell>
-                <TableCell sx={{ fontWeight: 600, color: theme.palette.mode === 'dark' ? '#ffffff' : '#000000' }}>Status</TableCell>
                 <TableCell sx={{ fontWeight: 600, color: theme.palette.mode === 'dark' ? '#ffffff' : '#000000' }}>Actions</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
-              {announcements.length === 0 ? (
+              {filteredAnnouncements.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} align="center" sx={{ py: 4 }}>
+                  <TableCell colSpan={6} align="center" sx={{ py: 4 }}>
                     <Typography variant="h6" sx={{ color: theme.palette.mode === 'dark' ? '#ffffff' : 'text.secondary' }}>
-                      No announcements found.
+                      {searchTerm ? 'No announcements match your search.' : 'No announcements found.'}
                     </Typography>
                   </TableCell>
                 </TableRow>
-              ) : announcements.map((announcement) => {
+              ) : filteredAnnouncements
+                .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
+                .map((announcement) => {
                 const teacherInfo = getTeacherInfo(announcement);
                 const status = announcement.status || 'Pending';
                 
@@ -280,43 +485,8 @@ export default function AnnouncementReport() {
                       />
                     </TableCell>
                     <TableCell>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <Box sx={{ 
-                          width: 20, 
-                          height: 20, 
-                          bgcolor: 'transparent',
-                          borderRadius: 1, 
-                          display: 'flex', 
-                          alignItems: 'center', 
-                          justifyContent: 'center',
-                          flexShrink: 0
-                        }}>
-                          {status === 'Approved' ? (
-                            <CheckCircle sx={{ fontSize: 14, color: '#4caf50' }} />
-                          ) : status === 'Denied' ? (
-                            <Cancel sx={{ fontSize: 14, color: '#f44336' }} />
-                          ) : status === 'Pending' ? (
-                            <Schedule sx={{ fontSize: 14, color: '#ff9800' }} />
-                          ) : (
-                            <Warning sx={{ fontSize: 14, color: '#9e9e9e' }} />
-                          )}
-                        </Box>
-                        <Typography 
-                          variant="body2" 
-                          sx={{ 
-                            color: status === 'Pending' ? '#ff9800' : 
-                                  status === 'Approved' ? '#4caf50' : 
-                                  status === 'Denied' ? '#f44336' : '#000',
-                            fontWeight: 500
-                          }}
-                        >
-                          {status}
-                        </Typography>
-                      </Box>
-                    </TableCell>
-                    <TableCell>
-                      <Box sx={{ display: 'flex', gap: 1 }}>
-                        <Tooltip title="View Details">
+                      <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
+                        <Tooltip title="View">
                           <IconButton 
                             size="small" 
                             onClick={() => handleViewDetails(announcement)}
@@ -331,38 +501,65 @@ export default function AnnouncementReport() {
                           </IconButton>
                         </Tooltip>
                         
-                        {status === 'Pending' && (
-                          <>
-                            <Tooltip title="Approve">
-                              <IconButton 
-                                size="small" 
-                                onClick={() => handleApprovalAction(announcement, 'approve')}
-                                sx={{
-                                  '&:hover': {
-                                    color: '#4caf50',
-                                    bgcolor: 'rgba(76, 175, 80, 0.04)'
-                                  }
-                                }}
-                              >
-                                <CheckCircle sx={{ fontSize: 16 }} />
-                              </IconButton>
-                            </Tooltip>
-                            <Tooltip title="Deny">
-                              <IconButton 
-                                size="small" 
-                                onClick={() => handleApprovalAction(announcement, 'deny')}
-                                sx={{
-                                  '&:hover': {
-                                    color: '#f44336',
-                                    bgcolor: 'rgba(244, 67, 54, 0.04)'
-                                  }
-                                }}
-                              >
-                                <Cancel sx={{ fontSize: 16 }} />
-                              </IconButton>
-                            </Tooltip>
-                          </>
-                        )}
+                        <Tooltip title="Edit">
+                          <IconButton 
+                            size="small" 
+                            onClick={() => handleEdit(announcement)}
+                            sx={{
+                              '&:hover': {
+                                color: '#f57c00',
+                                bgcolor: 'rgba(245, 124, 0, 0.04)'
+                              }
+                            }}
+                          >
+                            <EditIcon sx={{ fontSize: 16 }} />
+                          </IconButton>
+                        </Tooltip>
+                        
+                        <Tooltip title="Print">
+                          <IconButton 
+                            size="small" 
+                            onClick={() => handlePrint(announcement)}
+                            sx={{
+                              '&:hover': {
+                                color: '#666666',
+                                bgcolor: 'rgba(102, 102, 102, 0.04)'
+                              }
+                            }}
+                          >
+                            <Print sx={{ fontSize: 16 }} />
+                          </IconButton>
+                        </Tooltip>
+                        
+                        <Tooltip title="Download">
+                          <IconButton 
+                            size="small" 
+                            onClick={() => handleDownload(announcement)}
+                            sx={{
+                              '&:hover': {
+                                color: '#4caf50',
+                                bgcolor: 'rgba(76, 175, 80, 0.04)'
+                              }
+                            }}
+                          >
+                            <Download sx={{ fontSize: 16 }} />
+                          </IconButton>
+                        </Tooltip>
+                        
+                        <Tooltip title="Delete">
+                          <IconButton 
+                            size="small" 
+                            onClick={() => handleDelete(announcement)}
+                            sx={{
+                              '&:hover': {
+                                color: '#f44336',
+                                bgcolor: 'rgba(244, 67, 54, 0.04)'
+                              }
+                            }}
+                          >
+                            <DeleteIcon sx={{ fontSize: 16 }} />
+                          </IconButton>
+                        </Tooltip>
                       </Box>
                     </TableCell>
                   </TableRow>
@@ -370,9 +567,119 @@ export default function AnnouncementReport() {
               })}
             </TableBody>
           </Table>
+          <TablePagination
+            rowsPerPageOptions={[5, 8, 10, 25]}
+            component="div"
+            count={filteredAnnouncements.length}
+            rowsPerPage={rowsPerPage}
+            page={page}
+            onPageChange={handleChangePage}
+            onRowsPerPageChange={handleChangeRowsPerPage}
+            sx={{
+              borderTop: '1px solid',
+              borderColor: 'divider',
+              '& .MuiTablePagination-toolbar': {
+                paddingLeft: 2,
+                paddingRight: 2,
+              },
+              '& .MuiTablePagination-selectLabel, & .MuiTablePagination-displayedRows': {
+                color: theme.palette.mode === 'dark' ? '#ffffff' : '#000000',
+              }
+            }}
+          />
         </TableContainer>
       )}
 
+      {/* Edit Dialog */}
+      <Dialog 
+        open={editDialog} 
+        onClose={() => setEditDialog(false)}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>
+          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+            <EditIcon sx={{ mr: 1, color: 'primary.main' }} />
+            <Typography variant="h6">
+              Edit Announcement
+            </Typography>
+          </Box>
+        </DialogTitle>
+        <DialogContent>
+          <Box sx={{ mt: 2 }}>
+            <Grid container spacing={3}>
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  label="Title"
+                  value={editForm.title}
+                  onChange={(e) => setEditForm({...editForm, title: e.target.value})}
+                  variant="outlined"
+                />
+              </Grid>
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  label="Message"
+                  value={editForm.message}
+                  onChange={(e) => setEditForm({...editForm, message: e.target.value})}
+                  variant="outlined"
+                  multiline
+                  rows={4}
+                />
+              </Grid>
+              <Grid item xs={6}>
+                <FormControl fullWidth>
+                  <InputLabel>Category</InputLabel>
+                  <Select
+                    value={editForm.category}
+                    onChange={(e) => setEditForm({...editForm, category: e.target.value})}
+                    label="Category"
+                  >
+                    <MenuItem value="General">General</MenuItem>
+                    <MenuItem value="Academic">Academic</MenuItem>
+                    <MenuItem value="Event">Event</MenuItem>
+                    <MenuItem value="Emergency">Emergency</MenuItem>
+                    <MenuItem value="Administrative">Administrative</MenuItem>
+                  </Select>
+                </FormControl>
+              </Grid>
+              <Grid item xs={6}>
+                <FormControl fullWidth>
+                  <InputLabel>Priority</InputLabel>
+                  <Select
+                    value={editForm.priority}
+                    onChange={(e) => setEditForm({...editForm, priority: e.target.value})}
+                    label="Priority"
+                  >
+                    <MenuItem value="Normal">Normal</MenuItem>
+                    <MenuItem value="High">High</MenuItem>
+                    <MenuItem value="Urgent">Urgent</MenuItem>
+                  </Select>
+                </FormControl>
+              </Grid>
+            </Grid>
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setEditDialog(false)}>
+            Cancel
+          </Button>
+          <Button 
+            onClick={handleSaveEdit} 
+            variant="contained"
+            disabled={processing}
+            sx={{
+              backgroundColor: '#800000',
+              '&:hover': {
+                backgroundColor: '#600000'
+              }
+            }}
+          >
+            {processing ? 'Saving...' : 'Save Changes'}
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       {/* View Details Dialog */}
       <Dialog 

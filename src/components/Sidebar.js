@@ -41,7 +41,7 @@ const menu = [
     hasSubmenu: true,
     submenu: [
       { text: "Announcements", icon: <Campaign sx={{ color: 'inherit' }} />, path: "/announcements" },
-      { text: "Report", icon: <Description sx={{ color: 'inherit' }} />, path: "/announcements/report" }
+      { text: "History", icon: <Description sx={{ color: 'inherit' }} />, path: "/announcements/report" }
     ]
   },
 { text: "Options", icon: <Settings sx={{ color: 'inherit' }} />, path: "/options" }

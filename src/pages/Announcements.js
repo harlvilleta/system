@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Box, Typography, Paper, TextField, Button, Stack, Snackbar, Alert, List, ListItem, ListItemText, Divider, MenuItem, Card, CardContent, CardHeader, Chip, Tabs, Tab, Badge, Dialog, DialogTitle, DialogContent, DialogActions, Select, InputAdornment, useTheme, CircularProgress } from "@mui/material";
+import { Box, Typography, Paper, TextField, Button, Stack, Snackbar, Alert, List, ListItem, ListItemText, Divider, MenuItem, Card, CardContent, CardHeader, Chip, Tabs, Tab, Badge, Dialog, DialogTitle, DialogContent, DialogActions, Select, InputAdornment, useTheme, CircularProgress, Grid } from "@mui/material";
 import { CloudUpload, Image, Delete, Schedule, AccessTime, CheckCircle, Visibility } from "@mui/icons-material";
 import { collection, addDoc, getDocs, query, orderBy, deleteDoc, doc, updateDoc, getDoc, where } from "firebase/firestore";
 import { db, logActivity, storage } from "../firebase";
@@ -51,6 +51,7 @@ export default function Announcements() {
   const [activities, setActivities] = useState([]);
   const [photoPreview, setPhotoPreview] = useState(null);
   const [photoBase64, setPhotoBase64] = useState('');
+  const [selectedCard, setSelectedCard] = useState('total');
 
   useEffect(() => {
     // Get current user and role
@@ -437,6 +438,48 @@ export default function Announcements() {
       : sorted;
   }
 
+  // Card click handler
+  const handleCardClick = (cardType) => {
+    setSelectedCard(cardType);
+    setSearch(""); // Clear search when selecting a card
+    setSelected([]); // Clear selected items
+  };
+
+  // Get filtered announcements based on selected card
+  const getFilteredAnnouncements = () => {
+    switch (selectedCard) {
+      case 'total':
+        return announcements; // Show all announcements
+      case 'active':
+        return mainList;
+      case 'completed':
+        return filteredCompleted;
+      case 'scheduled':
+        return scheduledList;
+      case 'expired':
+        return expiredList;
+      default:
+        return announcements;
+    }
+  };
+
+  const getCardTitle = () => {
+    switch (selectedCard) {
+      case 'total':
+        return 'Total Announcements';
+      case 'active':
+        return 'Active Announcements';
+      case 'completed':
+        return 'Completed Announcements';
+      case 'scheduled':
+        return 'Scheduled Announcements';
+      case 'expired':
+        return 'Expired Announcements';
+      default:
+        return 'All Announcements';
+    }
+  };
+
   // Use utility functions for each tab
   const { recent, mainList } = getActiveAnnouncements(announcements, search);
   const filteredRecycleBin = getRecycleBinAnnouncements(recycleBin, search);
@@ -489,7 +532,13 @@ export default function Announcements() {
   }, [bulkAction]);
 
   return (
-    <Box sx={{ pt: { xs: 2, sm: 3 }, pl: { xs: 2, sm: 3, md: 4 }, pr: { xs: 2, sm: 3, md: 4 } }}>
+    <Box sx={{ 
+      pt: { xs: 2, sm: 3 }, 
+      pl: { xs: 2, sm: 3, md: 4 }, 
+      pr: { xs: 2, sm: 3, md: 4 },
+      maxWidth: '100%',
+      width: '100%'
+    }}>
       <Typography variant="h4" gutterBottom sx={{ color: theme.palette.mode === 'dark' ? '#ffffff' : '#800000', mb: 2, mt: 1 }}>
         Announcements
       </Typography>
@@ -509,14 +558,37 @@ export default function Announcements() {
             sx={{ 
               cursor: 'pointer',
               transition: 'all 0.3s ease',
-              boxShadow: 2,
+              boxShadow: selectedCard === 'total' ? 4 : 2,
               borderLeft: '4px solid #800000',
               '&:hover': {
                 transform: 'translateY(-2px)',
                 boxShadow: 4
               }
             }}
-            onClick={() => { setSearch(""); setSelected([]); }}
+            onClick={() => handleCardClick('total')}
+          >
+            <CardContent sx={{ textAlign: 'center', py: 3 }}>
+              <Typography variant="h4" fontWeight={700} sx={{ color: '#000000' }}>
+                {announcements.length}
+              </Typography>
+              <Typography variant="body2" color="textSecondary" sx={{ mt: 1 }}>
+                Total Announcements
+              </Typography>
+            </CardContent>
+          </Card>
+
+          <Card 
+            sx={{ 
+              cursor: 'pointer',
+              transition: 'all 0.3s ease',
+              boxShadow: selectedCard === 'active' ? 4 : 2,
+              borderLeft: '4px solid #800000',
+              '&:hover': {
+                transform: 'translateY(-2px)',
+                boxShadow: 4
+              }
+            }}
+            onClick={() => handleCardClick('active')}
           >
             <CardContent sx={{ textAlign: 'center', py: 3 }}>
               <Typography variant="h4" fontWeight={700} sx={{ color: '#000000' }}>
@@ -532,14 +604,14 @@ export default function Announcements() {
             sx={{ 
               cursor: 'pointer',
               transition: 'all 0.3s ease',
-              boxShadow: 2,
+              boxShadow: selectedCard === 'completed' ? 4 : 2,
               borderLeft: '4px solid #800000',
               '&:hover': {
                 transform: 'translateY(-2px)',
                 boxShadow: 4
               }
             }}
-            onClick={() => { setSearch("completed"); setSelected([]); }}
+            onClick={() => handleCardClick('completed')}
           >
             <CardContent sx={{ textAlign: 'center', py: 3 }}>
               <Typography variant="h4" fontWeight={700} sx={{ color: '#000000' }}>
@@ -555,14 +627,14 @@ export default function Announcements() {
             sx={{ 
               cursor: 'pointer',
               transition: 'all 0.3s ease',
-              boxShadow: 2,
+              boxShadow: selectedCard === 'scheduled' ? 4 : 2,
               borderLeft: '4px solid #800000',
               '&:hover': {
                 transform: 'translateY(-2px)',
                 boxShadow: 4
               }
             }}
-            onClick={() => { setSearch("scheduled"); setSelected([]); }}
+            onClick={() => handleCardClick('scheduled')}
           >
             <CardContent sx={{ textAlign: 'center', py: 3 }}>
               <Typography variant="h4" fontWeight={700} sx={{ color: '#000000' }}>
@@ -570,29 +642,6 @@ export default function Announcements() {
               </Typography>
               <Typography variant="body2" color="textSecondary" sx={{ mt: 1 }}>
                 Scheduled
-              </Typography>
-            </CardContent>
-          </Card>
-
-          <Card 
-            sx={{ 
-              cursor: 'pointer',
-              transition: 'all 0.3s ease',
-              boxShadow: 2,
-              borderLeft: '4px solid #800000',
-              '&:hover': {
-                transform: 'translateY(-2px)',
-                boxShadow: 4
-              }
-            }}
-            onClick={() => { setSearch("expired"); setSelected([]); }}
-          >
-            <CardContent sx={{ textAlign: 'center', py: 3 }}>
-              <Typography variant="h4" fontWeight={700} sx={{ color: '#000000' }}>
-                {expiredList.length}
-              </Typography>
-              <Typography variant="body2" color="textSecondary" sx={{ mt: 1 }}>
-                Expired
               </Typography>
             </CardContent>
           </Card>
@@ -762,123 +811,228 @@ export default function Announcements() {
         )}
       </Box>
 
-      {/* Recent Announcements Section (only in Active tab) */}
-      {recent.length > 0 && (
-        <Box sx={{ mb: 3 }}>
-          <Typography variant="h6" sx={{ mb: 1, fontWeight: 700, color: '#800000' }}>
-            Recent Announcements
-          </Typography>
-          <Stack spacing={2}>
-            {recent.map(a => (
-              <Card key={a.id} sx={{ 
-                borderLeft: a.priority === 'Urgent' ? '4px solid #d32f2f' : a.pinned ? '4px solid #800000' : '4px solid #800000', 
-                boxShadow: 2,
-                transition: 'all 0.3s ease',
-                bgcolor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.05)' : 'rgba(255, 255, 255, 0.9)',
-                borderRadius: 2,
-                mb: 2,
-                '&:hover': {
-                  transform: 'translateY(-2px)',
-                  boxShadow: 4,
-                  bgcolor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.08)' : 'rgba(255, 255, 255, 1)'
-                }
-              }}>
-                <CardHeader
-                  title={<Stack direction="row" alignItems="center" spacing={1} flexWrap="wrap">
-                    <Typography fontWeight={700} sx={{ color: '#4caf50' }}>{a.title}</Typography>
-                    {a.pinned && <Chip label="📌 Pinned" color="warning" size="small" sx={{ fontSize: '0.7rem' }} />}
-                    {a.priority === 'Urgent' && <Chip label="🚨 Urgent" color="error" size="small" sx={{ fontSize: '0.7rem' }} />}
-                    <Chip label="🆕 Recent" color="success" variant="outlined" size="small" sx={{ fontSize: '0.7rem' }} />
-                    <Chip label={`👤 ${a.audience}`} color="secondary" size="small" sx={{ fontSize: '0.7rem' }} />
-                    {a.completed && <Chip label="✅ Completed" color="success" size="small" sx={{ fontSize: '0.7rem' }} />}
-                  </Stack>}
-                  subheader={
-                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                      <Typography variant="body2" color="text.secondary">
-                        📅 {a.date ? new Date(a.date).toLocaleString() : 'No date set'}
-                      </Typography>
-                      {a.expiryDate && (
-                        <Typography variant="body2" color="text.secondary">
-                          ⏰ Expires: {new Date(a.expiryDate).toLocaleString()}
-                        </Typography>
+      {/* Recent and Completed Announcements Side by Side */}
+      <Grid container spacing={3} sx={{ mb: 4 }}>
+        {/* Recent Announcements - Left Side */}
+        <Grid item xs={12} md={6} sx={{ display: 'flex', flexDirection: 'column' }}>
+          <Box sx={{ 
+            maxWidth: '100%', 
+            width: '100%', 
+            height: '100%',
+            display: 'flex',
+            flexDirection: 'column'
+          }}>
+            <Typography variant="h6" sx={{ mb: 1, fontWeight: 700, color: '#800000' }}>
+              Recent Announcements
+            </Typography>
+            <Box sx={{ 
+              flex: 1,
+              minHeight: '400px',
+              maxHeight: '600px',
+              overflow: 'auto'
+            }}>
+              {recent.length === 0 ? (
+                <Typography align="center" color="text.secondary" sx={{ mt: 4 }}>No recent announcements.</Typography>
+              ) : (
+                <Stack spacing={0.5} sx={{ maxWidth: '100%' }}>
+                  {recent.map(a => (
+                  <Card key={a.id} sx={{ 
+                    borderLeft: a.priority === 'Urgent' ? '3px solid #d32f2f' : a.pinned ? '3px solid #800000' : '3px solid #800000', 
+                    boxShadow: 1,
+                    transition: 'all 0.3s ease',
+                    bgcolor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.05)' : 'rgba(255, 255, 255, 0.9)',
+                    borderRadius: 1,
+                    mb: 0.5,
+                    px: 0.5,
+                    py: 0.25,
+                    minHeight: 'auto',
+                    '&:hover': {
+                      transform: 'translateY(-1px)',
+                      boxShadow: 2,
+                      bgcolor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.08)' : 'rgba(255, 255, 255, 1)'
+                    }
+                  }}>
+                    <CardHeader
+                      title={<Stack direction="row" alignItems="center" spacing={1} flexWrap="wrap">
+                        <Typography fontWeight={700} sx={{ color: '#4caf50' }}>{a.title}</Typography>
+                        {a.pinned && <Chip label="📌 Pinned" color="warning" size="small" sx={{ fontSize: '0.7rem' }} />}
+                        {a.priority === 'Urgent' && <Chip label="🚨 Urgent" color="error" size="small" sx={{ fontSize: '0.7rem' }} />}
+                        <Chip label="🆕 Recent" color="success" variant="outlined" size="small" sx={{ fontSize: '0.7rem' }} />
+                        <Chip label={`👤 ${a.audience}`} color="secondary" size="small" sx={{ fontSize: '0.7rem' }} />
+                        {a.completed && <Chip label="✅ Completed" color="success" size="small" sx={{ fontSize: '0.7rem' }} />}
+                      </Stack>}
+                      subheader={
+                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                          <Typography variant="body2" color="text.secondary">
+                            📅 {a.date ? new Date(a.date).toLocaleString() : 'No date set'}
+                          </Typography>
+                          {a.expiryDate && (
+                            <Typography variant="body2" color="text.secondary">
+                              ⏰ Expires: {new Date(a.expiryDate).toLocaleString()}
+                            </Typography>
+                          )}
+                        </Box>
+                      }
+                      action={
+                        <Stack direction="row" spacing={1}>
+                            {userRole === 'Admin' && (
+                              <>
+                                <Tooltip title={a.pinned ? "Unpin" : "Pin"}><IconButton onClick={() => handlePin(a, !a.pinned)} disabled={isSubmitting}>{a.pinned ? <PushPinIcon /> : <PushPinOutlinedIcon />}</IconButton></Tooltip>
+                                <Tooltip title="Edit"><IconButton 
+                                  onClick={() => setEditAnnouncement(a)}
+                                  sx={{
+                                    '&:hover': {
+                                      color: '#f57c00',
+                                      bgcolor: 'rgba(245, 124, 0, 0.04)'
+                                    }
+                                  }}
+                                ><EditIcon /></IconButton></Tooltip>
+                                <Tooltip title="Delete"><IconButton 
+                                  onClick={() => handleDelete(a)} 
+                                  disabled={isSubmitting}
+                                  sx={{
+                                    '&:hover': {
+                                      color: '#f44336',
+                                      bgcolor: 'rgba(244, 67, 54, 0.04)'
+                                    }
+                                  }}
+                                ><DeleteIcon /></IconButton></Tooltip>
+                                {!a.completed && <Tooltip title="Mark as Completed"><IconButton onClick={() => handleMarkCompleted(a)} disabled={isSubmitting}><Chip label="Complete" color="success" size="small" /></IconButton></Tooltip>}
+                              </>
+                            )}
+                            <Tooltip title="View"><IconButton 
+                              onClick={() => setViewAnnouncement(a)}
+                              sx={{
+                                '&:hover': {
+                                  color: '#1976d2',
+                                  bgcolor: 'rgba(25, 118, 210, 0.04)'
+                                }
+                              }}
+                            ><VisibilityIcon /></IconButton></Tooltip>
+                          <Tooltip title="Print"><IconButton 
+                            onClick={() => handlePrint(a)}
+                            sx={{
+                              '&:hover': {
+                                color: '#666666',
+                                bgcolor: 'rgba(102, 102, 102, 0.04)'
+                              }
+                            }}
+                          ><PrintIcon /></IconButton></Tooltip>
+                        </Stack>
+                      }
+                    />
+                    <CardContent>
+                      <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>{a.message}</Typography>
+                      {a.photoUrl && (
+                        <Box sx={{ mt: 2, display: 'flex', justifyContent: 'center' }}>
+                          <img
+                            src={a.photoUrl}
+                            alt="Announcement"
+                            style={{
+                              maxWidth: '100%',
+                              maxHeight: '300px',
+                              objectFit: 'cover',
+                              borderRadius: '8px',
+                              border: '1px solid #e0e0e0',
+                              display: 'block'
+                            }}
+                          />
+                        </Box>
                       )}
-                    </Box>
-                  }
-                  action={
-                    <Stack direction="row" spacing={1}>
-                        {userRole === 'Admin' && (
-                          <>
-                            <Tooltip title={a.pinned ? "Unpin" : "Pin"}><IconButton onClick={() => handlePin(a, !a.pinned)} disabled={isSubmitting}>{a.pinned ? <PushPinIcon /> : <PushPinOutlinedIcon />}</IconButton></Tooltip>
-                            <Tooltip title="Edit"><IconButton 
-                              onClick={() => setEditAnnouncement(a)}
+                    </CardContent>
+                  </Card>
+                  ))}
+                </Stack>
+              )}
+            </Box>
+          </Box>
+        </Grid>
+
+        {/* Completed Announcements - Right Side */}
+        <Grid item xs={12} md={6} sx={{ display: 'flex', flexDirection: 'column' }}>
+          <Box sx={{ 
+            maxWidth: '100%', 
+            width: '100%', 
+            height: '100%',
+            display: 'flex',
+            flexDirection: 'column'
+          }}>
+            <Typography variant="h6" sx={{ mb: 1, fontWeight: 700, color: '#43a047' }}>
+              Completed Announcements
+            </Typography>
+            <Box sx={{ 
+              flex: 1,
+              minHeight: '400px',
+              maxHeight: '600px',
+              overflow: 'auto'
+            }}>
+              {filteredCompleted.length === 0 ? (
+                <Typography align="center" color="text.secondary" sx={{ mt: 4 }}>No completed announcements.</Typography>
+              ) : (
+                <Stack spacing={0.5}>
+                  {filteredCompleted.map(a => (
+                    <Card key={a.id} sx={{ mb: 0.5, borderLeft: '3px solid #43a047', boxShadow: 1, px: 0.5, py: 0.25, minHeight: 'auto' }}>
+                      <CardHeader
+                        title={<Stack direction="row" alignItems="center" spacing={1}>
+                          <Typography fontWeight={700}>{a.title}</Typography>
+                          <Chip label="Completed" color="success" size="small" />
+                          <Chip label={a.audience} color="secondary" size="small" />
+                        </Stack>}
+                        subheader={a.completedAt ? new Date(a.completedAt).toLocaleDateString() : a.date ? new Date(a.date).toLocaleDateString() : ''}
+                        action={
+                          <Stack direction="row" spacing={1}>
+                            <Tooltip title="View"><IconButton 
+                              onClick={() => setViewAnnouncement(a)}
                               sx={{
                                 '&:hover': {
-                                  color: '#f57c00',
-                                  bgcolor: 'rgba(245, 124, 0, 0.04)'
+                                  color: '#1976d2',
+                                  bgcolor: 'rgba(25, 118, 210, 0.04)'
                                 }
                               }}
-                            ><EditIcon /></IconButton></Tooltip>
-                            <Tooltip title="Delete"><IconButton 
-                              onClick={() => handleDelete(a)} 
-                              disabled={isSubmitting}
+                            ><VisibilityIcon /></IconButton></Tooltip>
+                            <Tooltip title="Print"><IconButton 
+                              onClick={() => handlePrint(a)}
                               sx={{
                                 '&:hover': {
-                                  color: '#f44336',
-                                  bgcolor: 'rgba(244, 67, 54, 0.04)'
+                                  color: '#666666',
+                                  bgcolor: 'rgba(102, 102, 102, 0.04)'
                                 }
                               }}
-                            ><DeleteIcon /></IconButton></Tooltip>
-                            {!a.completed && <Tooltip title="Mark as Completed"><IconButton onClick={() => handleMarkCompleted(a)} disabled={isSubmitting}><Chip label="Complete" color="success" size="small" /></IconButton></Tooltip>}
-                          </>
-                        )}
-                        <Tooltip title="View"><IconButton 
-                          onClick={() => setViewAnnouncement(a)}
-                          sx={{
-                            '&:hover': {
-                              color: '#1976d2',
-                              bgcolor: 'rgba(25, 118, 210, 0.04)'
-                            }
-                          }}
-                        ><VisibilityIcon /></IconButton></Tooltip>
-                      <Tooltip title="Print"><IconButton 
-                        onClick={() => handlePrint(a)}
-                        sx={{
-                          '&:hover': {
-                            color: '#666666',
-                            bgcolor: 'rgba(102, 102, 102, 0.04)'
-                          }
-                        }}
-                      ><PrintIcon /></IconButton></Tooltip>
-                    </Stack>
-                  }
-                />
-                <CardContent>
-                  <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>{a.message}</Typography>
-                  {a.photoUrl && (
-                    <Box sx={{ mt: 2 }}>
-                      <img
-                        src={a.photoUrl}
-                        alt="Announcement"
-                        style={{
-                          maxWidth: '100%',
-                          maxHeight: '400px',
-                          objectFit: 'cover',
-                          borderRadius: '8px',
-                          border: '1px solid #e0e0e0'
-                        }}
+                            ><PrintIcon /></IconButton></Tooltip>
+                          </Stack>
+                        }
                       />
-                    </Box>
-                  )}
-                </CardContent>
-              </Card>
-            ))}
-          </Stack>
-        </Box>
-      )}
+                      <CardContent>
+                        <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>{a.message}</Typography>
+                        {a.photoUrl && (
+                          <Box sx={{ mt: 2, display: 'flex', justifyContent: 'center' }}>
+                            <img
+                              src={a.photoUrl}
+                              alt="Announcement"
+                              style={{
+                                maxWidth: '100%',
+                                maxHeight: '300px',
+                                objectFit: 'cover',
+                                borderRadius: '8px',
+                                border: '1px solid #e0e0e0',
+                                display: 'block'
+                              }}
+                            />
+                          </Box>
+                        )}
+                      </CardContent>
+                    </Card>
+                  ))}
+                </Stack>
+              )}
+            </Box>
+          </Box>
+        </Grid>
+      </Grid>
       {/* Main List for current tab */}
       {(
-        <Box sx={{ mb: 4 }}>
-          <Typography variant="h6" sx={{ mb: 1, fontWeight: 700 }}>All Active Announcements</Typography>
+        <Box sx={{ mb: 4, maxWidth: '100%', width: '100%' }}>
+          <Typography variant="h6" sx={{ mb: 1, fontWeight: 700 }}>{getCardTitle()}</Typography>
           {selected.length > 0 && userRole === 'Admin' && (
             <Paper sx={{ mb: 2, p: 1, bgcolor: '#f5f5f5', display: 'flex', alignItems: 'center', gap: 2 }}>
               <Typography>{selected.length} selected</Typography>
@@ -888,22 +1042,25 @@ export default function Announcements() {
               <Button size="small" color="warning" onClick={() => setBulkAction('unpin')}>Unpin</Button>
             </Paper>
           )}
-          {mainList.length === 0 ? (
+          {getFilteredAnnouncements().length === 0 ? (
             <Typography align="center" color="text.secondary">No announcements yet.</Typography>
           ) : (
             <React.Fragment>
-              {mainList.map(a => (
+              {getFilteredAnnouncements().map(a => (
                 <Card key={a.id} sx={{ 
-                  mb: 2, 
-                  borderLeft: a.priority === 'Urgent' ? '4px solid #d32f2f' : a.pinned ? '4px solid #800000' : '4px solid #800000', 
-                  boxShadow: 2, 
+                  mb: 0.5, 
+                  borderLeft: a.priority === 'Urgent' ? '3px solid #d32f2f' : a.pinned ? '3px solid #800000' : '3px solid #800000', 
+                  boxShadow: 1, 
                   position: 'relative',
                   bgcolor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.05)' : 'rgba(255, 255, 255, 0.9)',
-                  borderRadius: 2,
+                  borderRadius: 1,
+                  px: 0.5,
+                  py: 0.25,
+                  minHeight: 'auto',
                   transition: 'all 0.3s ease',
                   '&:hover': {
-                    transform: 'translateY(-2px)',
-                    boxShadow: 4,
+                    transform: 'translateY(-1px)',
+                    boxShadow: 2,
                     bgcolor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.08)' : 'rgba(255, 255, 255, 1)'
                   }
                 }}>
@@ -938,7 +1095,7 @@ export default function Announcements() {
                   <CardContent>
                     <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>{a.message}</Typography>
                     {a.photoUrl && (
-                      <Box sx={{ mt: 2 }}>
+                      <Box sx={{ mt: 2, display: 'flex', justifyContent: 'center' }}>
                         <img
                           src={a.photoUrl}
                           alt="Announcement"
@@ -947,7 +1104,8 @@ export default function Announcements() {
                             maxHeight: '300px',
                             objectFit: 'cover',
                             borderRadius: '8px',
-                            border: '1px solid #e0e0e0'
+                            border: '1px solid #e0e0e0',
+                            display: 'block'
                           }}
                         />
                       </Box>
@@ -960,68 +1118,8 @@ export default function Announcements() {
         </Box>
       )}
 
-      
-      {filteredCompleted.length > 0 && (
-        <Box sx={{ mb: 4 }}>
-          <Typography variant="h6" sx={{ mb: 1, fontWeight: 700 }}>Completed Announcements</Typography>
-          {filteredCompleted.length === 0 ? (
-            <Typography align="center" color="text.secondary">No completed announcements.</Typography>
-          ) : filteredCompleted.map(a => (
-            <Card key={a.id} sx={{ mb: 2, borderLeft: '5px solid #43a047', boxShadow: 2 }}>
-              <CardHeader
-                title={<Stack direction="row" alignItems="center" spacing={1}>
-                  <Typography fontWeight={700}>{a.title}</Typography>
-                  <Chip label="Completed" color="success" size="small" />
-                  <Chip label={a.audience} color="secondary" size="small" />
-                </Stack>}
-                subheader={a.completedAt ? new Date(a.completedAt).toLocaleDateString() : a.date ? new Date(a.date).toLocaleDateString() : ''}
-                action={
-                  <Stack direction="row" spacing={1}>
-                    <Tooltip title="View"><IconButton 
-                      onClick={() => setViewAnnouncement(a)}
-                      sx={{
-                        '&:hover': {
-                          color: '#1976d2',
-                          bgcolor: 'rgba(25, 118, 210, 0.04)'
-                        }
-                      }}
-                    ><VisibilityIcon /></IconButton></Tooltip>
-                    <Tooltip title="Print"><IconButton 
-                      onClick={() => handlePrint(a)}
-                      sx={{
-                        '&:hover': {
-                          color: '#666666',
-                          bgcolor: 'rgba(102, 102, 102, 0.04)'
-                        }
-                      }}
-                    ><PrintIcon /></IconButton></Tooltip>
-                  </Stack>
-                }
-              />
-              <CardContent>
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>{a.message}</Typography>
-                {a.photoUrl && (
-                  <Box sx={{ mt: 2 }}>
-                    <img
-                      src={a.photoUrl}
-                      alt="Announcement"
-                      style={{
-                        maxWidth: '100%',
-                        maxHeight: '300px',
-                        objectFit: 'cover',
-                        borderRadius: '8px',
-                        border: '1px solid #e0e0e0'
-                      }}
-                    />
-                  </Box>
-                )}
-              </CardContent>
-            </Card>
-          ))}
-        </Box>
-      )}
       {scheduledList.length > 0 && (
-        <Box sx={{ mb: 4 }}>
+        <Box sx={{ mb: 4, maxWidth: '100%', width: '100%' }}>
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
             <Typography variant="h6" sx={{ fontWeight: 700, color: '#0288d1' }}>
               📅 Scheduled Announcements
@@ -1050,9 +1148,12 @@ export default function Announcements() {
             </Box>
           ) : scheduledList.map(a => (
             <Card key={a.id} sx={{ 
-              mb: 2, 
-              borderLeft: '5px solid #0288d1', 
-              boxShadow: 2,
+              mb: 0.5, 
+              borderLeft: '3px solid #0288d1', 
+              boxShadow: 1,
+              px: 0.5,
+              py: 0.25,
+              minHeight: 'auto',
               bgcolor: theme.palette.mode === 'dark' ? 'rgba(2, 136, 209, 0.05)' : 'rgba(2, 136, 209, 0.02)'
             }}>
               <CardHeader
@@ -1103,7 +1204,7 @@ export default function Announcements() {
                   {a.message}
                 </Typography>
                 {a.photoUrl && (
-                  <Box sx={{ mt: 2 }}>
+                  <Box sx={{ mt: 2, display: 'flex', justifyContent: 'center' }}>
                     <img
                       src={a.photoUrl}
                       alt="Announcement"
@@ -1112,7 +1213,8 @@ export default function Announcements() {
                         maxHeight: '300px',
                         objectFit: 'cover',
                         borderRadius: '8px',
-                        border: '1px solid #e0e0e0'
+                        border: '1px solid #e0e0e0',
+                        display: 'block'
                       }}
                     />
                   </Box>
@@ -1123,7 +1225,7 @@ export default function Announcements() {
         </Box>
       )}
       {expiredList.length > 0 && (
-        <Box sx={{ mb: 4 }}>
+        <Box sx={{ mb: 4, maxWidth: '100%', width: '100%' }}>
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
             <Typography variant="h6" sx={{ fontWeight: 700, color: '#d32f2f' }}>
               ⏰ Expired Announcements
@@ -1152,9 +1254,12 @@ export default function Announcements() {
             </Box>
           ) : expiredList.map(a => (
             <Card key={a.id} sx={{ 
-              mb: 2, 
-              borderLeft: '5px solid #d32f2f', 
-              boxShadow: 2,
+              mb: 0.5, 
+              borderLeft: '3px solid #d32f2f', 
+              boxShadow: 1,
+              px: 0.5,
+              py: 0.25,
+              minHeight: 'auto',
               bgcolor: theme.palette.mode === 'dark' ? 'rgba(211, 47, 47, 0.05)' : 'rgba(211, 47, 47, 0.02)'
             }}>
               <CardHeader
@@ -1205,7 +1310,7 @@ export default function Announcements() {
                   {a.message}
                 </Typography>
                 {a.photoUrl && (
-                  <Box sx={{ mt: 2 }}>
+                  <Box sx={{ mt: 2, display: 'flex', justifyContent: 'center' }}>
                     <img
                       src={a.photoUrl}
                       alt="Announcement"
@@ -1214,64 +1319,8 @@ export default function Announcements() {
                         maxHeight: '300px',
                         objectFit: 'cover',
                         borderRadius: '8px',
-                        border: '1px solid #e0e0e0'
-                      }}
-                    />
-                  </Box>
-                )}
-              </CardContent>
-            </Card>
-          ))}
-        </Box>
-      )}
-      {userRole === 'Admin' && filteredRecycleBin.length > 0 && (
-        <Box sx={{ mb: 4 }}>
-          <Typography variant="h6" sx={{ mb: 1, fontWeight: 700 }}>Recycle Bin</Typography>
-          {filteredRecycleBin.length === 0 ? (
-            <Typography align="center" color="text.secondary">Recycle bin is empty.</Typography>
-          ) : filteredRecycleBin.map(a => (
-            <Card key={a.id} sx={{ mb: 2, borderLeft: '5px solid #bdbdbd', boxShadow: 1 }}>
-              <CardHeader
-                title={<Typography fontWeight={700}>{a.title}</Typography>}
-                subheader={a.date ? new Date(a.date).toLocaleDateString() : ''}
-                action={
-                  <Stack direction="row" spacing={1}>
-                    <Tooltip title="Restore"><IconButton 
-                      onClick={() => handleRestore(a)} 
-                      disabled={isSubmitting}
-                      sx={{
-                        '&:hover': {
-                          color: '#f57c00',
-                          bgcolor: 'rgba(245, 124, 0, 0.04)'
-                        }
-                      }}
-                    ><EditIcon /></IconButton></Tooltip>
-                    <Tooltip title="Delete Permanently"><IconButton 
-                      onClick={() => handlePermanentDelete(a)} 
-                      disabled={isSubmitting}
-                      sx={{
-                        '&:hover': {
-                          color: '#f44336',
-                          bgcolor: 'rgba(244, 67, 54, 0.04)'
-                        }
-                      }}
-                    ><DeleteIcon /></IconButton></Tooltip>
-                  </Stack>
-                }
-              />
-              <CardContent>
-                <Typography variant="body2" color="text.secondary">{a.message}</Typography>
-                {a.photoUrl && (
-                  <Box sx={{ mt: 2 }}>
-                    <img
-                      src={a.photoUrl}
-                      alt="Announcement"
-                      style={{
-                        maxWidth: '100%',
-                        maxHeight: '300px',
-                        objectFit: 'cover',
-                        borderRadius: '8px',
-                        border: '1px solid #e0e0e0'
+                        border: '1px solid #e0e0e0',
+                        display: 'block'
                       }}
                     />
                   </Box>
@@ -1448,7 +1497,7 @@ export default function Announcements() {
               <Typography><b>Date:</b> {viewAnnouncement.date ? new Date(viewAnnouncement.date).toLocaleDateString() : ''}</Typography>
               <Typography sx={{ mt: 2 }}>{viewAnnouncement.message}</Typography>
               {viewAnnouncement.photoUrl && (
-                <Box sx={{ mt: 2 }}>
+                <Box sx={{ mt: 2, display: 'flex', justifyContent: 'center' }}>
                   <img
                     src={viewAnnouncement.photoUrl}
                     alt="Announcement"
@@ -1457,7 +1506,8 @@ export default function Announcements() {
                       maxHeight: '500px',
                       objectFit: 'cover',
                       borderRadius: '8px',
-                      border: '1px solid #e0e0e0'
+                      border: '1px solid #e0e0e0',
+                      display: 'block'
                     }}
                   />
                 </Box>
