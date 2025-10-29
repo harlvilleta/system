@@ -42,7 +42,8 @@ import {
   Badge,
   Delete,
   Edit,
-  Search
+  Search,
+  Refresh
 } from '@mui/icons-material';
 import { collection, getDocs, updateDoc, doc, addDoc, query, orderBy, where, deleteDoc } from 'firebase/firestore';
 import { db } from '../firebase';
@@ -74,13 +75,46 @@ export default function TeacherRequest() {
   const fetchTeacherRequests = async () => {
     setLoading(true);
     try {
-      const q = query(collection(db, 'teacher_requests'), orderBy('requestDate', 'desc'));
-      const querySnapshot = await getDocs(q);
-      const requestsData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      console.log('📊 Fetching teacher requests from Firestore...');
+      
+      // Try with orderBy first
+      let q = query(collection(db, 'teacher_requests'), orderBy('createdAt', 'desc'));
+      let querySnapshot;
+      
+      try {
+        querySnapshot = await getDocs(q);
+        console.log('✅ Fetched with orderBy, found:', querySnapshot.size, 'requests');
+      } catch (orderError) {
+        // If orderBy fails (missing index), fetch without ordering
+        console.warn('⚠️ OrderBy failed, fetching without order:', orderError);
+        q = query(collection(db, 'teacher_requests'));
+        querySnapshot = await getDocs(q);
+        console.log('✅ Fetched without orderBy, found:', querySnapshot.size, 'requests');
+      }
+      
+      const requestsData = querySnapshot.docs.map(doc => {
+        const data = doc.data();
+        console.log('📄 Teacher request doc:', { id: doc.id, ...data });
+        return { id: doc.id, ...data };
+      });
+      
+      // Sort manually by date if we couldn't use orderBy
+      requestsData.sort((a, b) => {
+        const dateA = new Date(a.createdAt || a.requestDate || 0);
+        const dateB = new Date(b.createdAt || b.requestDate || 0);
+        return dateB - dateA;
+      });
+      
+      console.log('✅ Total teacher requests:', requestsData.length);
       setTeacherRequests(requestsData);
     } catch (error) {
-      console.error('Error fetching teacher requests:', error);
-      setSnackbar({ open: true, message: 'Error fetching teacher requests', severity: 'error' });
+      console.error('❌ Error fetching teacher requests:', error);
+      console.error('Error details:', {
+        code: error.code,
+        message: error.message,
+        name: error.name
+      });
+      setSnackbar({ open: true, message: 'Error fetching teacher requests: ' + error.message, severity: 'error' });
     } finally {
       setLoading(false);
     }
@@ -299,14 +333,34 @@ export default function TeacherRequest() {
 
   return (
     <Box sx={{ pt: { xs: 2, sm: 3 }, pl: { xs: 2, sm: 3, md: 4 }, pr: { xs: 2, sm: 3, md: 4 } }}>
-      <Typography variant="h4" gutterBottom sx={{ 
-        fontWeight: 700, 
-        color: theme.palette.mode === 'dark' ? '#ffffff' : '#800000', 
-        mb: 2, 
-        mt: 1
-      }}>
-        Teacher Request Management
-      </Typography>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+        <Typography variant="h4" sx={{ 
+          fontWeight: 700, 
+          color: theme.palette.mode === 'dark' ? '#ffffff' : '#800000', 
+          mt: 1
+        }}>
+          Teacher Request Management
+        </Typography>
+        <Button
+          variant="outlined"
+          onClick={fetchTeacherRequests}
+          startIcon={<Refresh />}
+          disabled={loading}
+          sx={{
+            textTransform: 'none',
+            bgcolor: '#fff',
+            color: '#000',
+            borderColor: '#000',
+            '&:hover': {
+              bgcolor: '#800000',
+              color: '#fff',
+              borderColor: '#800000'
+            }
+          }}
+        >
+          {loading ? 'Loading...' : 'Refresh'}
+        </Button>
+      </Box>
       
       <Typography variant="body1" color="text.secondary" sx={{ mb: 4 }}>
         Review and approve teacher registration requests. Teachers cannot log in until their accounts are approved.

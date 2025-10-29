@@ -440,6 +440,31 @@ function App() {
           const storedAuth = getAuthState();
           if (isAuthStateValid(storedAuth) && storedAuth.user?.uid === user.uid) {
             console.log('Using stored auth state with role:', storedAuth.userRole);
+            
+            // Check teacher approval status even for stored auth
+            if (storedAuth.userRole === 'Teacher' && storedAuth.userProfile?.teacherInfo) {
+              const isApproved = storedAuth.userProfile.teacherInfo.isApproved;
+              const approvalStatus = storedAuth.userProfile.teacherInfo.approvalStatus;
+              
+              if (!isApproved || approvalStatus === 'pending' || approvalStatus === 'denied') {
+                console.log('⚠️ Stored teacher auth not approved, clearing and logging out...');
+                await signOut(auth);
+                const message = approvalStatus === 'denied' 
+                  ? 'Your teacher account registration was denied. Please contact the administrator for more information.'
+                  : 'Your teacher account is pending admin approval. Please wait for approval before logging in.';
+                setAuthError(message);
+                setUser(null);
+                setCurrentUser(null);
+                setUserProfile(null);
+                setUserRole(null);
+                setForceLogin(true);
+                setLoading(false);
+                setIsRefreshing(false);
+                clearAuthState();
+                return;
+              }
+            }
+            
             setUserProfile(storedAuth.userProfile);
             setUserRole(storedAuth.userRole);
             setLoading(false);
@@ -464,6 +489,42 @@ function App() {
           if (userDoc.exists()) {
             const userData = userDoc.data();
             const role = userData.role || 'Student';
+            
+            // Check teacher approval status BEFORE allowing access
+            if (role === 'Teacher' && userData.teacherInfo) {
+              const isApproved = userData.teacherInfo.isApproved;
+              const approvalStatus = userData.teacherInfo.approvalStatus;
+              
+              if (!isApproved || approvalStatus === 'pending') {
+                console.log('⚠️ Teacher not approved yet, logging out...');
+                await signOut(auth);
+                setAuthError('Your teacher account is pending admin approval. Please wait for approval before logging in.');
+                setUser(null);
+                setCurrentUser(null);
+                setUserProfile(null);
+                setUserRole(null);
+                setForceLogin(true);
+                setLoading(false);
+                setIsRefreshing(false);
+                clearAuthState();
+                return;
+              }
+              
+              if (approvalStatus === 'denied') {
+                console.log('❌ Teacher application denied, logging out...');
+                await signOut(auth);
+                setAuthError('Your teacher account registration was denied. Please contact the administrator for more information.');
+                setUser(null);
+                setCurrentUser(null);
+                setUserProfile(null);
+                setUserRole(null);
+                setForceLogin(true);
+                setLoading(false);
+                setIsRefreshing(false);
+                clearAuthState();
+                return;
+              }
+            }
             
             // Fix missing studentId field for existing users
             if (!userData.studentId && role === 'Student') {
@@ -587,7 +648,7 @@ function App() {
         <ThemeWrapper>
           <Router>
             <Routes>
-              <Route path="/" element={<LandingPage />} />
+              <Route path="/" element={<LandingPage authError={authError} />} />
               <Route path="/test" element={<TestPage />} />
               <Route path="/*" element={<Navigate to="/" replace />} />
             </Routes>

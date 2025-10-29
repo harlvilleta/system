@@ -69,7 +69,7 @@ import { checkEmailAvailability } from '../utils/studentValidation';
 import { createSingleUser } from '../utils/createUsers';
 import { doc, getDoc, deleteDoc, updateDoc, getDocs, query, collection, where } from 'firebase/firestore';
 
-export default function LandingPage() {
+export default function LandingPage({ authError }) {
   const { isDark } = useCustomTheme();
   const navigate = useNavigate();
   
@@ -80,6 +80,17 @@ export default function LandingPage() {
   const [openContact, setOpenContact] = useState(false);
   const [openLogin, setOpenLogin] = useState(false);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
+  
+  // Display authError from App.js if provided
+  useEffect(() => {
+    if (authError) {
+      setSnackbar({
+        open: true,
+        message: authError,
+        severity: 'warning'
+      });
+    }
+  }, [authError]);
   const [contactForm, setContactForm] = useState({ name: '', email: '', message: '' });
   const [loginForm, setLoginForm] = useState({ email: '', password: '' });
   const [openRegister, setOpenRegister] = useState(false);
@@ -164,6 +175,44 @@ export default function LandingPage() {
       // Use Firebase authentication
       const userCredential = await signInWithEmailAndPassword(auth, loginForm.email, loginForm.password);
       const user = userCredential.user;
+      
+      // Check if user is a teacher and if they're approved
+      const userQuery = query(collection(db, 'users'), where('uid', '==', user.uid));
+      const userSnapshot = await getDocs(userQuery);
+      
+      if (!userSnapshot.empty) {
+        const userData = userSnapshot.docs[0].data();
+        
+        // Check if user is a teacher with pending approval
+        if (userData.role === 'Teacher' && userData.teacherInfo) {
+          const isApproved = userData.teacherInfo.isApproved;
+          const approvalStatus = userData.teacherInfo.approvalStatus;
+          
+          if (!isApproved || approvalStatus === 'pending') {
+            // Log out the user immediately
+            await auth.signOut();
+            
+            setSnackbar({ 
+              open: true, 
+              message: 'Your teacher account is pending admin approval. Please wait for approval before logging in.', 
+              severity: 'warning' 
+            });
+            return;
+          }
+          
+          if (approvalStatus === 'denied') {
+            // Log out the user immediately
+            await auth.signOut();
+            
+            setSnackbar({ 
+              open: true, 
+              message: 'Your teacher account registration was denied. Please contact the administrator for more information.', 
+              severity: 'error' 
+            });
+            return;
+          }
+        }
+      }
       
       setSnackbar({ 
         open: true, 
@@ -357,11 +406,17 @@ export default function LandingPage() {
           }, 2000);
         }
         
+        // Determine success message based on role
+        let successMessage = '✅ Account created successfully! Please sign in.';
+        if (transferMessage) {
+          successMessage = transferMessage;
+        } else if (finalUserData.role === 'Teacher') {
+          successMessage = '✅ Teacher account created successfully! Your registration is pending admin approval. You will be notified once approved.';
+        }
+        
         setSnackbar({ 
           open: true, 
-          message: transferMessage 
-            ? transferMessage
-            : '✅ Account created successfully! Please sign in.', 
+          message: successMessage, 
           severity: 'success',
           autoHideDuration: 8000 // Show longer for transfer messages
         });
@@ -2553,51 +2608,6 @@ export default function LandingPage() {
                         fontSize: '12px',
                         marginTop: 0.5,
                         color: studentIdError ? '#d32f2f' : '#8a8d91'
-                      }
-                    }}
-                  />
-                </Box>
-              )}
-
-              {/* Full Name Field - Only for Teachers */}
-              {registerForm.role === 'Teacher' && (
-                <Box sx={{ mb: 2, textAlign: 'left' }}>
-                  <Typography variant="body2" sx={{ 
-                    mb: 0.5, 
-                    color: '#1c1e21',
-                    fontWeight: 600,
-                    fontSize: '13px'
-                  }}>
-                    Full Name*
-                  </Typography>
-                  <TextField
-                    fullWidth
-                    value={registerForm.fullName}
-                    onChange={(e) => setRegisterForm({...registerForm, fullName: e.target.value})}
-                    placeholder="Enter your full name"
-                    required
-                    sx={{
-                      '& .MuiOutlinedInput-root': {
-                        borderRadius: 2,
-                        backgroundColor: '#f5f6f7',
-                        border: '1px solid #dddfe2',
-                        '& fieldset': {
-                          border: 'none'
-                        },
-                        '&:hover fieldset': {
-                          border: 'none'
-                        },
-                        '&.Mui-focused fieldset': {
-                          border: '2px solid #800000'
-                        },
-                        '&.Mui-focused': {
-                          backgroundColor: '#ffffff'
-                        }
-                      },
-                      '& .MuiInputBase-input': {
-                        color: '#1c1e21',
-                        fontSize: '16px',
-                        padding: '12px 16px'
                       }
                     }}
                   />

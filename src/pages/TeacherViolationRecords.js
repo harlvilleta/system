@@ -14,16 +14,31 @@ import {
   CircularProgress,
   IconButton,
   Tooltip,
-  useTheme
+  useTheme,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Avatar,
+  Chip,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions
 } from '@mui/material';
 import {
   Add,
   AttachFile,
   Delete,
-  Save
+  Save,
+  CheckCircle,
+  MeetingRoom
 } from '@mui/icons-material';
-import { collection, addDoc, getDocs, query, where, orderBy } from 'firebase/firestore';
+import { collection, addDoc, getDocs, query, where, orderBy, onSnapshot } from 'firebase/firestore';
 import { db, auth } from '../firebase';
+import { useNavigate } from 'react-router-dom';
 
 const violationTypes = [
   'Cheating',
@@ -56,12 +71,18 @@ const severityLevels = [
 
 export default function TeacherViolationRecords() {
   const theme = useTheme();
+  const navigate = useNavigate();
   const [students, setStudents] = useState([]);
   const [filteredStudents, setFilteredStudents] = useState([]);
   const [loading, setLoading] = useState(false);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
   const [currentUser, setCurrentUser] = useState(null);
   const [userProfile, setUserProfile] = useState(null);
+  const [myViolations, setMyViolations] = useState([]);
+  const [myViolationsLoading, setMyViolationsLoading] = useState(true);
+  const [meetingModalOpen, setMeetingModalOpen] = useState(false);
+  const [selectedViolationForMeeting, setSelectedViolationForMeeting] = useState(null);
+  const [violationMeetings, setViolationMeetings] = useState([]);
 
   // Helper function to get TextField styling for dark mode
   const getTextFieldSx = () => ({
@@ -142,6 +163,116 @@ export default function TeacherViolationRecords() {
     if (currentUser?.uid) {
       fetchStudents();
     }
+  }, [currentUser]);
+
+  // Fetch violations reported by this teacher (myViolations)
+  useEffect(() => {
+    if (!currentUser?.uid && !currentUser?.email) {
+      setMyViolationsLoading(false);
+      return;
+    }
+
+    setMyViolationsLoading(true);
+    let unsubscribe = null;
+    
+    const fetchViolations = async () => {
+      try {
+        console.log('📊 Fetching myViolations for teacher:', { 
+          uid: currentUser?.uid, 
+          email: currentUser?.email 
+        });
+        
+        // Method 1: Query by createdBy (uid) - primary method
+        if (currentUser?.uid) {
+          try {
+            const byCreatedByQuery = query(
+              collection(db, 'violations'),
+              where('createdBy', '==', currentUser.uid),
+              orderBy('createdAt', 'desc')
+            );
+            
+            unsubscribe = onSnapshot(byCreatedByQuery, (snapshot) => {
+              console.log('✅ Violations found by createdBy (uid):', snapshot.size);
+              const violations = snapshot.docs.map(doc => ({ 
+                id: doc.id, 
+                ...doc.data()
+              }));
+              
+              console.log('📋 Fetched violations data:', violations);
+              setMyViolations(violations);
+              setMyViolationsLoading(false);
+              
+              // If we found violations by createdBy, we're done
+              if (violations.length > 0) {
+                return;
+              }
+              
+              // Otherwise, try by email as fallback
+              console.log('⚠️ No violations found by uid, trying email fallback...');
+              tryFetchByEmail();
+            }, (error) => {
+              console.error('❌ Error fetching violations by createdBy:', error);
+              tryFetchByEmail();
+            });
+          } catch (error) {
+            console.error('❌ Error setting up createdBy query:', error);
+            tryFetchByEmail();
+          }
+        } else {
+          tryFetchByEmail();
+        }
+        
+        // Method 2: Fallback to email-based queries
+        function tryFetchByEmail() {
+          if (!currentUser?.email) {
+            console.log('⚠️ No email available for fallback query');
+            setMyViolations([]);
+            setMyViolationsLoading(false);
+            return;
+          }
+          
+          try {
+            console.log('🔍 Trying to fetch by email:', currentUser.email);
+            const byEmailQuery = query(
+              collection(db, 'violations'),
+              where('reportedByEmail', '==', currentUser.email),
+              orderBy('createdAt', 'desc')
+            );
+            
+            unsubscribe = onSnapshot(byEmailQuery, (snapshot) => {
+              console.log('✅ Violations found by email:', snapshot.size);
+              const violations = snapshot.docs.map(doc => ({ 
+                id: doc.id, 
+                ...doc.data()
+              }));
+              
+              console.log('📋 Fetched violations data by email:', violations);
+              setMyViolations(violations);
+              setMyViolationsLoading(false);
+            }, (error) => {
+              console.error('❌ Error fetching violations by email:', error);
+              setMyViolations([]);
+              setMyViolationsLoading(false);
+            });
+          } catch (error) {
+            console.error('❌ Error setting up email query:', error);
+            setMyViolations([]);
+            setMyViolationsLoading(false);
+          }
+        }
+        
+      } catch (error) {
+        console.error('❌ Error in fetchViolations:', error);
+        setMyViolations([]);
+        setMyViolationsLoading(false);
+      }
+    };
+    
+    fetchViolations();
+
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
   }, [currentUser]);
 
   const fetchStudents = async () => {
@@ -430,6 +561,79 @@ export default function TeacherViolationRecords() {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Get all violations reported by this teacher
+  const getAllTeacherViolations = () => {
+    return myViolations;
+  };
+
+  // Get resolved violations reported by this teacher
+  const getResolvedViolations = () => {
+    return myViolations.filter(violation => 
+      violation.status === 'Solved' || violation.status === 'solved' ||
+      violation.status === 'Approved' || violation.status === 'approved'
+    );
+  };
+
+  // Handle viewing meetings for a specific violation
+  const handleViewMeetingForViolation = async (violation) => {
+    setSelectedViolationForMeeting(violation);
+    setMeetingModalOpen(true);
+    
+    try {
+      // Fetch meetings related to this violation's student
+      const studentId = violation.studentId || violation.studentIdNumber;
+      const studentName = violation.studentName;
+      
+      if (!studentId && !studentName) {
+        setViolationMeetings([]);
+        return;
+      }
+
+      // Query meetings by student ID or student name
+      let meetingsQuery;
+      if (studentId) {
+        meetingsQuery = query(
+          collection(db, 'meetings'),
+          where('studentId', '==', studentId)
+        );
+      } else {
+        meetingsQuery = query(
+          collection(db, 'meetings'),
+          where('studentName', '==', studentName)
+        );
+      }
+
+      const meetingsSnapshot = await getDocs(meetingsQuery);
+      const meetingsData = meetingsSnapshot.docs.map(doc => ({ 
+        id: doc.id, 
+        ...doc.data() 
+      }));
+
+      // Also check for meetings where the current teacher is involved
+      const teacherMeetingsQuery = query(
+        collection(db, 'meetings'),
+        where('participants', 'array-contains', currentUser?.email || currentUser?.uid)
+      );
+      
+      const teacherMeetingsSnapshot = await getDocs(teacherMeetingsQuery);
+      const teacherMeetingsData = teacherMeetingsSnapshot.docs.map(doc => ({ 
+        id: doc.id, 
+        ...doc.data() 
+      }));
+
+      // Combine and deduplicate meetings
+      const allMeetings = [...meetingsData, ...teacherMeetingsData];
+      const uniqueMeetings = allMeetings.filter((meeting, index, self) => 
+        index === self.findIndex(m => m.id === meeting.id)
+      );
+
+      setViolationMeetings(uniqueMeetings);
+    } catch (error) {
+      console.error('Error fetching meetings for violation:', error);
+      setViolationMeetings([]);
     }
   };
 
@@ -724,6 +928,356 @@ export default function TeacherViolationRecords() {
             </Box>
           </form>
         </Paper>
+
+      {/* My Violation Records Table */}
+      <Grid container spacing={3} sx={{ mt: 2 }}>
+        <Grid item xs={12}>
+          <Card sx={{ 
+            border: 'none',
+            boxShadow: 3,
+            bgcolor: theme.palette.mode === 'dark' ? '#333333' : 'transparent',
+            borderRadius: 2,
+            minHeight: '500px',
+            display: 'flex',
+            flexDirection: 'column'
+          }}>
+            <CardContent sx={{ flex: 1, overflow: 'auto', p: 2 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+                <Typography variant="h6" fontWeight={700} sx={{ color: theme.palette.mode === 'dark' ? '#ffffff' : '#000000' }}>
+                  My Violation Records
+                </Typography>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Chip 
+                    label={`${getAllTeacherViolations().length} Total`} 
+                    size="small"
+                    sx={{ 
+                      fontWeight: 500,
+                      backgroundColor: '#1976d2',
+                      color: '#ffffff',
+                      '& .MuiChip-label': {
+                        color: '#ffffff'
+                      }
+                    }}
+                  />
+                  <Chip 
+                    label={`${getResolvedViolations().length} Resolved`} 
+                    size="small"
+                    sx={{ 
+                      fontWeight: 500,
+                      backgroundColor: '#4caf50',
+                      color: '#ffffff',
+                      '& .MuiChip-label': {
+                        color: '#ffffff'
+                      }
+                    }}
+                  />
+                </Box>
+              </Box>
+              
+              {myViolationsLoading ? (
+                <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', py: 8 }}>
+                  <CircularProgress sx={{ color: theme.palette.mode === 'dark' ? '#ffffff' : '#800000' }} />
+                  <Typography variant="body1" sx={{ ml: 2, color: theme.palette.mode === 'dark' ? '#ffffff' : '#800000' }}>
+                    Loading your violation records...
+                  </Typography>
+                </Box>
+              ) : getAllTeacherViolations().length > 0 ? (
+                <TableContainer sx={{ maxHeight: '400px', overflow: 'auto' }}>
+                  <Table stickyHeader>
+                    <TableHead>
+                      <TableRow>
+                        <TableCell sx={{ fontWeight: 600, backgroundColor: theme.palette.mode === 'dark' ? '#333333' : '#f5f5f5' }}>
+                          Student Name
+                        </TableCell>
+                        <TableCell sx={{ fontWeight: 600, backgroundColor: theme.palette.mode === 'dark' ? '#333333' : '#f5f5f5' }}>
+                          Violation Type
+                        </TableCell>
+                        <TableCell sx={{ fontWeight: 600, backgroundColor: theme.palette.mode === 'dark' ? '#333333' : '#f5f5f5' }}>
+                          Classification
+                        </TableCell>
+                        <TableCell sx={{ fontWeight: 600, backgroundColor: theme.palette.mode === 'dark' ? '#333333' : '#f5f5f5' }}>
+                          Severity
+                        </TableCell>
+                        <TableCell sx={{ fontWeight: 600, backgroundColor: theme.palette.mode === 'dark' ? '#333333' : '#f5f5f5' }}>
+                          Date
+                        </TableCell>
+                        <TableCell sx={{ fontWeight: 600, backgroundColor: theme.palette.mode === 'dark' ? '#333333' : '#f5f5f5' }}>
+                          Location
+                        </TableCell>
+                        <TableCell sx={{ fontWeight: 600, backgroundColor: theme.palette.mode === 'dark' ? '#333333' : '#f5f5f5' }}>
+                          Status
+                        </TableCell>
+                        <TableCell sx={{ fontWeight: 600, backgroundColor: theme.palette.mode === 'dark' ? '#333333' : '#f5f5f5' }}>
+                          Actions
+                        </TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {getAllTeacherViolations().map((violation) => (
+                        <TableRow key={violation.id} hover>
+                          <TableCell>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                              <Avatar sx={{ 
+                                bgcolor: violation.status === 'Solved' || violation.status === 'solved' ? '#4caf50' : '#ff9800', 
+                                width: 32, 
+                                height: 32 
+                              }}>
+                                <CheckCircle sx={{ fontSize: 16 }} />
+                              </Avatar>
+                              <Typography variant="body2" fontWeight={500}>
+                                {violation.studentName || violation.studentId || 'Unknown Student'}
+                              </Typography>
+                            </Box>
+                          </TableCell>
+                          <TableCell>
+                            <Typography variant="body2">
+                              {violation.violationType || violation.violation || 'Not specified'}
+                            </Typography>
+                          </TableCell>
+                          <TableCell>
+                            <Typography variant="body2">
+                              {violation.classification || 'Not specified'}
+                            </Typography>
+                          </TableCell>
+                          <TableCell>
+                            <Chip 
+                              label={violation.severity || 'Not specified'} 
+                              size="small"
+                              color={
+                                violation.severity === 'Critical' ? 'error' :
+                                violation.severity === 'High' ? 'error' :
+                                violation.severity === 'Medium' ? 'warning' :
+                                violation.severity === 'Low' ? 'success' : 'default'
+                              }
+                              variant="outlined"
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <Typography variant="body2">
+                              {new Date(violation.date || violation.createdAt).toLocaleDateString()}
+                            </Typography>
+                          </TableCell>
+                          <TableCell>
+                            <Typography variant="body2">
+                              {violation.location || 'Not specified'}
+                            </Typography>
+                          </TableCell>
+                          <TableCell>
+                            <Chip 
+                              label={violation.status || 'Pending'} 
+                              size="small"
+                              color={
+                                violation.status === 'Solved' || violation.status === 'solved' ? 'success' :
+                                violation.status === 'Pending' || violation.status === 'pending' ? 'warning' :
+                                violation.status === 'Approved' || violation.status === 'approved' ? 'success' : 'default'
+                              }
+                              sx={{ fontWeight: 500 }}
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <Button
+                              size="small"
+                              variant="outlined"
+                              onClick={() => handleViewMeetingForViolation(violation)}
+                              sx={{ 
+                                textTransform: 'none',
+                                bgcolor: '#fff', 
+                                color: '#000', 
+                                borderColor: '#000', 
+                                '&:hover': { 
+                                  bgcolor: '#800000', 
+                                  color: '#fff', 
+                                  borderColor: '#800000' 
+                                }
+                              }}
+                            >
+                              View Meeting
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              ) : (
+                <Box sx={{ textAlign: 'center', py: 4 }}>
+                  <CheckCircle sx={{ 
+                    fontSize: 48, 
+                    color: theme.palette.mode === 'dark' ? '#ffffff' : '#333333', 
+                    mb: 1 
+                  }} />
+                  <Typography variant="h6" sx={{ color: theme.palette.mode === 'dark' ? '#ffffff' : 'text.secondary', mb: 1 }}>
+                    No Violations Reported
+                  </Typography>
+                  <Typography variant="body2" sx={{ color: theme.palette.mode === 'dark' ? '#ffffff' : 'text.secondary' }}>
+                    Your reported violations will appear here.
+                  </Typography>
+                </Box>
+              )}
+            </CardContent>
+          </Card>
+        </Grid>
+      </Grid>
+
+      {/* Meeting Modal */}
+      <Dialog 
+        open={meetingModalOpen} 
+        onClose={() => setMeetingModalOpen(false)}
+        maxWidth="md"
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: 2,
+            maxHeight: '80vh'
+          }
+        }}
+      >
+        <DialogTitle sx={{ 
+          fontWeight: 600,
+          color: '#800000',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 1
+        }}>
+          <MeetingRoom />
+          Meetings for Violation
+        </DialogTitle>
+        
+        <DialogContent sx={{ p: 0 }}>
+          {selectedViolationForMeeting && (
+            <Box sx={{ p: 2, borderBottom: '1px solid #e0e0e0' }}>
+              <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 1 }}>
+                Student: {selectedViolationForMeeting.studentName || selectedViolationForMeeting.studentId || 'Unknown'}
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Violation: {selectedViolationForMeeting.violationType || selectedViolationForMeeting.violation || 'Not specified'}
+              </Typography>
+            </Box>
+          )}
+          
+          {violationMeetings.length > 0 ? (
+            <TableContainer sx={{ maxHeight: '60vh', overflow: 'auto' }}>
+              <Table stickyHeader>
+                <TableHead>
+                  <TableRow>
+                    <TableCell sx={{ fontWeight: 600, backgroundColor: theme.palette.mode === 'dark' ? '#333333' : '#f5f5f5' }}>
+                      Purpose
+                    </TableCell>
+                    <TableCell sx={{ fontWeight: 600, backgroundColor: theme.palette.mode === 'dark' ? '#333333' : '#f5f5f5' }}>
+                      Location
+                    </TableCell>
+                    <TableCell sx={{ fontWeight: 600, backgroundColor: theme.palette.mode === 'dark' ? '#333333' : '#f5f5f5' }}>
+                      Date
+                    </TableCell>
+                    <TableCell sx={{ fontWeight: 600, backgroundColor: theme.palette.mode === 'dark' ? '#333333' : '#f5f5f5' }}>
+                      Time
+                    </TableCell>
+                    <TableCell sx={{ fontWeight: 600, backgroundColor: theme.palette.mode === 'dark' ? '#333333' : '#f5f5f5' }}>
+                      Status
+                    </TableCell>
+                    <TableCell sx={{ fontWeight: 600, backgroundColor: theme.palette.mode === 'dark' ? '#333333' : '#f5f5f5' }}>
+                      Description
+                    </TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {violationMeetings.map((meeting) => (
+                    <TableRow key={meeting.id} hover>
+                      <TableCell>
+                        <Typography variant="body2" fontWeight={500}>
+                          {meeting.purpose || 'Not specified'}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Typography variant="body2">
+                          {meeting.location || 'Not specified'}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Typography variant="body2">
+                          {meeting.date ? new Date(meeting.date).toLocaleDateString() : 'Not specified'}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Typography variant="body2">
+                          {meeting.time || 'Not specified'}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Chip 
+                          label={meeting.status || 'Scheduled'} 
+                          size="small"
+                          color={
+                            meeting.status === 'Completed' ? 'success' :
+                            meeting.status === 'Scheduled' ? 'primary' :
+                            meeting.status === 'Cancelled' ? 'error' : 'default'
+                          }
+                          sx={{ fontWeight: 500 }}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Typography variant="body2" sx={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {meeting.description || 'No description provided'}
+                        </Typography>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          ) : (
+            <Box sx={{ textAlign: 'center', py: 4 }}>
+              <MeetingRoom sx={{ fontSize: 48, color: 'text.secondary', mb: 1 }} />
+              <Typography variant="h6" color="text.secondary" sx={{ mb: 1 }}>
+                No Meetings Found
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                No meetings have been scheduled for this violation yet.
+              </Typography>
+            </Box>
+          )}
+        </DialogContent>
+        
+        <DialogActions sx={{ p: 2, bgcolor: '#f5f5f5' }}>
+          <Button 
+            onClick={() => setMeetingModalOpen(false)}
+            variant="outlined"
+            sx={{ 
+              textTransform: 'none',
+              bgcolor: '#fff', 
+              color: '#000', 
+              borderColor: '#000', 
+              '&:hover': { 
+                bgcolor: '#800000', 
+                color: '#fff', 
+                borderColor: '#800000' 
+              }
+            }}
+          >
+            Close
+          </Button>
+          <Button 
+            onClick={() => {
+              setMeetingModalOpen(false);
+              navigate('/violation-record/create-meeting');
+            }}
+            variant="outlined"
+            sx={{ 
+              textTransform: 'none',
+              bgcolor: '#fff', 
+              color: '#000', 
+              borderColor: '#000', 
+              '&:hover': { 
+                bgcolor: '#800000', 
+                color: '#fff', 
+                borderColor: '#800000' 
+              }
+            }}
+          >
+            Create New Meeting
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       {/* Snackbar */}
       <Snackbar 

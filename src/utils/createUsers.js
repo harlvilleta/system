@@ -321,7 +321,11 @@ export const createSingleUser = async (userData) => {
         subjects: [],
         department: 'General',
         hireDate: new Date().toISOString(),
-        status: 'active'
+        status: 'active',
+        isApproved: false,
+        approvalStatus: 'pending',
+        approvedBy: null,
+        approvedAt: null
       };
     }
     
@@ -450,6 +454,38 @@ export const createSingleUser = async (userData) => {
       updatedAt: new Date().toISOString()
     });
     console.log(`✅ User preferences created: ${userData.email}`);
+    
+    // Create teacher approval request for teachers
+    if (userData.role === 'Teacher') {
+      console.log('📝 Creating teacher approval request for:', userData.fullName);
+      
+      try {
+        const teacherRequestData = {
+          userId: user.uid,
+          email: user.email,
+          fullName: userData.fullName,
+          phone: userData.phone || '',
+          address: userData.address || '',
+          profilePic: firestoreUserData.profilePic || '',
+          status: 'pending',
+          requestDate: new Date().toISOString(),
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          reviewedBy: null,
+          reviewedAt: null,
+          reviewNotes: null
+        };
+        
+        console.log('📦 Teacher request data to save:', teacherRequestData);
+        
+        await addDoc(collection(db, 'teacher_requests'), teacherRequestData);
+        console.log('✅ Teacher approval request created successfully');
+        
+      } catch (error) {
+        console.error('❌ Error creating teacher approval request:', error);
+        // Don't fail the entire operation
+      }
+    }
     
     // Log activity
     await addDoc(collection(db, 'activity_log'), {
