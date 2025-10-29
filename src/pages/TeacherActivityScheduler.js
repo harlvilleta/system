@@ -808,123 +808,6 @@ export default function TeacherActivityScheduler() {
           </Paper>
         </Grid>
 
-          {/* Quick Stats */}
-          <Grid item xs={12} lg={6}>
-            <Paper 
-              onClick={() => console.log('My Bookings clicked')}
-              sx={{ 
-                mb: 3,
-                p: 2.5,
-                height: 'fit-content',
-                maxWidth: '500px',
-                bgcolor: theme.palette.mode === 'dark' ? '#2d2d2d' : '#ffffff', 
-                border: theme.palette.mode === 'dark' ? '1px solid #404040' : '1px solid #e0e0e0',
-                borderRadius: 2,
-                cursor: 'pointer',
-                transition: 'all 0.2s',
-                '&:hover': {
-                  boxShadow: 2,
-                },
-              }}>
-            <Typography variant="h6" sx={{ 
-              color: theme.palette.mode === 'dark' ? '#ffffff' : '#333333', 
-              fontWeight: 600,
-              mb: 2.5,
-              fontSize: '1.2rem'
-            }}>
-              My Bookings ({myBookings.length})
-            </Typography>
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <Typography variant="body2" sx={{ color: theme.palette.mode === 'dark' ? '#cccccc' : '#666666', fontSize: '0.85rem' }}>Pending:</Typography>
-                  <Typography variant="body2" sx={{ color: '#ff9800', fontWeight: 500, fontSize: '0.85rem' }}>
-                    {myBookings.filter(b => b.status === 'pending').length}
-                  </Typography>
-                </Box>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <Typography variant="body2" sx={{ color: theme.palette.mode === 'dark' ? '#cccccc' : '#666666', fontSize: '0.85rem' }}>Approved:</Typography>
-                  <Typography variant="body2" sx={{ color: '#4caf50', fontWeight: 500, fontSize: '0.85rem' }}>
-                    {myBookings.filter(b => b.status === 'approved').length}
-                  </Typography>
-                </Box>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <Typography variant="body2" sx={{ color: theme.palette.mode === 'dark' ? '#cccccc' : '#666666', fontSize: '0.85rem' }}>Rejected:</Typography>
-                  <Typography variant="body2" sx={{ color: '#f44336', fontWeight: 500, fontSize: '0.85rem' }}>
-                    {myBookings.filter(b => b.status === 'rejected').length}
-                  </Typography>
-                </Box>
-              </Box>
-          </Paper>
-
-          {/* Filters */}
-          <Paper 
-            onClick={() => console.log('Filters clicked')}
-            sx={{ 
-              p: 2.5,
-              height: 'fit-content',
-              maxWidth: '500px',
-              bgcolor: theme.palette.mode === 'dark' ? '#2d2d2d' : '#ffffff', 
-              border: theme.palette.mode === 'dark' ? '1px solid #404040' : '1px solid #e0e0e0',
-              borderRadius: 2,
-              cursor: 'pointer',
-              transition: 'all 0.2s',
-              '&:hover': {
-                boxShadow: 2,
-              },
-            }}>
-            <Typography variant="h6" sx={{ 
-              color: theme.palette.mode === 'dark' ? '#ffffff' : '#333333',
-              fontWeight: 600,
-              mb: 2.5,
-              fontSize: '1.2rem'
-            }}>
-              <FilterList sx={{ mr: 1, verticalAlign: 'middle', fontSize: '1rem' }} />
-              Filters
-            </Typography>
-              <FormControl fullWidth sx={{ mb: 2.5 }}>
-                <InputLabel sx={{ 
-                  color: theme.palette.mode === 'dark' ? '#ffffff' : '#333333',
-                  fontSize: '0.85rem'
-                }}>Resource</InputLabel>
-                <Select
-                  value={filterResource}
-                  onChange={(e) => setFilterResource(e.target.value)}
-                  label="Resource"
-                  size="small"
-                  sx={{ 
-                    color: theme.palette.mode === 'dark' ? '#ffffff' : '#333333',
-                    fontSize: '0.85rem'
-                  }}
-                >
-                  <MenuItem value="">All Resources</MenuItem>
-                  {resources.map(resource => (
-                    <MenuItem key={resource} value={resource}>{resource}</MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-              <FormControl fullWidth>
-                <InputLabel sx={{ 
-                  color: theme.palette.mode === 'dark' ? '#ffffff' : '#333333',
-                  fontSize: '0.85rem'
-                }}>Department</InputLabel>
-                <Select
-                  value={filterDepartment}
-                  onChange={(e) => setFilterDepartment(e.target.value)}
-                  label="Department"
-                  size="small"
-                  sx={{ 
-                    color: theme.palette.mode === 'dark' ? '#ffffff' : '#333333',
-                    fontSize: '0.85rem'
-                  }}
-                >
-                  <MenuItem value="">All Departments</MenuItem>
-                  {departments.map(department => (
-                    <MenuItem key={department} value={department}>{department}</MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-          </Paper>
-        </Grid>
       </Grid>
 
         {/* My Bookings Table */}
@@ -951,28 +834,6 @@ export default function TeacherActivityScheduler() {
             Activity Booking History
           </Typography>
           
-          {/* Search Bar */}
-          <Box sx={{ mb: 2 }}>
-            <TextField
-              placeholder="Search bookings by activity, resource, department, or notes..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              InputProps={{
-                startAdornment: <Search sx={{ mr: 1, color: 'text.secondary' }} />,
-              }}
-              sx={{
-                width: '400px',
-                '& .MuiOutlinedInput-root': {
-                  borderRadius: 2,
-                  backgroundColor: theme.palette.mode === 'dark' ? '#333333' : '#ffffff',
-                },
-                '& .MuiInputBase-input': {
-                  fontSize: '0.9rem',
-                }
-              }}
-              size="small"
-            />
-          </Box>
           <TableContainer>
             <Table>
               <TableHead>
@@ -1005,6 +866,35 @@ export default function TeacherActivityScheduler() {
                     color: theme.palette.mode === 'dark' ? '#ffffff' : 'inherit',
                     fontWeight: 600
                   }}>Actions</TableCell>
+                </TableRow>
+                {/* Search Bar Row */}
+                <TableRow>
+                  <TableCell colSpan={7} sx={{ 
+                    padding: '12px 16px',
+                    backgroundColor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.02)',
+                    borderBottom: theme.palette.mode === 'dark' ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid #e0e0e0'
+                  }}>
+                    <TextField
+                      placeholder="Search bookings by activity, resource, department, or notes..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      InputProps={{
+                        startAdornment: <Search sx={{ mr: 1, color: 'text.secondary' }} />,
+                      }}
+                      sx={{
+                        width: '100%',
+                        maxWidth: '500px',
+                        '& .MuiOutlinedInput-root': {
+                          borderRadius: 2,
+                          backgroundColor: theme.palette.mode === 'dark' ? '#333333' : '#ffffff',
+                        },
+                        '& .MuiInputBase-input': {
+                          fontSize: '0.9rem',
+                        }
+                      }}
+                      size="small"
+                    />
+                  </TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>

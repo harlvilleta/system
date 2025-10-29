@@ -71,6 +71,7 @@ export default function TeacherDashboard() {
   const [allActivities, setAllActivities] = useState([]);
   const [activityRequestsCount, setActivityRequestsCount] = useState(0);
   const [violationSearchQuery, setViolationSearchQuery] = useState('');
+  const [activitySearchQuery, setActivitySearchQuery] = useState('');
   
 
   
@@ -497,6 +498,24 @@ export default function TeacherDashboard() {
     return allActivities.slice(0, 5);
   };
 
+  const getFilteredActivities = () => {
+    let filtered = allActivities;
+    
+    // Filter by search query
+    if (activitySearchQuery.trim()) {
+      const query = activitySearchQuery.toLowerCase();
+      filtered = filtered.filter(activity => 
+        (activity.action || '').toLowerCase().includes(query) ||
+        (activity.message || '').toLowerCase().includes(query) ||
+        (activity.details || '').toLowerCase().includes(query) ||
+        (activity.status || '').toLowerCase().includes(query) ||
+        (activity.type || '').toLowerCase().includes(query)
+      );
+    }
+    
+    return filtered.slice(0, 5); // Return first 5 filtered results
+  };
+
   const getRecentAnnouncements = () => {
     return announcements.slice(0, 3);
   };
@@ -843,7 +862,7 @@ export default function TeacherDashboard() {
               <Typography variant="h4" fontWeight={700} sx={{ color: '#000000' }}>
                 {activityRequestsCount.toLocaleString()}
               </Typography>
-              <Typography variant="body2" sx={{ color: theme.palette.mode === 'dark' ? '#ffffff' : 'text.secondary' }}>
+              <Typography variant="body2" sx={{ color: theme.palette.mode === 'dark' ? '#cc6666' : '#800000' }}>
                 Activity Requests
               </Typography>
             </CardContent>
@@ -905,9 +924,33 @@ export default function TeacherDashboard() {
                 </Typography>
               </Box>
               
-              {getRecentActivities().length > 0 ? (
+              {/* Search Bar */}
+              <Box sx={{ mb: 2 }}>
+                <TextField
+                  placeholder="Search activities by action, message, status, or type..."
+                  value={activitySearchQuery}
+                  onChange={(e) => setActivitySearchQuery(e.target.value)}
+                  InputProps={{
+                    startAdornment: <Search sx={{ mr: 1, color: 'text.secondary' }} />,
+                  }}
+                  sx={{
+                    width: '100%',
+                    maxWidth: '400px',
+                    '& .MuiOutlinedInput-root': {
+                      borderRadius: 2,
+                      backgroundColor: theme.palette.mode === 'dark' ? '#404040' : '#ffffff',
+                    },
+                    '& .MuiInputBase-input': {
+                      fontSize: '0.9rem',
+                    }
+                  }}
+                  size="small"
+                />
+              </Box>
+              
+              {getFilteredActivities().length > 0 ? (
                 <List>
-                  {getRecentActivities().map((activity, index) => {
+                  {getFilteredActivities().map((activity, index) => {
                     // Get appropriate icon and color based on activity type
                     const getActivityIcon = (type) => {
                       switch (type) {
@@ -982,7 +1025,7 @@ export default function TeacherDashboard() {
                             }}
                           />
                         </ListItem>
-                        {index < getRecentActivities().length - 1 && <Divider />}
+                        {index < getFilteredActivities().length - 1 && <Divider />}
                       </React.Fragment>
                     );
                   })}
@@ -995,7 +1038,7 @@ export default function TeacherDashboard() {
                     mb: 1 
                   }} />
                   <Typography variant="body2" sx={{ color: theme.palette.mode === 'dark' ? '#ffffff' : 'text.secondary' }}>
-                    No activities yet
+                    {activitySearchQuery.trim() ? 'No activities found matching your search' : 'No activities yet'}
                   </Typography>
                 </Box>
               )}

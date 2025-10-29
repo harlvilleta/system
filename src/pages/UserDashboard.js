@@ -1,13 +1,68 @@
 import React, { useState, useEffect } from "react";
 import { 
   Box, Typography, Grid, Card, CardContent, List, ListItem, ListItemAvatar, 
-  ListItemText, Avatar, Chip, Button, CircularProgress, useTheme, Divider
+  ListItemText, Avatar, Chip, Button, useTheme, Divider
 } from "@mui/material";
-import { CheckCircle, Warning, Announcement, EventNote, Report, Event, Campaign, People } from "@mui/icons-material";
+import { CheckCircle, Warning, Announcement, EventNote, Report, Event, Campaign, People, Assignment, Notifications, Receipt, Schedule, Info } from "@mui/icons-material";
 import { Link, useNavigate } from "react-router-dom";
 import { db, auth, logActivity } from "../firebase";
 import { collection, addDoc, getDocs, deleteDoc, doc, updateDoc, where, query, onSnapshot, orderBy, setDoc, getDoc, limit } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+
+// Helper functions for activity logs
+const getActivityLogIcon = (action) => {
+  const actionLower = action?.toLowerCase() || '';
+  
+  if (actionLower.includes('lost') || actionLower.includes('found')) {
+    return <Report sx={{ fontSize: 20, color: 'white' }} />;
+  } else if (actionLower.includes('profile') || actionLower.includes('update')) {
+    return <People sx={{ fontSize: 20, color: 'white' }} />;
+  } else if (actionLower.includes('receipt') || actionLower.includes('submit')) {
+    return <CheckCircle sx={{ fontSize: 20, color: 'white' }} />;
+  } else if (actionLower.includes('violation') || actionLower.includes('report')) {
+    return <Warning sx={{ fontSize: 20, color: 'white' }} />;
+  } else if (actionLower.includes('announcement') || actionLower.includes('notification')) {
+    return <Announcement sx={{ fontSize: 20, color: 'white' }} />;
+  } else if (actionLower.includes('activity') || actionLower.includes('event')) {
+    return <Event sx={{ fontSize: 20, color: 'white' }} />;
+  } else {
+    return <Campaign sx={{ fontSize: 20, color: 'white' }} />;
+  }
+};
+
+const getActivityLogColor = (action) => {
+  const actionLower = action?.toLowerCase() || '';
+  
+  if (actionLower.includes('lost') || actionLower.includes('found')) {
+    return '#ff9800'; // Orange
+  } else if (actionLower.includes('profile') || actionLower.includes('update')) {
+    return '#2196f3'; // Blue
+  } else if (actionLower.includes('receipt') || actionLower.includes('submit')) {
+    return '#4caf50'; // Green
+  } else if (actionLower.includes('violation') || actionLower.includes('report')) {
+    return '#f44336'; // Red
+  } else if (actionLower.includes('announcement') || actionLower.includes('notification')) {
+    return '#9c27b0'; // Purple
+  } else if (actionLower.includes('activity') || actionLower.includes('event')) {
+    return '#00bcd4'; // Cyan
+  } else {
+    return '#607d8b'; // Blue Grey
+  }
+};
+
+const getActivityLogStatusColor = (status) => {
+  const statusLower = status?.toLowerCase() || '';
+  
+  if (statusLower.includes('completed') || statusLower.includes('success')) {
+    return 'success';
+  } else if (statusLower.includes('pending') || statusLower.includes('processing')) {
+    return 'warning';
+  } else if (statusLower.includes('failed') || statusLower.includes('error')) {
+    return 'error';
+  } else {
+    return 'default';
+  }
+};
 
 // User Overview Component
 function UserOverview({ currentUser }) {
@@ -18,17 +73,25 @@ function UserOverview({ currentUser }) {
   const [announcementCount, setAnnouncementCount] = useState(0);
   const [activities, setActivities] = useState([]);
   const [notifications, setNotifications] = useState([]);
+  const [activityBookings, setActivityBookings] = useState([]);
+  const [activityLogs, setActivityLogs] = useState([]);
   const [userProfile, setUserProfile] = useState(null);
   const [studentData, setStudentData] = useState(null);
   const [stats, setStats] = useState({
     totalViolations: 0,
     pendingViolations: 0,
     resolvedViolations: 0,
-    unreadNotifications: 0
+    unreadNotifications: 0,
+    totalAnnouncements: 0,
+    totalActivities: 0,
+    totalSubmissions: 0
   });
 
   useEffect(() => {
-    if (!currentUser) return;
+    if (!currentUser) {
+      return;
+    }
+
 
     // Fetch user profile from Firestore
     const fetchUserProfile = async () => {
@@ -67,9 +130,9 @@ function UserOverview({ currentUser }) {
           console.log('📚 Strategy 3 - Lowercase registeredEmail match:', studentsSnapshot.size, 'documents found');
         }
         
-        // Strategy 3: Get all students and filter client-side (if still no results)
+        // Strategy 4: Get all students and filter client-side (if still no results)
         if (studentsSnapshot.empty) {
-          console.log('📚 Strategy 3 - Fetching all students for client-side filtering...');
+          console.log('📚 Strategy 4 - Fetching all students for client-side filtering...');
           const allStudentsQuery = query(collection(db, 'students'));
           const allStudentsSnapshot = await getDocs(allStudentsQuery);
           
@@ -80,7 +143,7 @@ function UserOverview({ currentUser }) {
           });
           
           if (matchingStudents.length > 0) {
-            console.log('📚 Strategy 3 - Found', matchingStudents.length, 'matching students');
+            console.log('📚 Strategy 4 - Found', matchingStudents.length, 'matching students');
             studentsSnapshot = { 
               empty: false, 
               docs: matchingStudents,
@@ -128,109 +191,215 @@ function UserOverview({ currentUser }) {
       orderBy("createdAt", "desc")
     );
 
-    // Fetch notifications from admin records
-    const notificationsQuery = query(
-      collection(db, "notifications"),
-      where("recipientEmail", "==", currentUser.email),
-      orderBy("createdAt", "desc")
+    // Fetch activity bookings (approved activities scheduled by admin)
+    const activityBookingsQuery = query(
+      collection(db, "activity_bookings"),
+      orderBy("createdAt", "desc"),
+      limit(20)
     );
+
     // Fetch recent activities
     const activitiesQuery = query(
       collection(db, "activities"),
       orderBy("createdAt", "desc"),
       limit(5)
     );
+
+    // Fetch receipts/submissions
+    const receiptsQuery = query(
+      collection(db, "receipts"),
+      where("studentEmail", "==", currentUser.email),
+      orderBy("createdAt", "desc")
+    );
     const unsubActivities = onSnapshot(activitiesQuery, (snap) => {
-      const items = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      setActivities(items);
+      try {
+        const items = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        setActivities(items);
+      } catch (error) {
+        console.error("Error processing activities data:", error);
+      }
+    }, (error) => {
+      console.error("Dashboard - Activities query error:", error);
+    });
+
+    const unsubReceipts = onSnapshot(receiptsQuery, (snap) => {
+      try {
+        const items = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        
+        // Update stats
+        setStats(prev => ({
+          ...prev,
+          totalSubmissions: items.length
+        }));
+      } catch (error) {
+        console.error("Error processing receipts data:", error);
+      }
+    }, (error) => {
+      console.error("Dashboard - Receipts query error:", error);
     });
 
 
+
     const unsubViolations = onSnapshot(violationsQuery, (snap) => {
-      console.log("Dashboard - Firebase query result:", snap.docs.length, "violations");
-      const violations = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      
-      // Sort by createdAt in descending order (newest first) in JavaScript
-      const sortedViolations = violations.sort((a, b) => {
-        const dateA = a.createdAt ? new Date(a.createdAt) : new Date(0);
-        const dateB = b.createdAt ? new Date(b.createdAt) : new Date(0);
-        return dateB - dateA; // Descending order (newest first)
-      });
-      
-      setUserViolations(sortedViolations);
-      
-      // Calculate violation statistics
-      const totalViolations = sortedViolations.length;
-      const pendingViolations = sortedViolations.filter(v => v.status === 'Pending').length;
-      const resolvedViolations = sortedViolations.filter(v => v.status === 'Solved').length;
-      
-      setStats(prev => ({
-        ...prev,
-        totalViolations,
-        pendingViolations,
-        resolvedViolations
-      }));
+      try {
+        console.log("Dashboard - Firebase query result:", snap.docs.length, "violations");
+        const violations = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        
+        // Sort by createdAt in descending order (newest first) in JavaScript
+        const sortedViolations = violations.sort((a, b) => {
+          const dateA = a.createdAt ? new Date(a.createdAt) : new Date(0);
+          const dateB = b.createdAt ? new Date(b.createdAt) : new Date(0);
+          return dateB - dateA; // Descending order (newest first)
+        });
+        
+        setUserViolations(sortedViolations);
+        
+        // Calculate violation statistics
+        const totalViolations = sortedViolations.length;
+        const pendingViolations = sortedViolations.filter(v => v.status === 'Pending').length;
+        const resolvedViolations = sortedViolations.filter(v => v.status === 'Solved').length;
+        
+        setStats(prev => ({
+          ...prev,
+          totalViolations,
+          pendingViolations,
+          resolvedViolations
+        }));
+        
+      } catch (error) {
+        console.error("Error processing violations data:", error);
+      }
     }, (error) => {
       console.error("Dashboard - Firebase query error:", error);
     });
 
     const unsubAnnouncements = onSnapshot(announcementsQuery, (snap) => {
-      const items = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      setAnnouncements(items);
-      setAnnouncementCount(items.length);
+      try {
+        const items = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        setAnnouncements(items);
+        setAnnouncementCount(items.length);
+        
+        // Update stats
+        setStats(prev => ({
+          ...prev,
+          totalAnnouncements: items.length
+        }));
+      } catch (error) {
+        console.error("Error processing announcements data:", error);
+      }
+    }, (error) => {
+      console.error("Dashboard - Announcements query error:", error);
     });
 
-    const unsubNotifications = onSnapshot(notificationsQuery, (snap) => {
-      const allNotifications = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      
-      // Filter out enrollment/joining related notifications for students
-      const filteredNotifications = allNotifications.filter(notification => {
-        // Exclude notifications related to student enrollment, joining, or registration
-        const title = notification.title?.toLowerCase() || '';
-        const message = notification.message?.toLowerCase() || '';
-        const type = notification.type?.toLowerCase() || '';
+    const unsubActivityBookings = onSnapshot(activityBookingsQuery, (snap) => {
+      try {
+        const allBookingsData = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        console.log('📊 All activity bookings query result:', snap.docs.length, 'documents');
+        console.log('📊 All activity bookings data:', allBookingsData);
         
-        // Keywords to exclude (but allow classroom_addition notifications)
-        const excludeKeywords = [
-          'enrollment', 'enroll', 'joining', 'joined', 'registration', 'register',
-          'student added', 'new student', 'student created', 'account created',
-          'welcome new student', 'student registration', 'enrolled student'
-        ];
+        // Filter for approved activities that match student's course, year, and section
+        const approvedBookings = allBookingsData.filter(booking => {
+          if (booking.status !== 'approved') return false;
+          
+          // Get student profile data for matching
+          const studentCourse = studentData?.course || userProfile?.course || '';
+          const studentYear = studentData?.year || userProfile?.year || '';
+          const studentSection = studentData?.section || userProfile?.section || '';
+          
+          console.log('🎯 Matching activity for student:', {
+            studentCourse,
+            studentYear, 
+            studentSection,
+            activityCourse: booking.course,
+            activityYear: booking.year,
+            activitySection: booking.section,
+            activityTitle: booking.activity
+          });
+          
+          // Match course, year, and section (case-insensitive)
+          const courseMatch = studentCourse && booking.course && 
+            studentCourse.toLowerCase() === booking.course.toLowerCase();
+          const yearMatch = studentYear && booking.year && 
+            studentYear.toString() === booking.year.toString();
+          const sectionMatch = studentSection && booking.section && 
+            studentSection.toLowerCase() === booking.section.toLowerCase();
+          
+          const isMatch = courseMatch && yearMatch && sectionMatch;
+          console.log('🎯 Activity match result:', { courseMatch, yearMatch, sectionMatch, isMatch });
+          
+          return isMatch;
+        });
         
-        // Allow classroom_addition notifications
-        if (type === 'classroom_addition') {
-          return true;
+        console.log('📊 Approved activity bookings matching student profile:', approvedBookings.length, 'documents');
+        console.log('📊 Matching activity bookings data:', approvedBookings);
+        
+        // If no approved activities match, show pending ones as fallback
+        let bookingsToShow = approvedBookings;
+        if (approvedBookings.length === 0) {
+          const pendingBookings = allBookingsData.filter(booking => {
+            if (booking.status !== 'pending') return false;
+            
+            // Get student profile data for matching
+            const studentCourse = studentData?.course || userProfile?.course || '';
+            const studentYear = studentData?.year || userProfile?.year || '';
+            const studentSection = studentData?.section || userProfile?.section || '';
+            
+            // Match course, year, and section (case-insensitive)
+            const courseMatch = studentCourse && booking.course && 
+              studentCourse.toLowerCase() === booking.course.toLowerCase();
+            const yearMatch = studentYear && booking.year && 
+              studentYear.toString() === booking.year.toString();
+            const sectionMatch = studentSection && booking.section && 
+              studentSection.toLowerCase() === booking.section.toLowerCase();
+            
+            return courseMatch && yearMatch && sectionMatch;
+          });
+          console.log('📊 No approved activities match, showing pending:', pendingBookings.length, 'documents');
+          bookingsToShow = pendingBookings;
         }
         
-        // Check if notification contains any exclusion keywords
-        const shouldExclude = excludeKeywords.some(keyword => 
-          title.includes(keyword) || message.includes(keyword) || type.includes(keyword)
-        );
+        setActivityBookings(bookingsToShow);
         
-        // Only show lost and found, announcements, and other non-enrollment notifications
-        return !shouldExclude;
-      });
-      
-      setNotifications(filteredNotifications);
-      
-      // Calculate unread notifications from filtered list
-      const unreadCount = filteredNotifications.filter(n => !n.read).length;
-      setStats(prev => ({
-        ...prev,
-        unreadNotifications: unreadCount
-      }));
+        // Update stats
+        setStats(prev => ({
+          ...prev,
+          totalActivities: bookingsToShow.length
+        }));
+      } catch (error) {
+        console.error("Error processing activity bookings data:", error);
+      }
+    }, (error) => {
+      console.error("Dashboard - Activity bookings query error:", error);
     });
+
 
     return () => {
       unsubViolations();
       unsubAnnouncements();
-      unsubNotifications();
+      unsubActivityBookings();
       unsubActivities();
+      unsubReceipts();
     };
   }, [currentUser]);
 
+  // Limit to 3 records per container to maintain consistent sizing
   const recentAnnouncements = announcements?.slice(0, 3) || [];
-  const recentNotifications = notifications?.slice(0, 5) || [];
+  const recentActivityBookings = activityBookings?.slice(0, 3) || [];
+  const recentActivityLogs = activityLogs?.slice(0, 5) || [];
+
+  // Debug: Log activity bookings data
+  console.log('🔍 Recent Activity Bookings Debug:', {
+    activityBookings: activityBookings,
+    recentActivityBookings: recentActivityBookings,
+    activityBookingsLength: activityBookings?.length || 0,
+    recentActivityBookingsLength: recentActivityBookings?.length || 0,
+    showingLimit: '3 records per container',
+    studentProfile: {
+      course: studentData?.course || userProfile?.course || 'Not set',
+      year: studentData?.year || userProfile?.year || 'Not set', 
+      section: studentData?.section || userProfile?.section || 'Not set'
+    }
+  });
 
   // Get user display info - prioritize studentData from students collection
   const getUserDisplayInfo = () => {
@@ -315,6 +484,11 @@ function UserOverview({ currentUser }) {
 
   const userInfo = getUserDisplayInfo();
 
+  // Function to handle View All Activities button click
+  const handleViewAllActivities = () => {
+    navigate('/activity');
+  };
+
   // Debug: Log user profile data
   console.log('🔍 UserDashboard Debug:', {
     userProfile: userProfile,
@@ -353,42 +527,159 @@ function UserOverview({ currentUser }) {
         </Typography>
       </Box>
 
+      {/* Stats Cards */}
+      <Grid container spacing={3} sx={{ mb: 3 }}>
+        {/* Total Violations Card */}
+        <Grid item xs={12} sm={6} md={3}>
+          <Card 
+            sx={{ 
+              borderRadius: 2,
+              boxShadow: 3,
+              cursor: 'pointer',
+              transition: 'all 0.3s ease',
+              borderLeft: '4px solid #800000',
+              bgcolor: theme.palette.mode === 'dark' ? '#1a1a1a' : 'transparent',
+              '&:hover': {
+                transform: 'translateY(-4px)',
+                boxShadow: 6,
+                borderLeft: '4px solid #660000'
+              }
+            }}
+            onClick={() => navigate('/violations')}
+          >
+            <CardContent sx={{ p: 2.5, textAlign: 'center' }}>
+              <Typography variant="h4" fontWeight={700} sx={{ color: '#000000', mb: 0.5 }}>
+                {stats.totalViolations}
+              </Typography>
+              <Typography variant="body2" sx={{ color: '#000000', fontWeight: 500 }}>
+                Total Violations
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
 
+        {/* Total Announcements Card */}
+        <Grid item xs={12} sm={6} md={3}>
+          <Card 
+            sx={{ 
+              borderRadius: 2,
+              boxShadow: 3,
+              cursor: 'pointer',
+              transition: 'all 0.3s ease',
+              borderLeft: '4px solid #800000',
+              bgcolor: theme.palette.mode === 'dark' ? '#1a1a1a' : 'transparent',
+              '&:hover': {
+                transform: 'translateY(-4px)',
+                boxShadow: 6,
+                borderLeft: '4px solid #660000'
+              }
+            }}
+            onClick={() => navigate('/announcements')}
+          >
+            <CardContent sx={{ p: 2.5, textAlign: 'center' }}>
+              <Typography variant="h4" fontWeight={700} sx={{ color: '#000000', mb: 0.5 }}>
+                {stats.totalAnnouncements}
+              </Typography>
+              <Typography variant="body2" sx={{ color: '#000000', fontWeight: 500 }}>
+                Total Announcements
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+
+        {/* Total Activities Card */}
+        <Grid item xs={12} sm={6} md={3}>
+          <Card 
+            sx={{ 
+              borderRadius: 2,
+              boxShadow: 3,
+              cursor: 'pointer',
+              transition: 'all 0.3s ease',
+              borderLeft: '4px solid #800000',
+              bgcolor: theme.palette.mode === 'dark' ? '#1a1a1a' : 'transparent',
+              '&:hover': {
+                transform: 'translateY(-4px)',
+                boxShadow: 6,
+                borderLeft: '4px solid #660000'
+              }
+            }}
+            onClick={() => navigate('/activity')}
+          >
+            <CardContent sx={{ p: 2.5, textAlign: 'center' }}>
+              <Typography variant="h4" fontWeight={700} sx={{ color: '#000000', mb: 0.5 }}>
+                {stats.totalActivities}
+              </Typography>
+              <Typography variant="body2" sx={{ color: '#000000', fontWeight: 500 }}>
+                Total Activities
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+
+        {/* Total Submissions Card */}
+        <Grid item xs={12} sm={6} md={3}>
+          <Card 
+            sx={{ 
+              borderRadius: 2,
+              boxShadow: 3,
+              cursor: 'pointer',
+              transition: 'all 0.3s ease',
+              borderLeft: '4px solid #800000',
+              bgcolor: theme.palette.mode === 'dark' ? '#1a1a1a' : 'transparent',
+              '&:hover': {
+                transform: 'translateY(-4px)',
+                boxShadow: 6,
+                borderLeft: '4px solid #660000'
+              }
+            }}
+            onClick={() => navigate('/receipt-submission')}
+          >
+            <CardContent sx={{ p: 2.5, textAlign: 'center' }}>
+              <Typography variant="h4" fontWeight={700} sx={{ color: '#000000', mb: 0.5 }}>
+                {stats.totalSubmissions}
+              </Typography>
+              <Typography variant="body2" sx={{ color: '#000000', fontWeight: 500 }}>
+                Total Submissions
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+      </Grid>
 
       {/* Main Content */}
       <Grid container spacing={3}>
         {/* Active Announcements */}
-        <Grid item xs={12} lg={6}>
+        <Grid item xs={12} lg={6} sx={{ mt: 2 }}>
           <Card sx={{ 
-            borderRadius: 2,
-            boxShadow: 3,
-            height: 'fit-content',
-            borderLeft: '4px solid #800000',
-            bgcolor: theme.palette.mode === 'dark' ? '#1a1a1a' : 'transparent'
+            border: 'none',
+            borderRadius: 3, 
+            boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+            bgcolor: theme.palette.mode === 'dark' ? '#333333' : 'transparent',
+            height: '400px',
+            display: 'flex',
+            flexDirection: 'column'
           }}>
-            <CardContent>
+            <CardContent sx={{ flex: 1, overflow: 'auto', p: 2 }}>
               <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
-                <Typography variant="h6" fontWeight={600} sx={{ color: theme.palette.mode === 'dark' ? '#ffffff' : '#800000' }}>
-                  Active Announcements
+                <Typography variant="h6" fontWeight={600} sx={{ color: theme.palette.mode === 'dark' ? '#ffffff' : '#2d3436' }}>
+                  Recent Announcements
                 </Typography>
                 <Button 
                   size="small" 
                   component={Link} 
                   to="/announcements"
+                  variant="outlined"
                   sx={{ 
                     textTransform: 'none',
-                    color: theme.palette.mode === 'dark' ? '#ffffff' : '#800000',
-                    borderColor: theme.palette.mode === 'dark' ? '#ffffff' : '#800000',
-                    '&:hover': {
-                      backgroundColor: 'rgba(128, 0, 0, 0.1)',
-                      borderColor: '#800000',
-                      color: '#800000',
-                      transform: 'translateY(-1px)',
-                      boxShadow: '0 4px 8px rgba(128, 0, 0, 0.2)'
-                    },
-                    transition: 'all 0.2s ease-in-out'
+                    bgcolor: '#fff', 
+                    color: '#000', 
+                    borderColor: '#000', 
+                    '&:hover': { 
+                      bgcolor: '#800000', 
+                      color: '#fff', 
+                      borderColor: '#800000' 
+                    }
                   }}
-                  variant="outlined"
                 >
                   View All
                 </Button>
@@ -398,46 +689,49 @@ function UserOverview({ currentUser }) {
                 <List>
                   {recentAnnouncements.map((announcement, index) => (
                     <React.Fragment key={announcement.id}>
-                      <ListItem sx={{ 
-                        px: 0, 
-                        py: 1,
-                        '&:hover': {
-                          backgroundColor: 'transparent'
-                        }
-                      }}>
+                      <ListItem sx={{ px: 0, py: 1, '&:hover': { backgroundColor: 'transparent' } }}>
                         <ListItemAvatar>
-                          <Avatar sx={{ bgcolor: 'primary.main', width: 40, height: 40 }}>
-                            <Announcement sx={{ fontSize: 20 }} />
+                          <Avatar sx={{ 
+                            width: 32, 
+                            height: 32,
+                            bgcolor: 'transparent'
+                          }}>
+                            <Info sx={{ 
+                              fontSize: 16, 
+                              color: theme.palette.mode === 'dark' ? '#ffffff' : '#333333' 
+                            }} />
                           </Avatar>
                         </ListItemAvatar>
                         <ListItemText
                           primary={
-                            <Typography variant="subtitle2" fontWeight={600} sx={{ color: theme.palette.mode === 'dark' ? '#ffffff' : 'inherit' }}>
+                            <Typography variant="subtitle2" fontWeight={600} sx={{ color: theme.palette.mode === 'dark' ? '#ffffff' : '#000000' }}>
                               {announcement.title}
                             </Typography>
                           }
                           secondary={
                             <Box>
-                              <Typography variant="body2" sx={{ color: theme.palette.mode === 'dark' ? '#ffffff' : 'text.secondary', mb: 0.5 }}>
-                                {announcement.message?.substring(0, 100)}{announcement.message?.length > 100 ? '...' : ''}
+                              <Typography variant="body2" sx={{ color: theme.palette.mode === 'dark' ? '#ffffff' : '#333333', mb: 0.5 }}>
+                                {announcement.content || announcement.message}
                               </Typography>
-                              <Typography variant="caption" sx={{ color: theme.palette.mode === 'dark' ? '#ffffff' : 'text.secondary' }}>
-                                {announcement.createdAt ? new Date(announcement.createdAt).toLocaleDateString() : 'Recently'}
+                              <Typography variant="caption" sx={{ color: theme.palette.mode === 'dark' ? '#ffffff' : '#666666' }}>
+                                {new Date(announcement.timestamp || announcement.createdAt).toLocaleDateString()}
                               </Typography>
                             </Box>
                           }
                         />
                         <Chip 
-                          label={announcement.priority || 'Normal'} 
+                          label={announcement.status || 'Pending'} 
                           size="small"
-                          color={announcement.priority === 'High' ? 'warning' : 
-                                 announcement.priority === 'Urgent' ? 'error' : 'default'}
                           sx={{ 
                             fontWeight: 500,
-                            color: announcement.priority === 'High' ? '#ff9800' : 
-                                   announcement.priority === 'Urgent' ? '#f44336' : '#4caf50',
-                            borderColor: announcement.priority === 'High' ? '#ff9800' : 
-                                        announcement.priority === 'Urgent' ? '#f44336' : '#4caf50'
+                            backgroundColor: 'transparent',
+                            color: (announcement.status || 'Pending') === 'Approved' ? '#4caf50' : 
+                                   (announcement.status || 'Pending') === 'Pending' ? '#ff9800' : '#666666',
+                            border: 'none',
+                            '& .MuiChip-label': {
+                              color: (announcement.status || 'Pending') === 'Approved' ? '#4caf50' : 
+                                     (announcement.status || 'Pending') === 'Pending' ? '#ff9800' : '#666666'
+                            }
                           }}
                         />
                       </ListItem>
@@ -447,9 +741,13 @@ function UserOverview({ currentUser }) {
                 </List>
               ) : (
                 <Box sx={{ textAlign: 'center', py: 3 }}>
-                  <Announcement sx={{ fontSize: 48, color: theme.palette.mode === 'dark' ? '#ffffff' : 'text.secondary', mb: 1 }} />
-                  <Typography variant="body2" sx={{ color: theme.palette.mode === 'dark' ? '#ffffff' : 'text.secondary' }}>
-                    No announcements available
+                  <Info sx={{ 
+                    fontSize: 32, 
+                    color: theme.palette.mode === 'dark' ? '#ffffff' : '#333333', 
+                    mb: 1 
+                  }} />
+                  <Typography variant="body2" sx={{ color: theme.palette.mode === 'dark' ? '#ffffff' : '#333333' }}>
+                    No announcements yet
                   </Typography>
                 </Box>
               )}
@@ -457,7 +755,7 @@ function UserOverview({ currentUser }) {
           </Card>
         </Grid>
 
-        {/* Recent Notifications */}
+        {/* Teacher Activity */}
         <Grid item xs={12} lg={6}>
           <Card sx={{ 
             borderLeft: '4px solid #800000',
@@ -467,23 +765,13 @@ function UserOverview({ currentUser }) {
             height: 'fit-content'
           }}>
             <CardContent>
-              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
                 <Typography variant="h6" fontWeight={700} sx={{ color: theme.palette.mode === 'dark' ? '#ffffff' : '#800000' }}>
-                  Recent Notifications
-                  {stats.unreadNotifications > 0 && (
-                    <Chip 
-                      label={`${stats.unreadNotifications} UNREAD`} 
-                      sx={{ 
-                        ml: 2, 
-                        fontWeight: 600,
-                        bgcolor: '#d32f2f',
-                        color: 'white'
-                      }}
-                    />
-                  )}
+                  Activities for You
                 </Typography>
                 <Button 
                   size="small" 
+                  onClick={handleViewAllActivities}
                   sx={{ 
                     textTransform: 'none',
                     color: theme.palette.mode === 'dark' ? '#ffffff' : '#800000',
@@ -498,17 +786,23 @@ function UserOverview({ currentUser }) {
                     transition: 'all 0.2s ease-in-out'
                   }}
                   variant="outlined"
-                  component={Link} 
-                  to="/notifications"
                 >
                   View All
                 </Button>
               </Box>
               
-              {recentNotifications.length > 0 ? (
+              <Typography variant="body2" sx={{ 
+                color: theme.palette.mode === 'dark' ? '#cccccc' : '#666666', 
+                mb: 2,
+                fontStyle: 'italic'
+              }}>
+                Activities scheduled by teachers specifically for your course, year, and section
+              </Typography>
+              
+              {recentActivityBookings.length > 0 ? (
                 <List>
-                  {recentNotifications.map((notification, index) => (
-                    <React.Fragment key={notification.id}>
+                  {recentActivityBookings.map((activity, index) => (
+                    <React.Fragment key={activity.id}>
                       <ListItem sx={{ 
                         px: 0, 
                         py: 1,
@@ -518,60 +812,180 @@ function UserOverview({ currentUser }) {
                       }}>
                         <ListItemAvatar>
                           <Avatar sx={{ 
-                            bgcolor: notification.read ? 'grey.300' : 
-                                     notification.type === 'violation' ? 'error.main' : 'primary.main',
-                            border: !notification.read ? '2px solid #ff9800' : 'none',
+                            bgcolor: 'success.main',
                             width: 40, 
                             height: 40
                           }}>
-                            {notification.type === 'violation' ? <Warning sx={{ fontSize: 20 }} color="error" /> : <Announcement sx={{ fontSize: 20 }} color="primary" />}
+                            <Event sx={{ fontSize: 20 }} />
                           </Avatar>
                         </ListItemAvatar>
                         <ListItemText
                           primary={
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
-                              <Typography variant="subtitle2" fontWeight={notification.read ? 400 : 700} sx={{ color: theme.palette.mode === 'dark' ? '#ffffff' : 'inherit' }}>
-                                {notification.title}
-                              </Typography>
-                              {!notification.read && (
-                                <Chip label="NEW" size="small" color="error" sx={{ fontWeight: 600 }} />
-                              )}
-                            </Box>
+                            <Typography variant="subtitle2" fontWeight={600} sx={{ color: theme.palette.mode === 'dark' ? '#ffffff' : 'inherit' }}>
+                              {activity.activity}
+                            </Typography>
                           }
                           secondary={
                             <Box>
                               <Typography variant="body2" sx={{ color: theme.palette.mode === 'dark' ? '#ffffff' : 'text.secondary', mb: 0.5 }}>
-                                {notification.message && notification.message.length > 100 
-                                  ? `${notification.message.substring(0, 100)}...` 
-                                  : notification.message
-                                }
+                                <strong>Location:</strong> {activity.resource} • <strong>Teacher:</strong> {activity.teacherName}
+                              </Typography>
+                              <Typography variant="body2" sx={{ color: theme.palette.mode === 'dark' ? '#ffffff' : 'text.secondary', mb: 0.5 }}>
+                                <strong>Target:</strong> {activity.course} - {activity.year} - Section {activity.section}
                               </Typography>
                               <Typography variant="caption" sx={{ color: theme.palette.mode === 'dark' ? '#ffffff' : 'text.secondary' }}>
-                                {new Date(notification.createdAt).toLocaleDateString()}
+                                {new Date(activity.date).toLocaleDateString()} at {activity.startTime} - {activity.endTime}
                               </Typography>
                             </Box>
                           }
                         />
+                        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 0.5 }}>
+                          <Chip 
+                            label={activity.status} 
+                            size="small"
+                            color={activity.status === 'approved' ? 'success' : activity.status === 'pending' ? 'warning' : 'default'}
+                            sx={{ 
+                              fontWeight: 500,
+                              textTransform: 'capitalize'
+                            }}
+                          />
+                          <Chip 
+                            label="For You" 
+                            size="small"
+                            sx={{ 
+                              fontWeight: 500,
+                              backgroundColor: '#800000',
+                              color: 'white',
+                              fontSize: '0.7rem'
+                            }}
+                          />
+                        </Box>
                       </ListItem>
-                      {index < recentNotifications.length - 1 && <Divider />}
+                      {index < recentActivityBookings.length - 1 && <Divider />}
                     </React.Fragment>
                   ))}
                 </List>
               ) : (
                 <Box sx={{ textAlign: 'center', py: 3 }}>
-                  <Campaign sx={{ fontSize: 48, color: theme.palette.mode === 'dark' ? '#ffffff' : 'text.secondary', mb: 1 }} />
+                  <Event sx={{ fontSize: 48, color: theme.palette.mode === 'dark' ? '#ffffff' : 'text.secondary', mb: 1 }} />
                   <Typography variant="body2" sx={{ color: theme.palette.mode === 'dark' ? '#ffffff' : 'text.secondary' }}>
-                    No notifications yet
+                    No activities scheduled for you
+                  </Typography>
+                  <Typography variant="caption" sx={{ color: theme.palette.mode === 'dark' ? '#ffffff' : 'text.secondary', mt: 1, display: 'block' }}>
+                    Teachers will schedule activities specifically for your course ({studentData?.course || userProfile?.course || 'N/A'}), year ({studentData?.year || userProfile?.year || 'N/A'}), and section ({studentData?.section || userProfile?.section || 'N/A'})
                   </Typography>
                 </Box>
               )}
             </CardContent>
           </Card>
-        </Grid>
-      </Grid>
-    </Box>
-  );
-}
+         </Grid>
+       </Grid>
+
+       {/* Recent Activity Log */}
+       <Grid container spacing={3} sx={{ mt: 2 }}>
+         <Grid item xs={12}>
+           <Card sx={{ 
+             borderLeft: '4px solid #800000',
+             boxShadow: 3,
+             bgcolor: theme.palette.mode === 'dark' ? '#1a1a1a' : 'transparent',
+             borderRadius: 2,
+             height: 'fit-content'
+           }}>
+             <CardContent>
+               <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+                 <Typography variant="h6" fontWeight={700} sx={{ color: theme.palette.mode === 'dark' ? '#ffffff' : '#800000' }}>
+                   Recent Activity Log
+                 </Typography>
+                 <Button 
+                   size="small" 
+                   sx={{ 
+                     textTransform: 'none',
+                     color: theme.palette.mode === 'dark' ? '#ffffff' : '#800000',
+                     borderColor: theme.palette.mode === 'dark' ? '#ffffff' : '#800000',
+                     '&:hover': {
+                       backgroundColor: 'rgba(128, 0, 0, 0.1)',
+                       borderColor: '#800000',
+                       color: '#800000',
+                       transform: 'translateY(-1px)',
+                       boxShadow: '0 4px 8px rgba(128, 0, 0, 0.2)'
+                     },
+                     transition: 'all 0.2s ease-in-out'
+                   }}
+                   variant="outlined"
+                 >
+                   View All
+                 </Button>
+               </Box>
+               
+               {recentActivityLogs.length > 0 ? (
+                 <List>
+                   {recentActivityLogs.map((log, index) => (
+                     <React.Fragment key={log.id}>
+                       <ListItem sx={{ 
+                         px: 0, 
+                         py: 1,
+                         '&:hover': {
+                           backgroundColor: 'transparent'
+                         }
+                       }}>
+                         <ListItemAvatar>
+                           <Avatar sx={{ 
+                             bgcolor: getActivityLogColor(log.action),
+                             width: 40, 
+                             height: 40
+                           }}>
+                             {getActivityLogIcon(log.action)}
+                           </Avatar>
+                         </ListItemAvatar>
+                         <ListItemText
+                           primary={
+                             <Typography variant="subtitle2" fontWeight={600} sx={{ color: theme.palette.mode === 'dark' ? '#ffffff' : 'inherit' }}>
+                               {log.action}
+                             </Typography>
+                           }
+                           secondary={
+                             <Box>
+                               <Typography variant="body2" sx={{ color: theme.palette.mode === 'dark' ? '#ffffff' : 'text.secondary', mb: 0.5 }}>
+                                 {log.description || log.message || 'No description available'}
+                               </Typography>
+                               <Typography variant="caption" sx={{ color: theme.palette.mode === 'dark' ? '#ffffff' : 'text.secondary' }}>
+                                 {log.createdAt ? new Date(log.createdAt).toLocaleString() : 'Recently'}
+                               </Typography>
+                             </Box>
+                           }
+                         />
+                         <Chip 
+                           label={log.status || 'Completed'} 
+                           size="small"
+                           color={getActivityLogStatusColor(log.status)}
+                           sx={{ 
+                             fontWeight: 500,
+                             textTransform: 'capitalize'
+                           }}
+                         />
+                       </ListItem>
+                       {index < recentActivityLogs.length - 1 && <Divider />}
+                     </React.Fragment>
+                   ))}
+                 </List>
+               ) : (
+                 <Box sx={{ textAlign: 'center', py: 3 }}>
+                   <Report sx={{ fontSize: 48, color: theme.palette.mode === 'dark' ? '#ffffff' : 'text.secondary', mb: 1 }} />
+                   <Typography variant="body2" sx={{ color: theme.palette.mode === 'dark' ? '#ffffff' : 'text.secondary' }}>
+                     No recent activity
+                   </Typography>
+                   <Typography variant="caption" sx={{ color: theme.palette.mode === 'dark' ? '#ffffff' : 'text.secondary', mt: 1, display: 'block' }}>
+                     Your recent actions will appear here
+                   </Typography>
+                 </Box>
+               )}
+             </CardContent>
+           </Card>
+         </Grid>
+       </Grid>
+     </Box>
+   );
+ }
 
 // Main User Dashboard Component
 export default function UserDashboard({ currentUser, userProfile }) {

@@ -25,7 +25,8 @@ import {
   Avatar,
   IconButton,
   Tooltip,
-  Divider
+  Divider,
+  TablePagination
 } from '@mui/material';
 import {
   Schedule,
@@ -37,7 +38,8 @@ import {
   AccessTime,
   LocationOn,
   Person,
-  CalendarToday
+  CalendarToday,
+  Search
 } from '@mui/icons-material';
 import { collection, query, where, onSnapshot, orderBy } from 'firebase/firestore';
 import { db, auth } from '../firebase';
@@ -53,6 +55,9 @@ export default function TeacherActivityRequests() {
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
   const [currentUser, setCurrentUser] = useState(null);
   const [filterStatus, setFilterStatus] = useState('all');
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged((user) => {
@@ -199,20 +204,49 @@ export default function TeacherActivityRequests() {
   };
 
   const getFilteredRequests = () => {
-    if (filterStatus === 'all') {
-      return requests;
-    }
-    return requests.filter(request => {
+    let filtered = requests;
+    
+    // Filter by status
+    if (filterStatus !== 'all') {
       if (filterStatus === 'denied') {
-        return request.status === 'denied' || request.status === 'rejected';
+        filtered = filtered.filter(request => request.status === 'denied' || request.status === 'rejected');
+      } else {
+        filtered = filtered.filter(request => request.status === filterStatus);
       }
-      return request.status === filterStatus;
-    });
+    }
+    
+    // Filter by search query
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter(request => 
+        (request.activity || '').toLowerCase().includes(query) ||
+        (request.resource || '').toLowerCase().includes(query) ||
+        (request.department || '').toLowerCase().includes(query) ||
+        (request.status || '').toLowerCase().includes(query) ||
+        (request.notes || '').toLowerCase().includes(query) ||
+        formatDate(request.date).toLowerCase().includes(query) ||
+        formatTime(request.startTime).toLowerCase().includes(query) ||
+        formatTime(request.endTime).toLowerCase().includes(query)
+      );
+    }
+    
+    return filtered;
   };
 
   const handleFilterClick = (status) => {
     setFilterStatus(status);
+    setPage(0); // Reset to first page when filtering
   };
+
+  const handleChangePage = (event, newPage) => {
+    setPage(newPage);
+  };
+
+  const handleChangeRowsPerPage = (event) => {
+    setRowsPerPage(parseInt(event.target.value, 10));
+    setPage(0);
+  };
+
 
   const stats = getRequestStats();
 
@@ -228,7 +262,7 @@ export default function TeacherActivityRequests() {
     <Box sx={{ p: { xs: 2, sm: 3 } }}>
       {/* Header */}
       <Box sx={{ mb: 3 }}>
-        <Typography variant="h4" fontWeight={700} sx={{ color: theme.palette.mode === 'dark' ? '#ffffff' : '#000000', mb: 1 }}>
+        <Typography variant="h4" fontWeight={700} sx={{ color: theme.palette.mode === 'dark' ? '#cc6666' : '#800000', mb: 1 }}>
           Activity Requests
         </Typography>
         <Typography variant="body1" color="text.secondary">
@@ -348,101 +382,150 @@ export default function TeacherActivityRequests() {
             Request History
           </Typography>
           
+          {/* Search Bar */}
+          <Box sx={{ mb: 2 }}>
+            <TextField
+              placeholder="Search requests by activity, resource, department, status, or date..."
+              value={searchQuery}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setPage(0); // Reset to first page when searching
+              }}
+              InputProps={{
+                startAdornment: <Search sx={{ mr: 1, color: 'text.secondary' }} />,
+              }}
+              sx={{
+                width: '100%',
+                maxWidth: '500px',
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: 2,
+                  backgroundColor: theme.palette.mode === 'dark' ? '#404040' : '#ffffff',
+                },
+                '& .MuiInputBase-input': {
+                  fontSize: '0.9rem',
+                }
+              }}
+              size="small"
+            />
+          </Box>
+          
           {getFilteredRequests().length > 0 ? (
-            <TableContainer>
-              <Table>
-                <TableHead>
-                  <TableRow>
-                    <TableCell sx={{ fontWeight: 600, color: '#ffffff', backgroundColor: '#800000' }}>
-                      Activity
-                    </TableCell>
-                    <TableCell sx={{ fontWeight: 600, color: '#ffffff', backgroundColor: '#800000' }}>
-                      Resource
-                    </TableCell>
-                    <TableCell sx={{ fontWeight: 600, color: '#ffffff', backgroundColor: '#800000' }}>
-                      Date & Time
-                    </TableCell>
-                    <TableCell sx={{ fontWeight: 600, color: '#ffffff', backgroundColor: '#800000' }}>
-                      Status
-                    </TableCell>
-                    <TableCell sx={{ fontWeight: 600, color: '#ffffff', backgroundColor: '#800000' }}>
-                      Actions
-                    </TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {getFilteredRequests().map((request) => (
-                    <TableRow 
-                      key={request.id} 
-                      hover 
-                      onClick={() => handleViewRequest(request)}
-                      sx={{ 
-                        cursor: 'pointer',
-                        '&:hover': {
-                          backgroundColor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.04)'
-                        }
-                      }}
-                    >
-                      <TableCell>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                          <Avatar sx={{ bgcolor: '#2196f3', width: 32, height: 32 }}>
-                            <Assignment sx={{ fontSize: 16 }} />
-                          </Avatar>
-                          <Box>
-                            <Typography variant="subtitle2" fontWeight={600}>
-                              {request.activity}
-                            </Typography>
-                            <Typography variant="caption" color="text.secondary">
-                              {request.department}
-                            </Typography>
-                          </Box>
-                        </Box>
+            <>
+              <TableContainer>
+                <Table>
+                  <TableHead>
+                    <TableRow>
+                      <TableCell sx={{ fontWeight: 600, color: '#ffffff', backgroundColor: '#800000' }}>
+                        Activity
                       </TableCell>
-                      <TableCell>
-                        <Typography variant="body2">
-                          {request.resource}
-                        </Typography>
+                      <TableCell sx={{ fontWeight: 600, color: '#ffffff', backgroundColor: '#800000' }}>
+                        Resource
                       </TableCell>
-                      <TableCell>
-                        <Box>
-                          <Typography variant="body2" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                            <CalendarToday sx={{ fontSize: 14 }} />
-                            {formatDate(request.date)}
-                          </Typography>
-                          <Typography variant="body2" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, color: 'text.secondary' }}>
-                            <AccessTime sx={{ fontSize: 14 }} />
-                            {formatTime(request.startTime)} - {formatTime(request.endTime)}
-                          </Typography>
-                        </Box>
+                      <TableCell sx={{ fontWeight: 600, color: '#ffffff', backgroundColor: '#800000' }}>
+                        Date & Time
                       </TableCell>
-                      <TableCell>
-                        <Chip
-                          icon={getStatusIcon(request.status)}
-                          label={request.status?.charAt(0).toUpperCase() + request.status?.slice(1)}
-                          color={getStatusColor(request.status)}
-                          size="small"
-                          sx={{ fontWeight: 500 }}
-                        />
+                      <TableCell sx={{ fontWeight: 600, color: '#ffffff', backgroundColor: '#800000' }}>
+                        Status
                       </TableCell>
-                      <TableCell>
-                        <Tooltip title="View Details">
-                          <IconButton
-                            onClick={(e) => {
-                              e.stopPropagation(); // Prevent row click when clicking the button
-                              handleViewRequest(request);
-                            }}
-                            size="small"
-                            sx={{ color: theme.palette.mode === 'dark' ? '#ffffff' : '#000000' }}
-                          >
-                            <Visibility />
-                          </IconButton>
-                        </Tooltip>
+                      <TableCell sx={{ fontWeight: 600, color: '#ffffff', backgroundColor: '#800000' }}>
+                        Actions
                       </TableCell>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </TableContainer>
+                  </TableHead>
+                  <TableBody>
+                    {getFilteredRequests()
+                      .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
+                      .map((request) => (
+                      <TableRow 
+                        key={request.id} 
+                        hover 
+                        onClick={() => handleViewRequest(request)}
+                        sx={{ 
+                          cursor: 'pointer',
+                          '&:hover': {
+                            backgroundColor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.04)'
+                          }
+                        }}
+                      >
+                        <TableCell>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <Avatar sx={{ bgcolor: '#2196f3', width: 32, height: 32 }}>
+                              <Assignment sx={{ fontSize: 16 }} />
+                            </Avatar>
+                            <Box>
+                              <Typography variant="subtitle2" fontWeight={600}>
+                                {request.activity}
+                              </Typography>
+                              <Typography variant="caption" color="text.secondary">
+                                {request.department}
+                              </Typography>
+                            </Box>
+                          </Box>
+                        </TableCell>
+                        <TableCell>
+                          <Typography variant="body2">
+                            {request.resource}
+                          </Typography>
+                        </TableCell>
+                        <TableCell>
+                          <Box>
+                            <Typography variant="body2" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                              <CalendarToday sx={{ fontSize: 14 }} />
+                              {formatDate(request.date)}
+                            </Typography>
+                            <Typography variant="body2" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, color: 'text.secondary' }}>
+                              <AccessTime sx={{ fontSize: 14 }} />
+                              {formatTime(request.startTime)} - {formatTime(request.endTime)}
+                            </Typography>
+                          </Box>
+                        </TableCell>
+                        <TableCell>
+                          <Chip
+                            icon={getStatusIcon(request.status)}
+                            label={request.status?.charAt(0).toUpperCase() + request.status?.slice(1)}
+                            color={getStatusColor(request.status)}
+                            size="small"
+                            sx={{ fontWeight: 500 }}
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <Tooltip title="View Details">
+                            <IconButton
+                              onClick={(e) => {
+                                e.stopPropagation(); // Prevent row click when clicking the button
+                                handleViewRequest(request);
+                              }}
+                              size="small"
+                              sx={{ color: theme.palette.mode === 'dark' ? '#ffffff' : '#000000' }}
+                            >
+                              <Visibility />
+                            </IconButton>
+                          </Tooltip>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+              <TablePagination
+                component="div"
+                count={getFilteredRequests().length}
+                page={page}
+                onPageChange={handleChangePage}
+                rowsPerPage={rowsPerPage}
+                onRowsPerPageChange={handleChangeRowsPerPage}
+                rowsPerPageOptions={[5, 10, 25, 50]}
+                sx={{
+                  borderTop: theme.palette.mode === 'dark' ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid #e0e0e0',
+                  '& .MuiTablePagination-toolbar': {
+                    color: theme.palette.mode === 'dark' ? '#ffffff' : '#000000',
+                  },
+                  '& .MuiTablePagination-selectLabel, & .MuiTablePagination-displayedRows': {
+                    color: theme.palette.mode === 'dark' ? '#ffffff' : '#000000',
+                  }
+                }}
+              />
+            </>
           ) : (
             <Box sx={{ textAlign: 'center', py: 4 }}>
               <Schedule sx={{ fontSize: 48, color: 'text.secondary', mb: 2 }} />

@@ -26,6 +26,7 @@ export default function TeacherLostFound({ currentUser: propCurrentUser, userPro
   const [commentLikes, setCommentLikes] = useState({});
   const [historyModal, setHistoryModal] = useState({ open: false, type: '', items: [] });
   const [addItemModal, setAddItemModal] = useState({ open: false, type: '' });
+  const [viewCommentsModal, setViewCommentsModal] = useState({ open: false, itemId: null, itemType: '', comments: [] });
 
   // Use passed currentUser prop or fallback to auth state
   useEffect(() => {
@@ -373,6 +374,16 @@ export default function TeacherLostFound({ currentUser: propCurrentUser, userPro
     return likes.includes(currentUser.email);
   };
 
+  // Handle opening view comments modal
+  const handleViewComments = (item) => {
+    setViewCommentsModal({
+      open: true,
+      itemId: item.id,
+      itemType: item.type,
+      comments: item.comments || []
+    });
+  };
+
   // Handle opening history modal
   const handleOpenHistory = (type) => {
     const items = type === 'found' ? foundItems : lostItems;
@@ -528,12 +539,12 @@ export default function TeacherLostFound({ currentUser: propCurrentUser, userPro
                 cursor: 'pointer',
                 transition: 'all 0.3s ease',
                 bgcolor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.05)' : '#ffffff',
-                border: '1px solid rgba(244, 67, 54, 0.3)',
-                borderLeft: '4px solid #f44336',
+                border: '1px solid rgba(128, 0, 0, 0.3)',
+                borderLeft: '4px solid #800000',
                 '&:hover': {
                   transform: 'translateY(-4px)',
-                  boxShadow: '0 8px 25px rgba(244, 67, 54, 0.3)',
-                  borderColor: '#f44336'
+                  boxShadow: '0 8px 25px rgba(128, 0, 0, 0.3)',
+                  borderColor: '#800000'
                 }
               }}
               onClick={() => handleOpenHistory('lost')}
@@ -544,12 +555,12 @@ export default function TeacherLostFound({ currentUser: propCurrentUser, userPro
                     <Box sx={{ 
                       p: 2, 
                       borderRadius: '50%', 
-                      bgcolor: 'rgba(244, 67, 54, 0.1)',
+                      bgcolor: 'rgba(128, 0, 0, 0.1)',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center'
                     }}>
-                      <History sx={{ color: '#f44336', fontSize: 28 }} />
+                      <History sx={{ color: '#800000', fontSize: 28 }} />
                     </Box>
                     <Box>
                       <Typography variant="h5" sx={{ 
@@ -570,33 +581,33 @@ export default function TeacherLostFound({ currentUser: propCurrentUser, userPro
                           label={`Total: ${lostItems.length}`} 
                           size="small"
                           sx={{ 
-                            bgcolor: 'rgba(244, 67, 54, 0.1)',
-                            color: '#f44336',
-                            border: '1px solid #f44336'
+                            bgcolor: 'rgba(128, 0, 0, 0.1)',
+                            color: '#800000',
+                            border: '1px solid #800000'
                           }} 
                         />
                         <Chip 
                           label={`Resolved: ${lostItems.filter(item => item.resolved).length}`} 
                           size="small"
                           sx={{ 
-                            bgcolor: 'rgba(244, 67, 54, 0.1)',
-                            color: '#f44336',
-                            border: '1px solid #f44336'
+                            bgcolor: 'rgba(128, 0, 0, 0.1)',
+                            color: '#800000',
+                            border: '1px solid #800000'
                           }} 
                         />
                         <Chip 
                           label={`Active: ${lostItems.filter(item => !item.resolved).length}`} 
                           size="small"
                           sx={{ 
-                            bgcolor: 'rgba(244, 67, 54, 0.1)',
-                            color: '#f44336',
-                            border: '1px solid #f44336'
+                            bgcolor: 'rgba(128, 0, 0, 0.1)',
+                            color: '#800000',
+                            border: '1px solid #800000'
                           }} 
                         />
                       </Box>
                     </Box>
                   </Box>
-                  <Visibility sx={{ color: '#f44336', fontSize: 24 }} />
+                  <Visibility sx={{ color: '#800000', fontSize: 24 }} />
                 </Box>
               </CardContent>
             </Card>
@@ -793,6 +804,21 @@ export default function TeacherLostFound({ currentUser: propCurrentUser, userPro
                       >
                         Comment {item.comments?.length > 0 && `(${item.comments.length})`}
                       </Button>
+                      {item.comments?.length > 0 && (
+                        <Button
+                          startIcon={<Visibility />}
+                          onClick={() => handleViewComments(item)}
+                          sx={{ 
+                            color: '#4caf50',
+                            '&:hover': {
+                              color: '#45a049',
+                              backgroundColor: 'rgba(76, 175, 80, 0.1)'
+                            }
+                          }}
+                        >
+                          View Comments ({item.comments.length})
+                        </Button>
+                      )}
                       <Button
                         startIcon={<ThumbUp />}
                         onClick={() => handleLike(item.id, item.type)}
@@ -829,7 +855,7 @@ export default function TeacherLostFound({ currentUser: propCurrentUser, userPro
                   width: 8, 
                   height: 8, 
                   borderRadius: '50%', 
-                  bgcolor: '#f44336',
+                  bgcolor: '#800000',
                   display: 'inline-block'
                 }} />
                 Lost Items
@@ -848,11 +874,11 @@ export default function TeacherLostFound({ currentUser: propCurrentUser, userPro
                   fontWeight: 500,
                   borderRadius: 1,
                   '&:hover': {
-                    bgcolor: '#f44336',
+                    bgcolor: '#800000',
                     color: '#ffffff',
-                    border: '1px solid #f44336',
+                    border: '1px solid #800000',
                     transform: 'translateY(-1px)',
-                    boxShadow: '0 2px 8px rgba(244, 67, 54, 0.3)'
+                    boxShadow: '0 2px 8px rgba(128, 0, 0, 0.3)'
                   },
                   transition: 'all 0.3s ease'
                 }}
@@ -898,7 +924,7 @@ export default function TeacherLostFound({ currentUser: propCurrentUser, userPro
                       bgcolor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.02)' : '#ffffff',
                       border: theme.palette.mode === 'dark' ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid #e0e0e0',
                       borderRadius: 1.5,
-                      borderLeft: '3px solid #f44336'
+                      borderLeft: '3px solid #800000'
                     }}
                   >
                     {/* Item Header */}
@@ -1000,6 +1026,21 @@ export default function TeacherLostFound({ currentUser: propCurrentUser, userPro
                       >
                         Comment {item.comments?.length > 0 && `(${item.comments.length})`}
                       </Button>
+                      {item.comments?.length > 0 && (
+                        <Button
+                          startIcon={<Visibility />}
+                          onClick={() => handleViewComments(item)}
+                          sx={{ 
+                            color: '#800000',
+                            '&:hover': {
+                              color: '#6b0000',
+                              backgroundColor: 'rgba(128, 0, 0, 0.1)'
+                            }
+                          }}
+                        >
+                          View Comments ({item.comments.length})
+                        </Button>
+                      )}
                       <Button
                         startIcon={<ThumbUp />}
                         onClick={() => handleLike(item.id, item.type)}
@@ -1165,7 +1206,7 @@ export default function TeacherLostFound({ currentUser: propCurrentUser, userPro
                   alignItems: 'center',
                   gap: 1
                 }}>
-                  <Add sx={{ color: addItemModal.type === 'lost' ? '#f44336' : '#4caf50' }} />
+                  <Add sx={{ color: addItemModal.type === 'lost' ? '#800000' : '#4caf50' }} />
                   Report {addItemModal.type === 'lost' ? 'Lost' : 'Found'} Item
                 </Typography>
                 <IconButton onClick={handleCloseAddItem} sx={{ color: theme.palette.mode === 'dark' ? '#ffffff' : '#000000' }}>
@@ -1252,7 +1293,7 @@ export default function TeacherLostFound({ currentUser: propCurrentUser, userPro
                     disabled={submitting} 
                     sx={{
                       textTransform: 'none', 
-                      bgcolor: addItemModal.type === 'lost' ? '#f44336' : '#4caf50', 
+                      bgcolor: addItemModal.type === 'lost' ? '#800000' : '#4caf50', 
                       color: '#fff',
                       px: 3,
                       '&:hover': { 
@@ -1305,7 +1346,7 @@ export default function TeacherLostFound({ currentUser: propCurrentUser, userPro
                   alignItems: 'center',
                   gap: 1
                 }}>
-                  <History sx={{ color: historyModal.type === 'lost' ? '#f44336' : '#4caf50' }} />
+                  <History sx={{ color: historyModal.type === 'lost' ? '#800000' : '#4caf50' }} />
                   {historyModal.type === 'lost' ? 'Lost Item' : 'Found Item'} History
                 </Typography>
                 <IconButton onClick={handleCloseHistory} sx={{ color: theme.palette.mode === 'dark' ? '#ffffff' : '#000000' }}>
@@ -1336,7 +1377,7 @@ export default function TeacherLostFound({ currentUser: propCurrentUser, userPro
                         bgcolor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.02)' : '#ffffff',
                         border: theme.palette.mode === 'dark' ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid #e0e0e0',
                         borderRadius: 1.5,
-                        borderLeft: historyModal.type === 'lost' ? '4px solid #f44336' : '4px solid #4caf50'
+                        borderLeft: historyModal.type === 'lost' ? '4px solid #800000' : '4px solid #4caf50'
                       }}
                     >
                       {/* Item Header */}
@@ -1464,6 +1505,154 @@ export default function TeacherLostFound({ currentUser: propCurrentUser, userPro
           </Box>
         </Fade>
       </Modal>
+
+      {/* View Comments Modal */}
+      <Dialog 
+        open={viewCommentsModal.open} 
+        onClose={() => setViewCommentsModal({ open: false, itemId: null, itemType: '', comments: [] })}
+        maxWidth="md"
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: 2,
+            maxHeight: '80vh'
+          }
+        }}
+      >
+        <DialogTitle sx={{ 
+          fontWeight: 600,
+          color: theme.palette.mode === 'dark' ? '#ffffff' : '#000000',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 1
+        }}>
+          <Comment sx={{ color: '#4caf50' }} />
+          Comments ({viewCommentsModal.comments.length})
+        </DialogTitle>
+        
+        <DialogContent sx={{ p: 0 }}>
+          {viewCommentsModal.comments.length > 0 ? (
+            <Box sx={{ maxHeight: '60vh', overflow: 'auto', p: 2 }}>
+              {viewCommentsModal.comments.map((comment, index) => (
+                <Paper key={comment.id || index} sx={{ 
+                  p: 2, 
+                  mb: 2, 
+                  bgcolor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.02)' : '#f5f5f5',
+                  border: theme.palette.mode === 'dark' ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid #e0e0e0'
+                }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                    <Avatar sx={{ width: 32, height: 32, bgcolor: '#4caf50' }}>
+                      <Person sx={{ fontSize: 16 }} />
+                    </Avatar>
+                    <Typography variant="subtitle2" sx={{ 
+                      color: theme.palette.mode === 'dark' ? '#ffffff' : '#000000',
+                      fontWeight: 600
+                    }}>
+                      {comment.authorName || 'Anonymous'}
+                    </Typography>
+                    <Typography variant="caption" sx={{ 
+                      color: theme.palette.mode === 'dark' ? '#cccccc' : '#666666',
+                      ml: 'auto'
+                    }}>
+                      {comment.timestamp ? new Date(comment.timestamp.toDate ? comment.timestamp.toDate() : comment.timestamp).toLocaleString() : 'Unknown time'}
+                    </Typography>
+                  </Box>
+                  <Typography variant="body2" sx={{ 
+                    color: theme.palette.mode === 'dark' ? '#ffffff' : '#000000',
+                    mb: 1
+                  }}>
+                    {comment.text}
+                  </Typography>
+                  
+                  {/* Replies */}
+                  {comment.replies && comment.replies.length > 0 && (
+                    <Box sx={{ ml: 4, mt: 1 }}>
+                      {comment.replies.map((reply, replyIndex) => (
+                        <Paper key={reply.id || replyIndex} sx={{ 
+                          p: 1.5, 
+                          mb: 1, 
+                          bgcolor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.05)' : '#ffffff',
+                          border: theme.palette.mode === 'dark' ? '1px solid rgba(255, 255, 255, 0.05)' : '1px solid #e0e0e0'
+                        }}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+                            <Avatar sx={{ width: 24, height: 24, bgcolor: '#2196f3' }}>
+                              <Reply sx={{ fontSize: 12 }} />
+                            </Avatar>
+                            <Typography variant="caption" sx={{ 
+                              color: theme.palette.mode === 'dark' ? '#ffffff' : '#000000',
+                              fontWeight: 600
+                            }}>
+                              {reply.authorName || 'Anonymous'}
+                            </Typography>
+                            <Typography variant="caption" sx={{ 
+                              color: theme.palette.mode === 'dark' ? '#cccccc' : '#666666',
+                              ml: 'auto',
+                              fontSize: '0.7rem'
+                            }}>
+                              {reply.timestamp ? new Date(reply.timestamp.toDate ? reply.timestamp.toDate() : reply.timestamp).toLocaleString() : 'Unknown time'}
+                            </Typography>
+                          </Box>
+                          <Typography variant="body2" sx={{ 
+                            color: theme.palette.mode === 'dark' ? '#ffffff' : '#000000',
+                            fontSize: '0.85rem'
+                          }}>
+                            {reply.text}
+                          </Typography>
+                        </Paper>
+                      ))}
+                    </Box>
+                  )}
+                </Paper>
+              ))}
+            </Box>
+          ) : (
+            <Box sx={{ textAlign: 'center', py: 4 }}>
+              <Comment sx={{ fontSize: 48, color: 'text.secondary', mb: 1 }} />
+              <Typography variant="h6" color="text.secondary" sx={{ mb: 1 }}>
+                No Comments Yet
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Be the first to comment on this item!
+              </Typography>
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ p: 2, bgcolor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.05)' : '#f5f5f5' }}>
+          <Button 
+            onClick={() => setViewCommentsModal({ open: false, itemId: null, itemType: '', comments: [] })}
+            variant="outlined"
+            sx={{ 
+              textTransform: 'none',
+              bgcolor: '#fff', 
+              color: '#000', 
+              borderColor: '#000', 
+              '&:hover': { 
+                bgcolor: '#800000', 
+                color: '#fff', 
+                borderColor: '#800000' 
+              }
+            }}
+          >
+            Close
+          </Button>
+          <Button 
+            onClick={() => {
+              setViewCommentsModal({ open: false, itemId: null, itemType: '', comments: [] });
+              setCommentDialog({ open: true, itemId: viewCommentsModal.itemId, itemType: viewCommentsModal.itemType });
+            }}
+            variant="contained"
+            sx={{ 
+              textTransform: 'none',
+              bgcolor: '#4caf50', 
+              '&:hover': { 
+                bgcolor: '#45a049' 
+              }
+            }}
+          >
+            Add Comment
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       <Snackbar open={snackbar.open} autoHideDuration={4000} onClose={() => setSnackbar({ ...snackbar, open: false })}>
         <Alert onClose={() => setSnackbar({ ...snackbar, open: false })} severity={snackbar.severity} sx={{ width: '100%' }}>
