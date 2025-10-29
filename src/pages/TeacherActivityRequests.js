@@ -248,15 +248,12 @@ export default function TeacherActivityRequests() {
               borderRadius: 2,
               cursor: 'pointer',
               transition: 'all 0.2s ease-in-out',
-              border: filterStatus === 'all' ? '2px solid #800000' : '2px solid transparent',
-              '&:hover': {
-                transform: 'translateY(-2px)',
-                boxShadow: 6
-              }
+              border: '2px solid transparent',
+              borderLeft: '4px solid #800000'
             }}
           >
             <CardContent sx={{ textAlign: 'center' }}>
-              <Typography variant="h4" fontWeight={700} sx={{ color: theme.palette.mode === 'dark' ? '#ffffff' : '#000000' }}>
+              <Typography variant="h4" fontWeight={700} sx={{ color: '#000000' }}>
                 {stats.total}
               </Typography>
               <Typography variant="body2" color="text.secondary">
@@ -275,15 +272,12 @@ export default function TeacherActivityRequests() {
               borderRadius: 2,
               cursor: 'pointer',
               transition: 'all 0.2s ease-in-out',
-              border: filterStatus === 'approved' ? '2px solid #4caf50' : '2px solid transparent',
-              '&:hover': {
-                transform: 'translateY(-2px)',
-                boxShadow: 6
-              }
+              border: '2px solid transparent',
+              borderLeft: '4px solid #800000'
             }}
           >
             <CardContent sx={{ textAlign: 'center' }}>
-              <Typography variant="h4" fontWeight={700} sx={{ color: '#4caf50' }}>
+              <Typography variant="h4" fontWeight={700} sx={{ color: '#000000' }}>
                 {stats.approved}
               </Typography>
               <Typography variant="body2" color="text.secondary">
@@ -302,15 +296,12 @@ export default function TeacherActivityRequests() {
               borderRadius: 2,
               cursor: 'pointer',
               transition: 'all 0.2s ease-in-out',
-              border: filterStatus === 'pending' ? '2px solid #ff9800' : '2px solid transparent',
-              '&:hover': {
-                transform: 'translateY(-2px)',
-                boxShadow: 6
-              }
+              border: '2px solid transparent',
+              borderLeft: '4px solid #800000'
             }}
           >
             <CardContent sx={{ textAlign: 'center' }}>
-              <Typography variant="h4" fontWeight={700} sx={{ color: '#ff9800' }}>
+              <Typography variant="h4" fontWeight={700} sx={{ color: '#000000' }}>
                 {stats.pending}
               </Typography>
               <Typography variant="body2" color="text.secondary">
@@ -329,15 +320,12 @@ export default function TeacherActivityRequests() {
               borderRadius: 2,
               cursor: 'pointer',
               transition: 'all 0.2s ease-in-out',
-              border: filterStatus === 'denied' ? '2px solid #f44336' : '2px solid transparent',
-              '&:hover': {
-                transform: 'translateY(-2px)',
-                boxShadow: 6
-              }
+              border: '2px solid transparent',
+              borderLeft: '4px solid #800000'
             }}
           >
             <CardContent sx={{ textAlign: 'center' }}>
-              <Typography variant="h4" fontWeight={700} sx={{ color: '#f44336' }}>
+              <Typography variant="h4" fontWeight={700} sx={{ color: '#000000' }}>
                 {stats.denied}
               </Typography>
               <Typography variant="body2" color="text.secondary">
@@ -365,19 +353,19 @@ export default function TeacherActivityRequests() {
               <Table>
                 <TableHead>
                   <TableRow>
-                    <TableCell sx={{ fontWeight: 600, color: theme.palette.mode === 'dark' ? '#ffffff' : '#000000' }}>
+                    <TableCell sx={{ fontWeight: 600, color: '#ffffff', backgroundColor: '#800000' }}>
                       Activity
                     </TableCell>
-                    <TableCell sx={{ fontWeight: 600, color: theme.palette.mode === 'dark' ? '#ffffff' : '#000000' }}>
+                    <TableCell sx={{ fontWeight: 600, color: '#ffffff', backgroundColor: '#800000' }}>
                       Resource
                     </TableCell>
-                    <TableCell sx={{ fontWeight: 600, color: theme.palette.mode === 'dark' ? '#ffffff' : '#000000' }}>
+                    <TableCell sx={{ fontWeight: 600, color: '#ffffff', backgroundColor: '#800000' }}>
                       Date & Time
                     </TableCell>
-                    <TableCell sx={{ fontWeight: 600, color: theme.palette.mode === 'dark' ? '#ffffff' : '#000000' }}>
+                    <TableCell sx={{ fontWeight: 600, color: '#ffffff', backgroundColor: '#800000' }}>
                       Status
                     </TableCell>
-                    <TableCell sx={{ fontWeight: 600, color: theme.palette.mode === 'dark' ? '#ffffff' : '#000000' }}>
+                    <TableCell sx={{ fontWeight: 600, color: '#ffffff', backgroundColor: '#800000' }}>
                       Actions
                     </TableCell>
                   </TableRow>

@@ -1815,21 +1815,88 @@ export default function AdminLostFound() {
       <Dialog 
         open={imagePreview.open} 
         onClose={() => setImagePreview({ open: false, image: null, title: '' })}
-        maxWidth="md"
+        maxWidth="lg"
         fullWidth
+        PaperProps={{
+          sx: {
+            maxHeight: '90vh',
+            bgcolor: theme.palette.mode === 'dark' ? '#2d2d2d' : '#ffffff'
+          }
+        }}
       >
-        <DialogTitle>{imagePreview.title}</DialogTitle>
-        <DialogContent>
-          <Box sx={{ display: 'flex', justifyContent: 'center' }}>
-            <img 
-              src={imagePreview.image} 
-              alt={imagePreview.title}
-              style={{ maxWidth: '100%', maxHeight: '400px', objectFit: 'contain' }}
-            />
-          </Box>
+        <DialogTitle sx={{ 
+          color: theme.palette.mode === 'dark' ? '#ffffff' : '#000000',
+          fontWeight: 600,
+          borderBottom: '1px solid',
+          borderColor: theme.palette.mode === 'dark' ? '#404040' : '#e0e0e0'
+        }}>
+          {imagePreview.title}
+        </DialogTitle>
+        <DialogContent sx={{ p: 2, display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '400px' }}>
+          {imagePreview.image ? (
+            <Box sx={{ 
+              display: 'flex', 
+              justifyContent: 'center', 
+              alignItems: 'center',
+              width: '100%',
+              height: '100%',
+              minHeight: '400px'
+            }}>
+              <img 
+                src={imagePreview.image} 
+                alt={imagePreview.title}
+                style={{ 
+                  maxWidth: '100%', 
+                  maxHeight: '70vh', 
+                  objectFit: 'contain',
+                  borderRadius: '8px',
+                  boxShadow: '0 4px 20px rgba(0, 0, 0, 0.15)'
+                }}
+                onError={(e) => {
+                  console.error('Error loading image:', e);
+                  e.target.style.display = 'none';
+                }}
+              />
+            </Box>
+          ) : (
+            <Box sx={{ 
+              display: 'flex', 
+              flexDirection: 'column', 
+              alignItems: 'center', 
+              justifyContent: 'center',
+              color: theme.palette.mode === 'dark' ? '#b0b0b0' : '#666666',
+              minHeight: '200px'
+            }}>
+              <Upload sx={{ fontSize: 48, mb: 2, opacity: 0.5 }} />
+              <Typography variant="h6" sx={{ mb: 1 }}>
+                No Image Available
+              </Typography>
+              <Typography variant="body2">
+                This item does not have an associated image.
+              </Typography>
+            </Box>
+          )}
         </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setImagePreview({ open: false, image: null, title: '' })}>
+        <DialogActions sx={{ 
+          p: 2, 
+          borderTop: '1px solid',
+          borderColor: theme.palette.mode === 'dark' ? '#404040' : '#e0e0e0'
+        }}>
+          <Button 
+            onClick={() => setImagePreview({ open: false, image: null, title: '' })}
+            variant="outlined"
+            sx={{ 
+              textTransform: 'none',
+              bgcolor: '#fff', 
+              color: '#000', 
+              borderColor: '#000', 
+              '&:hover': { 
+                bgcolor: '#800000', 
+                color: '#fff', 
+                borderColor: '#800000' 
+              }
+            }}
+          >
             Close
           </Button>
         </DialogActions>

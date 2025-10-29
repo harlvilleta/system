@@ -647,14 +647,14 @@ export default function ViolationCreateMeeting() {
             <Table size="small">
               <TableHead>
                 <TableRow>
-                  <TableCell>Date</TableCell>
-                  <TableCell>Time</TableCell>
-                  <TableCell>Student Name</TableCell>
-                  <TableCell>Location</TableCell>
-                  <TableCell>Purpose</TableCell>
-                  <TableCell>Teacher</TableCell>
-                  <TableCell>Status</TableCell>
-                  <TableCell>Actions</TableCell>
+                  <TableCell sx={{ fontWeight: 600, color: '#ffffff', backgroundColor: '#800000' }}>Date</TableCell>
+                  <TableCell sx={{ fontWeight: 600, color: '#ffffff', backgroundColor: '#800000' }}>Time</TableCell>
+                  <TableCell sx={{ fontWeight: 600, color: '#ffffff', backgroundColor: '#800000' }}>Student Name</TableCell>
+                  <TableCell sx={{ fontWeight: 600, color: '#ffffff', backgroundColor: '#800000' }}>Location</TableCell>
+                  <TableCell sx={{ fontWeight: 600, color: '#ffffff', backgroundColor: '#800000' }}>Purpose</TableCell>
+                  <TableCell sx={{ fontWeight: 600, color: '#ffffff', backgroundColor: '#800000' }}>Teacher</TableCell>
+                  <TableCell sx={{ fontWeight: 600, color: '#ffffff', backgroundColor: '#800000' }}>Status</TableCell>
+                  <TableCell sx={{ fontWeight: 600, color: '#ffffff', backgroundColor: '#800000' }}>Actions</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -679,21 +679,23 @@ export default function ViolationCreateMeeting() {
                       />
                     </TableCell>
                     <TableCell>
-                      <Tooltip title="View Details">
-                        <IconButton size="small" color="info" onClick={() => setEditMeeting(m)}>
-                          <VisibilityIcon />
-                        </IconButton>
-                      </Tooltip>
-                      <Tooltip title="Edit Meeting">
-                        <IconButton size="small" color="warning" onClick={() => setEditMeeting(m)}>
-                          <EditIcon />
-                        </IconButton>
-                      </Tooltip>
-                      <Tooltip title="Delete Meeting">
-                        <IconButton size="small" color="error" onClick={() => handleDeleteMeeting(m.id)}>
-                          <DeleteIcon />
-                        </IconButton>
-                      </Tooltip>
+                      <Box sx={{ display: 'flex', gap: 0.5, alignItems: 'center', justifyContent: 'center' }}>
+                        <Tooltip title="View Details">
+                          <IconButton size="small" color="info" onClick={() => setEditMeeting(m)}>
+                            <VisibilityIcon />
+                          </IconButton>
+                        </Tooltip>
+                        <Tooltip title="Edit Meeting">
+                          <IconButton size="small" color="warning" onClick={() => setEditMeeting(m)}>
+                            <EditIcon />
+                          </IconButton>
+                        </Tooltip>
+                        <Tooltip title="Delete Meeting">
+                          <IconButton size="small" color="error" onClick={() => handleDeleteMeeting(m.id)}>
+                            <DeleteIcon />
+                          </IconButton>
+                        </Tooltip>
+                      </Box>
                     </TableCell>
                   </TableRow>
                 ))}

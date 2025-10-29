@@ -111,29 +111,22 @@ export default function TeacherDashboard() {
 
     const checkAndSetLoading = () => {
       dataLoadedCount++;
+      console.log(`Data loaded: ${dataLoadedCount}/${totalDataSources}`);
       if (dataLoadedCount >= totalDataSources && !hasSetLoading) {
         hasSetLoading = true;
         setLoading(false);
+        console.log('All data loaded successfully');
       }
     };
 
-    // Add timeout to prevent infinite loading
+    // Set a reasonable timeout to prevent infinite loading
     const loadingTimeout = setTimeout(() => {
       if (!hasSetLoading) {
         hasSetLoading = true;
         setLoading(false);
         console.log('Loading timeout reached, dashboard will display with available data');
       }
-    }, 10000); // 10 second timeout
-
-    // Fallback: Set loading to false after a shorter timeout if no data loads
-    const fallbackTimeout = setTimeout(() => {
-      if (!hasSetLoading) {
-        hasSetLoading = true;
-        setLoading(false);
-        console.log('Fallback timeout: Dashboard loading completed with partial data');
-      }
-    }, 5000); // 5 second fallback
+    }, 8000); // 8 second timeout
 
     // Fetch violations
     const violationsQuery = query(collection(db, 'violations'));
@@ -141,6 +134,7 @@ export default function TeacherDashboard() {
       try {
         const violationsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         setViolations(violationsData);
+        console.log('Violations loaded:', violationsData.length);
         checkAndSetLoading();
       } catch (error) {
         console.error('Error processing violations data:', error);
@@ -174,6 +168,7 @@ export default function TeacherDashboard() {
         }));
         setActivities(violationsData);
         setMyViolations(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+        console.log('Teacher violations loaded:', snapshot.docs.length);
         
         // Update allActivities with new violations
         setAllActivities(prev => {
@@ -239,6 +234,7 @@ export default function TeacherDashboard() {
         return bd - ad;
       });
       setAnnouncements(announcementsData);
+      console.log('Announcements loaded:', announcementsData.length);
       checkAndSetLoading();
     }, (error) => {
       console.error('Error fetching announcements:', error);
@@ -438,7 +434,6 @@ export default function TeacherDashboard() {
 
     return () => {
       clearTimeout(loadingTimeout);
-      clearTimeout(fallbackTimeout);
       violationsUnsubscribe();
       if (activitiesUnsubscribe) activitiesUnsubscribe();
       announcementsUnsubscribe();
@@ -511,29 +506,223 @@ export default function TeacherDashboard() {
   return (
     <Box sx={{ p: { xs: 0.5, sm: 1 }, pt: { xs: 2, sm: 3 }, pl: { xs: 2, sm: 3, md: 4 }, pr: { xs: 2, sm: 3, md: 4 } }}>
       {loading ? (
-        <Box sx={{ 
-          display: 'flex', 
-          justifyContent: 'center', 
-          alignItems: 'center', 
-          height: '50vh',
-          flexDirection: 'column',
-          gap: 2
-        }}>
-          <Typography variant="h6" sx={{ color: theme.palette.mode === 'dark' ? '#ffffff' : '#800000' }}>
-            Loading Dashboard...
-          </Typography>
+        <Box>
+          {/* Loading Header */}
           <Box sx={{ 
-            width: 40, 
-            height: 40, 
-            border: `4px solid ${theme.palette.mode === 'dark' ? '#ffffff' : '#800000'}`,
-            borderTop: `4px solid transparent`,
-            borderRadius: '50%',
-            animation: 'spin 1s linear infinite',
-            '@keyframes spin': {
-              '0%': { transform: 'rotate(0deg)' },
-              '100%': { transform: 'rotate(360deg)' }
-            }
-          }} />
+            display: 'flex', 
+            justifyContent: 'center', 
+            alignItems: 'center', 
+            mb: 4,
+            flexDirection: 'column',
+            gap: 2
+          }}>
+            <Typography variant="h4" fontWeight={700} sx={{ color: theme.palette.mode === 'dark' ? '#ffffff' : '#800000' }}>
+              Loading Dashboard...
+            </Typography>
+            <Box sx={{ 
+              width: 50, 
+              height: 50, 
+              border: `4px solid ${theme.palette.mode === 'dark' ? '#ffffff' : '#800000'}`,
+              borderTop: `4px solid transparent`,
+              borderRadius: '50%',
+              animation: 'spin 1s linear infinite',
+              '@keyframes spin': {
+                '0%': { transform: 'rotate(0deg)' },
+                '100%': { transform: 'rotate(360deg)' }
+              }
+            }} />
+            <Typography variant="body2" sx={{ color: theme.palette.mode === 'dark' ? '#ffffff' : 'text.secondary' }}>
+              Fetching your data...
+            </Typography>
+          </Box>
+
+          {/* Skeleton Cards */}
+          <Grid container spacing={{ xs: 1, sm: 2 }} sx={{ mb: 3 }}>
+            {[1, 2, 3, 4].map((index) => (
+              <Grid item xs={12} sm={6} md={3} key={index}>
+                <Card sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  p: 2,
+                  boxShadow: 3,
+                  borderRadius: 2,
+                  borderLeft: '4px solid #800000',
+                  background: theme.palette.mode === 'dark' ? '#000000' : 'transparent',
+                }}>
+                  <CardContent sx={{ flex: 1, p: '8px !important', textAlign: 'center' }}>
+                    <Box sx={{
+                      width: 60,
+                      height: 40,
+                      backgroundColor: theme.palette.mode === 'dark' ? '#333333' : '#f0f0f0',
+                      borderRadius: 1,
+                      mb: 1,
+                      animation: 'pulse 1.5s ease-in-out infinite',
+                      '@keyframes pulse': {
+                        '0%': { opacity: 1 },
+                        '50%': { opacity: 0.5 },
+                        '100%': { opacity: 1 }
+                      }
+                    }} />
+                    <Box sx={{
+                      width: 80,
+                      height: 20,
+                      backgroundColor: theme.palette.mode === 'dark' ? '#333333' : '#f0f0f0',
+                      borderRadius: 1,
+                      mx: 'auto',
+                      animation: 'pulse 1.5s ease-in-out infinite',
+                      '@keyframes pulse': {
+                        '0%': { opacity: 1 },
+                        '50%': { opacity: 0.5 },
+                        '100%': { opacity: 1 }
+                      }
+                    }} />
+                  </CardContent>
+                </Card>
+              </Grid>
+            ))}
+          </Grid>
+
+          {/* Skeleton Content Cards */}
+          <Grid container spacing={3}>
+            <Grid item xs={12} md={6}>
+              <Card sx={{ 
+                border: 'none',
+                boxShadow: 3,
+                bgcolor: theme.palette.mode === 'dark' ? '#333333' : 'transparent',
+                borderRadius: 2,
+                height: '400px',
+                p: 2
+              }}>
+                <Box sx={{ mb: 2 }}>
+                  <Box sx={{
+                    width: 200,
+                    height: 30,
+                    backgroundColor: theme.palette.mode === 'dark' ? '#404040' : '#f0f0f0',
+                    borderRadius: 1,
+                    mb: 2,
+                    animation: 'pulse 1.5s ease-in-out infinite',
+                    '@keyframes pulse': {
+                      '0%': { opacity: 1 },
+                      '50%': { opacity: 0.5 },
+                      '100%': { opacity: 1 }
+                    }
+                  }} />
+                </Box>
+                {[1, 2, 3, 4, 5].map((index) => (
+                  <Box key={index} sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 2 }}>
+                    <Box sx={{
+                      width: 40,
+                      height: 40,
+                      backgroundColor: theme.palette.mode === 'dark' ? '#404040' : '#f0f0f0',
+                      borderRadius: '50%',
+                      animation: 'pulse 1.5s ease-in-out infinite',
+                      '@keyframes pulse': {
+                        '0%': { opacity: 1 },
+                        '50%': { opacity: 0.5 },
+                        '100%': { opacity: 1 }
+                      }
+                    }} />
+                    <Box sx={{ flex: 1 }}>
+                      <Box sx={{
+                        width: '80%',
+                        height: 20,
+                        backgroundColor: theme.palette.mode === 'dark' ? '#404040' : '#f0f0f0',
+                        borderRadius: 1,
+                        mb: 1,
+                        animation: 'pulse 1.5s ease-in-out infinite',
+                        '@keyframes pulse': {
+                          '0%': { opacity: 1 },
+                          '50%': { opacity: 0.5 },
+                          '100%': { opacity: 1 }
+                        }
+                      }} />
+                      <Box sx={{
+                        width: '60%',
+                        height: 16,
+                        backgroundColor: theme.palette.mode === 'dark' ? '#404040' : '#f0f0f0',
+                        borderRadius: 1,
+                        animation: 'pulse 1.5s ease-in-out infinite',
+                        '@keyframes pulse': {
+                          '0%': { opacity: 1 },
+                          '50%': { opacity: 0.5 },
+                          '100%': { opacity: 1 }
+                        }
+                      }} />
+                    </Box>
+                  </Box>
+                ))}
+              </Card>
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <Card sx={{ 
+                border: 'none',
+                boxShadow: 3,
+                bgcolor: theme.palette.mode === 'dark' ? '#333333' : 'transparent',
+                borderRadius: 2,
+                height: '400px',
+                p: 2
+              }}>
+                <Box sx={{ mb: 2 }}>
+                  <Box sx={{
+                    width: 200,
+                    height: 30,
+                    backgroundColor: theme.palette.mode === 'dark' ? '#404040' : '#f0f0f0',
+                    borderRadius: 1,
+                    mb: 2,
+                    animation: 'pulse 1.5s ease-in-out infinite',
+                    '@keyframes pulse': {
+                      '0%': { opacity: 1 },
+                      '50%': { opacity: 0.5 },
+                      '100%': { opacity: 1 }
+                    }
+                  }} />
+                </Box>
+                {[1, 2, 3].map((index) => (
+                  <Box key={index} sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 2 }}>
+                    <Box sx={{
+                      width: 40,
+                      height: 40,
+                      backgroundColor: theme.palette.mode === 'dark' ? '#404040' : '#f0f0f0',
+                      borderRadius: '50%',
+                      animation: 'pulse 1.5s ease-in-out infinite',
+                      '@keyframes pulse': {
+                        '0%': { opacity: 1 },
+                        '50%': { opacity: 0.5 },
+                        '100%': { opacity: 1 }
+                      }
+                    }} />
+                    <Box sx={{ flex: 1 }}>
+                      <Box sx={{
+                        width: '90%',
+                        height: 20,
+                        backgroundColor: theme.palette.mode === 'dark' ? '#404040' : '#f0f0f0',
+                        borderRadius: 1,
+                        mb: 1,
+                        animation: 'pulse 1.5s ease-in-out infinite',
+                        '@keyframes pulse': {
+                          '0%': { opacity: 1 },
+                          '50%': { opacity: 0.5 },
+                          '100%': { opacity: 1 }
+                        }
+                      }} />
+                      <Box sx={{
+                        width: '70%',
+                        height: 16,
+                        backgroundColor: theme.palette.mode === 'dark' ? '#404040' : '#f0f0f0',
+                        borderRadius: 1,
+                        animation: 'pulse 1.5s ease-in-out infinite',
+                        '@keyframes pulse': {
+                          '0%': { opacity: 1 },
+                          '50%': { opacity: 0.5 },
+                          '100%': { opacity: 1 }
+                        }
+                      }} />
+                    </Box>
+                  </Box>
+                ))}
+              </Card>
+            </Grid>
+          </Grid>
         </Box>
       ) : (
         <>
@@ -569,7 +758,10 @@ export default function TeacherDashboard() {
       <Grid container spacing={{ xs: 1, sm: 2 }} sx={{ mb: 1 }}>
         <Grid item xs={12} sm={6} md={3}>
           <Card
-            onClick={() => navigate('/teacher-reports')}
+            onClick={() => {
+              setViolationSearchQuery(''); // Clear search when opening modal
+              setReportsModalOpen(true);
+            }}
             sx={{
               display: 'flex',
               alignItems: 'center',
@@ -641,10 +833,9 @@ export default function TeacherDashboard() {
               borderLeft: '4px solid #800000',
               background: theme.palette.mode === 'dark' ? '#000000' : 'transparent',
               cursor: 'pointer',
-              transition: 'box-shadow 0.2s, background 0.2s',
+              transition: 'box-shadow 0.2s',
               '&:hover': {
                 boxShadow: 6,
-                background: theme.palette.mode === 'dark' ? '#000000' : 'transparent',
               },
             }}
           >
@@ -911,6 +1102,193 @@ export default function TeacherDashboard() {
                   }} />
                   <Typography variant="body2" sx={{ color: theme.palette.mode === 'dark' ? '#ffffff' : '#333333' }}>
                     No announcements yet
+                  </Typography>
+                </Box>
+              )}
+            </CardContent>
+          </Card>
+        </Grid>
+      </Grid>
+
+      {/* Violations Table with Search */}
+      <Grid container spacing={3} sx={{ mt: 2 }}>
+        <Grid item xs={12}>
+          <Card sx={{ 
+            border: 'none',
+            boxShadow: 3,
+            bgcolor: theme.palette.mode === 'dark' ? '#333333' : 'transparent',
+            borderRadius: 2,
+            height: '500px',
+            display: 'flex',
+            flexDirection: 'column'
+          }}>
+            <CardContent sx={{ flex: 1, overflow: 'auto', p: 2 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+                <Typography variant="h6" fontWeight={700} sx={{ color: theme.palette.mode === 'dark' ? '#ffffff' : '#000000' }}>
+                  My Violation Reports
+                </Typography>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Chip 
+                    label={`${myViolations.length} Total`} 
+                    size="small"
+                    sx={{ 
+                      fontWeight: 500,
+                      backgroundColor: '#1976d2',
+                      color: '#ffffff',
+                      '& .MuiChip-label': {
+                        color: '#ffffff'
+                      }
+                    }}
+                  />
+                  <Chip 
+                    label={`${myViolations.filter(v => v.status === 'Solved' || v.status === 'solved' || v.status === 'Approved' || v.status === 'approved').length} Resolved`} 
+                    size="small"
+                    sx={{ 
+                      fontWeight: 500,
+                      backgroundColor: '#4caf50',
+                      color: '#ffffff',
+                      '& .MuiChip-label': {
+                        color: '#ffffff'
+                      }
+                    }}
+                  />
+                </Box>
+              </Box>
+
+              {/* Search Bar */}
+              <Box sx={{ mb: 2 }}>
+                <TextField
+                  placeholder="Search violations by student name, type, description, or status..."
+                  value={violationSearchQuery}
+                  onChange={(e) => setViolationSearchQuery(e.target.value)}
+                  InputProps={{
+                    startAdornment: <Search sx={{ mr: 1, color: 'text.secondary' }} />,
+                  }}
+                  sx={{
+                    width: '100%',
+                    maxWidth: '500px',
+                    '& .MuiOutlinedInput-root': {
+                      borderRadius: 2,
+                      backgroundColor: theme.palette.mode === 'dark' ? '#404040' : '#ffffff',
+                    },
+                    '& .MuiInputBase-input': {
+                      fontSize: '0.9rem',
+                    }
+                  }}
+                  size="small"
+                />
+              </Box>
+              
+              {getMyReports().length > 0 ? (
+                <TableContainer sx={{ maxHeight: '350px', overflow: 'auto' }}>
+                  <Table stickyHeader>
+                    <TableHead>
+                      <TableRow>
+                        <TableCell sx={{ fontWeight: 600, backgroundColor: theme.palette.mode === 'dark' ? '#333333' : '#f5f5f5' }}>
+                          Student Name
+                        </TableCell>
+                        <TableCell sx={{ fontWeight: 600, backgroundColor: theme.palette.mode === 'dark' ? '#333333' : '#f5f5f5' }}>
+                          Violation Type
+                        </TableCell>
+                        <TableCell sx={{ fontWeight: 600, backgroundColor: theme.palette.mode === 'dark' ? '#333333' : '#f5f5f5' }}>
+                          Severity
+                        </TableCell>
+                        <TableCell sx={{ fontWeight: 600, backgroundColor: theme.palette.mode === 'dark' ? '#333333' : '#f5f5f5' }}>
+                          Date
+                        </TableCell>
+                        <TableCell sx={{ fontWeight: 600, backgroundColor: theme.palette.mode === 'dark' ? '#333333' : '#f5f5f5' }}>
+                          Location
+                        </TableCell>
+                        <TableCell sx={{ fontWeight: 600, backgroundColor: theme.palette.mode === 'dark' ? '#333333' : '#f5f5f5' }}>
+                          Status
+                        </TableCell>
+                        <TableCell sx={{ fontWeight: 600, backgroundColor: theme.palette.mode === 'dark' ? '#333333' : '#f5f5f5' }}>
+                          Description
+                        </TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {getMyReports().map((violation) => (
+                        <TableRow key={violation.id} hover>
+                          <TableCell>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                              <Avatar sx={{ 
+                                bgcolor: violation.status === 'Solved' || violation.status === 'solved' ? '#4caf50' : '#ff9800', 
+                                width: 32, 
+                                height: 32 
+                              }}>
+                                <CheckCircle sx={{ fontSize: 16 }} />
+                              </Avatar>
+                              <Typography variant="body2" fontWeight={500}>
+                                {violation.studentName || violation.studentId || 'Unknown Student'}
+                              </Typography>
+                            </Box>
+                          </TableCell>
+                          <TableCell>
+                            <Typography variant="body2">
+                              {violation.violationType || violation.violation || 'Not specified'}
+                            </Typography>
+                          </TableCell>
+                          <TableCell>
+                            <Chip 
+                              label={violation.severity || 'Not specified'} 
+                              size="small"
+                              color={
+                                violation.severity === 'Critical' ? 'error' :
+                                violation.severity === 'High' ? 'error' :
+                                violation.severity === 'Medium' ? 'warning' :
+                                violation.severity === 'Low' ? 'success' : 'default'
+                              }
+                              variant="outlined"
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <Typography variant="body2">
+                              {new Date(violation.date || violation.createdAt).toLocaleDateString()}
+                            </Typography>
+                          </TableCell>
+                          <TableCell>
+                            <Typography variant="body2">
+                              {violation.location || 'Not specified'}
+                            </Typography>
+                          </TableCell>
+                          <TableCell>
+                            <Chip 
+                              label={violation.status || 'Pending'} 
+                              size="small"
+                              color={
+                                violation.status === 'Solved' || violation.status === 'solved' ? 'success' :
+                                violation.status === 'Pending' || violation.status === 'pending' ? 'warning' :
+                                violation.status === 'Approved' || violation.status === 'approved' ? 'success' : 'default'
+                              }
+                              sx={{ fontWeight: 500 }}
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <Typography variant="body2" sx={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                              {violation.description || violation.details || 'No description provided'}
+                            </Typography>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              ) : (
+                <Box sx={{ textAlign: 'center', py: 4 }}>
+                  <CheckCircle sx={{ 
+                    fontSize: 48, 
+                    color: theme.palette.mode === 'dark' ? '#ffffff' : '#333333', 
+                    mb: 1 
+                  }} />
+                  <Typography variant="h6" sx={{ color: theme.palette.mode === 'dark' ? '#ffffff' : 'text.secondary', mb: 1 }}>
+                    {violationSearchQuery ? 'No Violations Found' : 'No Violations Reported'}
+                  </Typography>
+                  <Typography variant="body2" sx={{ color: theme.palette.mode === 'dark' ? '#ffffff' : 'text.secondary' }}>
+                    {violationSearchQuery 
+                      ? 'Try adjusting your search criteria.' 
+                      : 'Your reported violations will appear here.'
+                    }
                   </Typography>
                 </Box>
               )}

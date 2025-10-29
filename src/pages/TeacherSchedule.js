@@ -44,6 +44,9 @@ export default function TeacherSchedule() {
   const [currentUser, setCurrentUser] = useState(null);
   const [selectedMeeting, setSelectedMeeting] = useState(null);
   const [openMeetingDialog, setOpenMeetingDialog] = useState(false);
+  const [openStatsModal, setOpenStatsModal] = useState(false);
+  const [statsModalType, setStatsModalType] = useState('');
+  const [statsModalData, setStatsModalData] = useState([]);
 
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged(async (user) => {
@@ -146,6 +149,39 @@ export default function TeacherSchedule() {
     setSelectedMeeting(null);
   };
 
+  const handleOpenStatsModal = (type) => {
+    let data = [];
+    switch (type) {
+      case 'total':
+        data = meetings;
+        break;
+      case 'upcoming':
+        data = upcomingMeetings;
+        break;
+      case 'today':
+        data = meetings.filter(m => {
+          const now = new Date();
+          const meetingDate = new Date(m.date);
+          return meetingDate.getTime() - now.getTime() < 24 * 60 * 60 * 1000 && meetingDate > now;
+        });
+        break;
+      case 'past':
+        data = pastMeetings;
+        break;
+      default:
+        data = meetings;
+    }
+    setStatsModalType(type);
+    setStatsModalData(data);
+    setOpenStatsModal(true);
+  };
+
+  const handleCloseStatsModal = () => {
+    setOpenStatsModal(false);
+    setStatsModalType('');
+    setStatsModalData([]);
+  };
+
 
   if (error) {
     return (
@@ -183,13 +219,14 @@ export default function TeacherSchedule() {
             p: 2, boxShadow: 3, borderRadius: 2, 
             bgcolor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.05)' : 'rgba(255, 255, 255, 0.9)',
             border: theme.palette.mode === 'dark' ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid rgba(0, 0, 0, 0.08)',
-            transition: 'box-shadow 0.2s, background 0.2s', cursor: 'default',
+            transition: 'box-shadow 0.2s, background 0.2s', cursor: 'pointer',
             borderLeft: '4px solid #800000',
             '&:hover': { 
               boxShadow: 6, 
               bgcolor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.08)' : 'rgba(255, 255, 255, 1)'
             }
-          }}>
+          }}
+          onClick={() => handleOpenStatsModal('total')}>
             <CardContent sx={{ flex: 1, p: '8px !important', textAlign: 'center' }}>
               <Typography variant="h4" fontWeight={700} sx={{ color: theme.palette.mode === 'dark' ? '#ffffff' : '#000000' }}>
                 {meetings.length}
@@ -207,13 +244,14 @@ export default function TeacherSchedule() {
             p: 2, boxShadow: 3, borderRadius: 2, 
             bgcolor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.05)' : 'rgba(255, 255, 255, 0.9)',
             border: theme.palette.mode === 'dark' ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid rgba(0, 0, 0, 0.08)',
-            transition: 'box-shadow 0.2s, background 0.2s', cursor: 'default',
+            transition: 'box-shadow 0.2s, background 0.2s', cursor: 'pointer',
             borderLeft: '4px solid #800000',
             '&:hover': { 
               boxShadow: 6, 
               bgcolor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.08)' : 'rgba(255, 255, 255, 1)'
             }
-          }}>
+          }}
+          onClick={() => handleOpenStatsModal('upcoming')}>
             <CardContent sx={{ flex: 1, p: '8px !important', textAlign: 'center' }}>
               <Typography variant="h4" fontWeight={700} sx={{ color: theme.palette.mode === 'dark' ? '#ffffff' : '#000000' }}>
                 {upcomingMeetings.length}
@@ -231,13 +269,14 @@ export default function TeacherSchedule() {
             p: 2, boxShadow: 3, borderRadius: 2, 
             bgcolor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.05)' : 'rgba(255, 255, 255, 0.9)',
             border: theme.palette.mode === 'dark' ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid rgba(0, 0, 0, 0.08)',
-            transition: 'box-shadow 0.2s, background 0.2s', cursor: 'default',
+            transition: 'box-shadow 0.2s, background 0.2s', cursor: 'pointer',
             borderLeft: '4px solid #800000',
             '&:hover': { 
               boxShadow: 6, 
               bgcolor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.08)' : 'rgba(255, 255, 255, 1)'
             }
-          }}>
+          }}
+          onClick={() => handleOpenStatsModal('today')}>
             <CardContent sx={{ flex: 1, p: '8px !important', textAlign: 'center' }}>
               <Typography variant="h4" fontWeight={700} sx={{ color: theme.palette.mode === 'dark' ? '#ffffff' : '#000000' }}>
                 {meetings.filter(m => {
@@ -259,13 +298,14 @@ export default function TeacherSchedule() {
             p: 2, boxShadow: 3, borderRadius: 2, 
             bgcolor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.05)' : 'rgba(255, 255, 255, 0.9)',
             border: theme.palette.mode === 'dark' ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid rgba(0, 0, 0, 0.08)',
-            transition: 'box-shadow 0.2s, background 0.2s', cursor: 'default',
+            transition: 'box-shadow 0.2s, background 0.2s', cursor: 'pointer',
             borderLeft: '4px solid #800000',
             '&:hover': { 
               boxShadow: 6, 
               bgcolor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.08)' : 'rgba(255, 255, 255, 1)'
             }
-          }}>
+          }}
+          onClick={() => handleOpenStatsModal('past')}>
             <CardContent sx={{ flex: 1, p: '8px !important', textAlign: 'center' }}>
               <Typography variant="h4" fontWeight={700} sx={{ color: theme.palette.mode === 'dark' ? '#ffffff' : '#000000' }}>
                 {pastMeetings.length}
@@ -407,7 +447,7 @@ export default function TeacherSchedule() {
             <List>
               {pastMeetings.map((meeting, index) => (
                 <React.Fragment key={meeting.id}>
-                  <ListItem>
+                  <ListItem sx={{ '&:hover': { backgroundColor: 'transparent' } }}>
                     <ListItemAvatar>
                       <Avatar sx={{ bgcolor: '#9e9e9e' }}>
                         <Event />
@@ -569,6 +609,148 @@ export default function TeacherSchedule() {
         </DialogContent>
         <DialogActions>
           <Button onClick={handleCloseMeetingDialog} color="primary">
+            Close
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Stats Modal */}
+      <Dialog 
+        open={openStatsModal} 
+        onClose={handleCloseStatsModal}
+        maxWidth="lg"
+        fullWidth
+      >
+        <DialogTitle>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <Typography variant="h6">
+              {statsModalType === 'total' && 'All Meetings'}
+              {statsModalType === 'upcoming' && 'Upcoming Meetings'}
+              {statsModalType === 'today' && 'Today\'s Meetings'}
+              {statsModalType === 'past' && 'Past Meetings'}
+            </Typography>
+            <IconButton onClick={handleCloseStatsModal}>
+              <Close />
+            </IconButton>
+          </Box>
+        </DialogTitle>
+        <DialogContent>
+          <Box sx={{ mt: 2 }}>
+            {statsModalData.length === 0 ? (
+              <Box sx={{ textAlign: 'center', py: 4 }}>
+                <Event sx={{ fontSize: 48, color: 'text.secondary', mb: 2 }} />
+                <Typography variant="h6" color="text.secondary" gutterBottom>
+                  No meetings found
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  {statsModalType === 'total' && 'You don\'t have any meetings scheduled.'}
+                  {statsModalType === 'upcoming' && 'You don\'t have any upcoming meetings.'}
+                  {statsModalType === 'today' && 'You don\'t have any meetings scheduled for today.'}
+                  {statsModalType === 'past' && 'You don\'t have any past meetings.'}
+                </Typography>
+              </Box>
+            ) : (
+              <Grid container spacing={2}>
+                {statsModalData.map((meeting) => {
+                  const status = getMeetingStatus(meeting);
+                  return (
+                    <Grid item xs={12} md={6} key={meeting.id}>
+                      <Card sx={{
+                        boxShadow: 2,
+                        borderRadius: 2,
+                        bgcolor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.05)' : 'rgba(255, 255, 255, 0.9)',
+                        border: theme.palette.mode === 'dark' ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid rgba(0, 0, 0, 0.08)',
+                        transition: 'box-shadow 0.2s, background 0.2s',
+                        position: 'relative',
+                        overflow: 'hidden',
+                        '&::after': {
+                          content: '""',
+                          position: 'absolute',
+                          top: 0,
+                          left: 0,
+                          width: '6px',
+                          height: '100%',
+                          background: 'linear-gradient(180deg, rgba(128,0,0,0.9), rgba(128,0,0,0.5))'
+                        }
+                      }}>
+                        <CardContent>
+                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
+                            <Typography variant="h6" fontWeight={600} sx={{ 
+                              color: theme.palette.mode === 'dark' ? '#ffffff' : '#2d3436'
+                            }}>
+                              {meeting.title}
+                            </Typography>
+                            <Chip 
+                              label={status.status} 
+                              color={status.color} 
+                              size="small" 
+                              variant="outlined"
+                            />
+                          </Box>
+                          
+                          <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                            <AccessTime sx={{ fontSize: 16, color: 'text.secondary', mr: 1 }} />
+                            <Typography variant="body2" color="text.secondary">
+                              {formatMeetingTime(meeting.date)}
+                            </Typography>
+                          </Box>
+
+                          {meeting.location && (
+                            <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                              <LocationOn sx={{ fontSize: 16, color: 'text.secondary', mr: 1 }} />
+                              <Typography variant="body2" color="text.secondary">
+                                {meeting.location}
+                              </Typography>
+                            </Box>
+                          )}
+
+                          {meeting.description && (
+                            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                              {meeting.description}
+                            </Typography>
+                          )}
+
+                          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                              <People sx={{ fontSize: 16, color: 'text.secondary', mr: 1 }} />
+                              <Typography variant="body2" color="text.secondary">
+                                {meeting.participants?.length || 0} participants
+                              </Typography>
+                            </Box>
+                            
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                              {meeting.organizer && (
+                                <Chip 
+                                  label={`Organized by: ${meeting.organizer}`}
+                                  size="small"
+                                  variant="outlined"
+                                  color="primary"
+                                />
+                              )}
+                              <IconButton 
+                                size="small" 
+                                color="primary"
+                                onClick={() => {
+                                  handleCloseStatsModal();
+                                  handleViewMeeting(meeting);
+                                }}
+                                sx={{ ml: 1 }}
+                              >
+                                <Visibility />
+                              </IconButton>
+                            </Box>
+                          </Box>
+                        </CardContent>
+                      </Card>
+                    </Grid>
+                  );
+                })}
+              </Grid>
+            )}
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseStatsModal} color="primary">
             Close
           </Button>
         </DialogActions>

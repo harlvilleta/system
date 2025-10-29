@@ -6,7 +6,7 @@ import {
 import { ArrowBack } from "@mui/icons-material";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer } from 'recharts';
 import { useNavigate } from "react-router-dom";
-import { collection, getDocs, query, where } from "firebase/firestore";
+import { collection, getDocs } from "firebase/firestore";
 import { db } from "../firebase";
 import { useTheme } from "../contexts/ThemeContext";
 
@@ -41,53 +41,27 @@ export default function StudentsChartDashboard() {
         year: currentYear
       }));
 
-      // Fetch ALL students from both collections
-      const [studentsSnapshot, usersSnapshot] = await Promise.allSettled([
-        getDocs(collection(db, "students")),
-        getDocs(query(collection(db, "users"), where("role", "==", "Student")))
-      ]);
+      // Fetch students from "students" collection only
+      const studentsSnapshot = await getDocs(collection(db, "students"));
 
       // Process students from "students" collection
-      if (studentsSnapshot.status === 'fulfilled') {
-        studentsSnapshot.value.docs.forEach(doc => {
-          const data = doc.data();
-          const createdAt = data.createdAt;
-          if (createdAt) {
-            const createdDate = new Date(createdAt);
-            const createdMonth = createdDate.getMonth();
-            const createdYear = createdDate.getFullYear();
-            
-            // Only count if it's from the current year
-            if (createdYear === currentYear) {
-              const monthIndex = monthlyCounts.findIndex(m => m.monthNumber === createdMonth + 1);
-              if (monthIndex !== -1) {
-                monthlyCounts[monthIndex].count++;
-              }
+      studentsSnapshot.docs.forEach(doc => {
+        const data = doc.data();
+        const createdAt = data.createdAt;
+        if (createdAt) {
+          const createdDate = new Date(createdAt);
+          const createdMonth = createdDate.getMonth();
+          const createdYear = createdDate.getFullYear();
+          
+          // Only count if it's from the current year
+          if (createdYear === currentYear) {
+            const monthIndex = monthlyCounts.findIndex(m => m.monthNumber === createdMonth + 1);
+            if (monthIndex !== -1) {
+              monthlyCounts[monthIndex].count++;
             }
           }
-        });
-      }
-
-      // Process students from "users" collection
-      if (usersSnapshot.status === 'fulfilled') {
-        usersSnapshot.value.docs.forEach(doc => {
-          const data = doc.data();
-          const createdAt = data.createdAt;
-          if (createdAt) {
-            const createdDate = new Date(createdAt);
-            const createdMonth = createdDate.getMonth();
-            const createdYear = createdDate.getFullYear();
-            
-            // Only count if it's from the current year
-            if (createdYear === currentYear) {
-              const monthIndex = monthlyCounts.findIndex(m => m.monthNumber === createdMonth + 1);
-              if (monthIndex !== -1) {
-                monthlyCounts[monthIndex].count++;
-              }
-            }
-          }
-        });
-      }
+        }
+      });
 
       // Remove the extra properties we added for processing
       const finalData = monthlyCounts.map(({ month, count }) => ({ month, count }));

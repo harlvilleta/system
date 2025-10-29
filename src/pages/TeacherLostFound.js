@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Box, Typography, Grid, Paper, TextField, Button, Snackbar, Alert, MenuItem, Card, CardContent, Chip, Avatar, useTheme, Tabs, Tab, IconButton, Tooltip, Dialog, DialogTitle, DialogContent, DialogActions } from '@mui/material';
-import { Add, Search, ThumbUp, Comment, AdminPanelSettings, Person, LocationOn, AccessTime, CloudUpload, Reply, Favorite } from '@mui/icons-material';
+import { Box, Typography, Grid, Paper, TextField, Button, Snackbar, Alert, MenuItem, Card, CardContent, Chip, Avatar, useTheme, Tabs, Tab, IconButton, Tooltip, Dialog, DialogTitle, DialogContent, DialogActions, Modal, Fade, Backdrop } from '@mui/material';
+import { Add, Search, ThumbUp, Comment, AdminPanelSettings, Person, LocationOn, AccessTime, CloudUpload, Reply, Favorite, History, Visibility } from '@mui/icons-material';
 import { db } from '../firebase';
 import { collection, addDoc, query, orderBy, onSnapshot, doc, updateDoc, arrayUnion, arrayRemove, getDoc, serverTimestamp } from 'firebase/firestore';
 import { auth } from '../firebase';
@@ -24,6 +24,8 @@ export default function TeacherLostFound({ currentUser: propCurrentUser, userPro
   const [replyDialog, setReplyDialog] = useState({ open: false, itemId: null, itemType: '', parentCommentId: null });
   const [newReply, setNewReply] = useState('');
   const [commentLikes, setCommentLikes] = useState({});
+  const [historyModal, setHistoryModal] = useState({ open: false, type: '', items: [] });
+  const [addItemModal, setAddItemModal] = useState({ open: false, type: '' });
 
   // Use passed currentUser prop or fallback to auth state
   useEffect(() => {
@@ -128,6 +130,7 @@ export default function TeacherLostFound({ currentUser: propCurrentUser, userPro
       const col = form.type === 'lost' ? 'lost_items' : 'found_items';
       await addDoc(collection(db, col), payload);
       setForm({ type: form.type, name: '', description: '', location: '', image: null });
+      setAddItemModal({ open: false, type: '' });
       setSnackbar({ open: true, message: `${form.type === 'lost' ? 'Lost' : 'Found'} item submitted!`, severity: 'success' });
     } catch (err) {
       setSnackbar({ open: true, message: 'Submit failed: ' + err.message, severity: 'error' });
@@ -370,6 +373,29 @@ export default function TeacherLostFound({ currentUser: propCurrentUser, userPro
     return likes.includes(currentUser.email);
   };
 
+  // Handle opening history modal
+  const handleOpenHistory = (type) => {
+    const items = type === 'found' ? foundItems : lostItems;
+    setHistoryModal({ open: true, type, items });
+  };
+
+  // Handle closing history modal
+  const handleCloseHistory = () => {
+    setHistoryModal({ open: false, type: '', items: [] });
+  };
+
+  // Handle opening add item modal
+  const handleOpenAddItem = (type) => {
+    setAddItemModal({ open: true, type });
+    setForm({ type, name: '', description: '', location: '', image: null });
+  };
+
+  // Handle closing add item modal
+  const handleCloseAddItem = () => {
+    setAddItemModal({ open: false, type: '' });
+    setForm({ type: 'lost', name: '', description: '', location: '', image: null });
+  };
+
   // Helper function to get poster info
   const getPosterInfo = (item) => {
     if (item.postedBy === 'admin' || (item.reportedBy && !item.reportedBy.includes('@'))) {
@@ -388,7 +414,7 @@ export default function TeacherLostFound({ currentUser: propCurrentUser, userPro
       return {
         name: 'Student',
         icon: <Person />,
-        color: 'secondary'
+        color: 'default'
       };
     }
   };
@@ -406,158 +432,276 @@ export default function TeacherLostFound({ currentUser: propCurrentUser, userPro
   );
 
   return (
-    <Box sx={{ p: 3 }}>
-      <Typography variant="h4" gutterBottom sx={{ fontWeight: 700, color: theme.palette.mode === 'dark' ? '#ffffff' : '#800000', mb: 3 }}>
+    <Box sx={{ pt: { xs: 2, sm: 3 }, pl: { xs: 2, sm: 3, md: 4 }, pr: { xs: 2, sm: 3, md: 4 } }}>
+      <Typography variant="h4" gutterBottom sx={{ color: theme.palette.mode === 'dark' ? '#ffffff' : '#800000', mb: 2, mt: 1 }}>
         Lost & Found
       </Typography>
 
-      <Tabs value={activeTab} onChange={(e, newValue) => setActiveTab(newValue)} sx={{ mb: 3 }}>
-        <Tab label="Report Lost Item" />
-        <Tab label="Report Found Item" />
-        <Tab label="Browse Items" />
-      </Tabs>
-
-      {activeTab === 0 && (
-        <Paper sx={{ p: 3, mb: 3 }}>
-            <Typography variant="h6" gutterBottom sx={{ fontWeight: 700 }}>
-            <Add sx={{ mr: 1, verticalAlign: 'middle' }} /> Report Lost Item
-            </Typography>
-            <form onSubmit={handleSubmit}>
-            <TextField fullWidth size="small" label="Item Name" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value, type: 'lost' }))} sx={{ mb: 2 }} />
-              <TextField fullWidth size="small" label="Description" multiline minRows={2} value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} sx={{ mb: 2 }} />
-              <TextField fullWidth size="small" label="Location" value={form.location} onChange={e => setForm(f => ({ ...f, location: e.target.value }))} sx={{ mb: 2 }} />
-              
-              {/* Image Upload */}
-              <Box sx={{ mb: 2 }}>
-                <Button
-                  component="label"
-                  variant="outlined"
-                  startIcon={<CloudUpload />}
-                  sx={{ mb: 1 }}
-                >
-                  Upload Image
-                  <input type="file" accept="image/*" hidden onChange={handleImageUpload} />
-                </Button>
-                {form.image && (
-                  <Box sx={{ mt: 1 }}>
-                    <img src={form.image} alt="Lost item" style={{ maxWidth: '200px', maxHeight: '200px', borderRadius: '4px' }} />
+      {/* History Stat Cards */}
+      <Box sx={{ mb: 4 }}>
+        <Grid container spacing={3}>
+          {/* Found Items History Card */}
+          <Grid item xs={12} md={6}>
+            <Card 
+              sx={{ 
+                cursor: 'pointer',
+                transition: 'all 0.3s ease',
+                bgcolor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.05)' : '#ffffff',
+                border: '1px solid rgba(76, 175, 80, 0.3)',
+                borderLeft: '4px solid #4caf50',
+                '&:hover': {
+                  transform: 'translateY(-4px)',
+                  boxShadow: '0 8px 25px rgba(76, 175, 80, 0.3)',
+                  borderColor: '#4caf50'
+                }
+              }}
+              onClick={() => handleOpenHistory('found')}
+            >
+              <CardContent sx={{ p: 3 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                    <Box sx={{ 
+                      p: 2, 
+                      borderRadius: '50%', 
+                      bgcolor: 'rgba(76, 175, 80, 0.1)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}>
+                      <History sx={{ color: '#4caf50', fontSize: 28 }} />
+                    </Box>
+                    <Box>
+                      <Typography variant="h5" sx={{ 
+                        color: theme.palette.mode === 'dark' ? '#ffffff' : '#000000',
+                        fontWeight: 700,
+                        mb: 0.5
+                      }}>
+                        Found Item History
+                      </Typography>
+                      <Typography variant="body2" sx={{ 
+                        color: theme.palette.mode === 'dark' ? '#cccccc' : '#666666',
+                        mb: 1
+                      }}>
+                        View all found items records
+                      </Typography>
+                      <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                        <Chip 
+                          label={`Total: ${foundItems.length}`} 
+                          size="small"
+                          sx={{ 
+                            bgcolor: 'rgba(76, 175, 80, 0.1)',
+                            color: '#4caf50',
+                            border: '1px solid #4caf50'
+                          }} 
+                        />
+                        <Chip 
+                          label={`Resolved: ${foundItems.filter(item => item.resolved).length}`} 
+                          size="small"
+                          sx={{ 
+                            bgcolor: 'rgba(76, 175, 80, 0.1)',
+                            color: '#4caf50',
+                            border: '1px solid #4caf50'
+                          }} 
+                        />
+                        <Chip 
+                          label={`Active: ${foundItems.filter(item => !item.resolved).length}`} 
+                          size="small"
+                          sx={{ 
+                            bgcolor: 'rgba(76, 175, 80, 0.1)',
+                            color: '#4caf50',
+                            border: '1px solid #4caf50'
+                          }} 
+                        />
+                      </Box>
+                    </Box>
                   </Box>
-                )}
-              </Box>
-              
-              <Button type="submit" variant="outlined" disabled={submitting} sx={{
-                textTransform: 'none', bgcolor: '#fff', color: '#000', borderColor: '#000',
-                '&:hover': { bgcolor: '#800000', color: '#fff', borderColor: '#800000' }
-              }}>
-              {submitting ? 'Submitting...' : 'Submit Lost Item'}
-              </Button>
-            </form>
-          </Paper>
-      )}
-
-      {activeTab === 1 && (
-        <Paper sx={{ p: 3, mb: 3 }}>
-          <Typography variant="h6" gutterBottom sx={{ fontWeight: 700 }}>
-            <Add sx={{ mr: 1, verticalAlign: 'middle' }} /> Report Found Item
-          </Typography>
-          <form onSubmit={handleSubmit}>
-            <TextField fullWidth size="small" label="Item Name" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value, type: 'found' }))} sx={{ mb: 2 }} />
-            <TextField fullWidth size="small" label="Description" multiline minRows={2} value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} sx={{ mb: 2 }} />
-            <TextField fullWidth size="small" label="Location" value={form.location} onChange={e => setForm(f => ({ ...f, location: e.target.value }))} sx={{ mb: 2 }} />
-            
-            {/* Image Upload */}
-            <Box sx={{ mb: 2 }}>
-              <Button
-                component="label"
-                variant="outlined"
-                startIcon={<CloudUpload />}
-                sx={{ mb: 1 }}
-              >
-                Upload Image
-                <input type="file" accept="image/*" hidden onChange={handleImageUpload} />
-              </Button>
-              {form.image && (
-                <Box sx={{ mt: 1 }}>
-                  <img src={form.image} alt="Found item" style={{ maxWidth: '200px', maxHeight: '200px', borderRadius: '4px' }} />
+                  <Visibility sx={{ color: '#4caf50', fontSize: 24 }} />
                 </Box>
-              )}
+              </CardContent>
+            </Card>
+          </Grid>
+
+          {/* Lost Items History Card */}
+          <Grid item xs={12} md={6}>
+            <Card 
+              sx={{ 
+                cursor: 'pointer',
+                transition: 'all 0.3s ease',
+                bgcolor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.05)' : '#ffffff',
+                border: '1px solid rgba(244, 67, 54, 0.3)',
+                borderLeft: '4px solid #f44336',
+                '&:hover': {
+                  transform: 'translateY(-4px)',
+                  boxShadow: '0 8px 25px rgba(244, 67, 54, 0.3)',
+                  borderColor: '#f44336'
+                }
+              }}
+              onClick={() => handleOpenHistory('lost')}
+            >
+              <CardContent sx={{ p: 3 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                    <Box sx={{ 
+                      p: 2, 
+                      borderRadius: '50%', 
+                      bgcolor: 'rgba(244, 67, 54, 0.1)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}>
+                      <History sx={{ color: '#f44336', fontSize: 28 }} />
+                    </Box>
+                    <Box>
+                      <Typography variant="h5" sx={{ 
+                        color: theme.palette.mode === 'dark' ? '#ffffff' : '#000000',
+                        fontWeight: 700,
+                        mb: 0.5
+                      }}>
+                        Lost Item History
+                      </Typography>
+                      <Typography variant="body2" sx={{ 
+                        color: theme.palette.mode === 'dark' ? '#cccccc' : '#666666',
+                        mb: 1
+                      }}>
+                        View all lost items records
+                      </Typography>
+                      <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                        <Chip 
+                          label={`Total: ${lostItems.length}`} 
+                          size="small"
+                          sx={{ 
+                            bgcolor: 'rgba(244, 67, 54, 0.1)',
+                            color: '#f44336',
+                            border: '1px solid #f44336'
+                          }} 
+                        />
+                        <Chip 
+                          label={`Resolved: ${lostItems.filter(item => item.resolved).length}`} 
+                          size="small"
+                          sx={{ 
+                            bgcolor: 'rgba(244, 67, 54, 0.1)',
+                            color: '#f44336',
+                            border: '1px solid #f44336'
+                          }} 
+                        />
+                        <Chip 
+                          label={`Active: ${lostItems.filter(item => !item.resolved).length}`} 
+                          size="small"
+                          sx={{ 
+                            bgcolor: 'rgba(244, 67, 54, 0.1)',
+                            color: '#f44336',
+                            border: '1px solid #f44336'
+                          }} 
+                        />
+                      </Box>
+                    </Box>
+                  </Box>
+                  <Visibility sx={{ color: '#f44336', fontSize: 24 }} />
+                </Box>
+              </CardContent>
+            </Card>
+          </Grid>
+        </Grid>
+      </Box>
+
+      {/* Two Column Layout */}
+      <Grid container spacing={3}>
+        {/* Left Column - Found Items */}
+        <Grid item xs={12} md={6}>
+          <Paper sx={{ p: 3, height: '100%', bgcolor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.05)' : '#ffffff' }}>
+            {/* Found Items Header */}
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+              <Typography variant="h5" sx={{ 
+                color: theme.palette.mode === 'dark' ? '#ffffff' : '#000000',
+                fontWeight: 700,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1
+              }}>
+                <Box sx={{ 
+                  width: 8, 
+                  height: 8, 
+                  borderRadius: '50%', 
+                  bgcolor: '#4caf50',
+                  display: 'inline-block'
+                }} />
+                Found Items
+              </Typography>
+              <Button
+                variant="outlined"
+                size="small"
+                onClick={() => handleOpenAddItem('found')}
+                sx={{
+                  bgcolor: 'transparent',
+                  color: theme.palette.mode === 'dark' ? '#ffffff' : '#000000',
+                  border: theme.palette.mode === 'dark' ? '1px solid #ffffff' : '1px solid #000000',
+                  px: 2,
+                  py: 1,
+                  fontSize: '0.75rem',
+                  fontWeight: 500,
+                  borderRadius: 1,
+                  '&:hover': {
+                    bgcolor: '#4caf50',
+                    color: '#ffffff',
+                    border: '1px solid #4caf50',
+                    transform: 'translateY(-1px)',
+                    boxShadow: '0 2px 8px rgba(76, 175, 80, 0.3)'
+                  },
+                  transition: 'all 0.3s ease'
+                }}
+                startIcon={<Add sx={{ fontSize: '0.875rem' }} />}
+              >
+                Add Found Item
+              </Button>
             </Box>
-            
-            <Button type="submit" variant="outlined" disabled={submitting} sx={{
-              textTransform: 'none', bgcolor: '#fff', color: '#000', borderColor: '#000',
-              '&:hover': { bgcolor: '#800000', color: '#fff', borderColor: '#800000' }
-            }}>
-              {submitting ? 'Submitting...' : 'Submit Found Item'}
-            </Button>
-          </form>
-        </Paper>
-      )}
 
-      {activeTab === 2 && (
-        <Box>
-          {/* Social Media Feed Header */}
-          <Paper sx={{ p: 3, mb: 3, bgcolor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.05)' : '#ffffff' }}>
-            <Typography variant="h4" gutterBottom sx={{ color: theme.palette.mode === 'dark' ? '#ffffff' : '#000000' }}>
-              Lost & Found Feed
-            </Typography>
-            <Typography variant="body1" sx={{ color: theme.palette.mode === 'dark' ? '#cccccc' : '#666666' }}>
-              View and interact with all lost and found posts from students and teachers
-                </Typography>
-          </Paper>
-
-          {/* Search Bar */}
-          <Paper sx={{ p: 2, mb: 3, bgcolor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.05)' : '#ffffff' }}>
-                <TextField
-                  fullWidth
-              placeholder="Search posts..." 
-                  value={lostSearch}
-                  onChange={e => setLostSearch(e.target.value)}
-                  size="small"
+            {/* Found Items Search */}
+            <TextField
+              fullWidth
+              placeholder="Search found items..." 
+              value={foundSearch}
+              onChange={e => setFoundSearch(e.target.value)}
+              size="small"
+              sx={{ mb: 3 }}
               InputProps={{
                 startAdornment: <Search sx={{ mr: 1, color: 'text.secondary' }} />
               }}
             />
-          </Paper>
 
-          {/* Social Media Feed */}
-          <Box sx={{ maxWidth: 800, mx: 'auto' }}>
-            {allItems.length === 0 ? (
-              <Paper sx={{ p: 4, textAlign: 'center', bgcolor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.05)' : '#ffffff' }}>
-                <Typography variant="h6" sx={{ color: theme.palette.mode === 'dark' ? '#ffffff' : '#000000' }}>
-                  No posts yet
-                </Typography>
-                <Typography variant="body2" sx={{ color: theme.palette.mode === 'dark' ? '#cccccc' : '#666666' }}>
-                  Be the first to post a lost or found item!
-                </Typography>
-                  </Paper>
-            ) : allItems
-              .filter(item => 
-                item.name.toLowerCase().includes(lostSearch.toLowerCase()) ||
-                item.description.toLowerCase().includes(lostSearch.toLowerCase()) ||
-                item.location.toLowerCase().includes(lostSearch.toLowerCase())
-              )
-              .map(item => {
+            {/* Found Items List */}
+            <Box sx={{ maxHeight: '70vh', overflowY: 'auto' }}>
+              {filteredFound.length === 0 ? (
+                <Paper sx={{ p: 4, textAlign: 'center', bgcolor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.02)' : '#f5f5f5' }}>
+                  <Typography variant="h6" sx={{ color: theme.palette.mode === 'dark' ? '#ffffff' : '#000000' }}>
+                    No found items yet
+                  </Typography>
+                  <Typography variant="body2" sx={{ color: theme.palette.mode === 'dark' ? '#cccccc' : '#666666' }}>
+                    Be the first to report a found item!
+                  </Typography>
+                </Paper>
+              ) : filteredFound.map(item => {
                 const posterInfo = getPosterInfo(item);
                 
                 return (
                   <Paper 
-                    key={`${item.type}-${item.id}`} 
+                    key={`found-${item.id}`} 
                     sx={{ 
                       mb: 2, 
                       p: 2,
-                      bgcolor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.05)' : '#ffffff',
+                      bgcolor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.02)' : '#ffffff',
                       border: theme.palette.mode === 'dark' ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid #e0e0e0',
                       borderRadius: 1.5,
-                      borderLeft: item.type === 'lost' ? '3px solid #f44336' : '3px solid #4caf50'
+                      borderLeft: '3px solid #4caf50'
                     }}
                   >
-                    {/* Post Header */}
+                    {/* Item Header */}
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
                         <Avatar 
                           src={posterInfo.name === 'Teacher' && currentUser?.photoURL ? currentUser.photoURL : undefined}
                           sx={{ 
-                            bgcolor: posterInfo.color === 'primary' ? '#1976d2' : '#9c27b0',
+                            bgcolor: posterInfo.color === 'primary' ? '#1976d2' : 
+                                   posterInfo.color === 'secondary' ? '#9c27b0' : '#757575',
                             width: 32,
                             height: 32
                           }}
@@ -579,18 +723,18 @@ export default function TeacherLostFound({ currentUser: propCurrentUser, userPro
                             {posterInfo.name} • {new Date(item.createdAt?.toDate?.() || item.createdAt).toLocaleDateString()}
                           </Typography>
                         </Box>
-                          </Box>
+                      </Box>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                          <Chip 
-                          label={item.type === 'lost' ? 'Lost' : 'Found'} 
-                          color={item.type === 'lost' ? 'error' : 'success'} 
-                            size="small"
-                            sx={{ fontSize: '0.75rem', height: 24 }}
+                        <Chip 
+                          label={item.resolved ? 'Resolved' : 'Active'} 
+                          color={item.resolved ? 'success' : 'warning'} 
+                          size="small"
+                          sx={{ fontSize: '0.75rem', height: 24 }}
                         />
                       </Box>
                     </Box>
 
-                    {/* Post Content */}
+                    {/* Item Content */}
                     <Typography variant="body2" sx={{ 
                       mb: 1.5, 
                       color: theme.palette.mode === 'dark' ? '#ffffff' : '#000000',
@@ -608,14 +752,14 @@ export default function TeacherLostFound({ currentUser: propCurrentUser, userPro
                           alt={item.name} 
                           style={{ 
                             width: '100%', 
-                            maxWidth: '300px',
+                            maxWidth: '200px',
                             height: 'auto', 
                             objectFit: 'cover',
                             borderRadius: '6px',
                             border: theme.palette.mode === 'dark' ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid #e0e0e0'
-                            }}
-                          />
-                        </Box>
+                          }}
+                        />
+                      </Box>
                     )}
 
                     {/* Location and Time */}
@@ -635,127 +779,10 @@ export default function TeacherLostFound({ currentUser: propCurrentUser, userPro
                           color: theme.palette.mode === 'dark' ? '#cccccc' : '#666666',
                           fontSize: '0.75rem'
                         }}>
-                          {item.type === 'lost' ? `Lost: ${item.timeLost}` : `Found: ${item.timeFound}`}
+                          Found: {item.timeFound || 'Unknown'}
                         </Typography>
                       </Box>
                     </Box>
-
-                    {/* Status */}
-                    <Box sx={{ mb: 1.5 }}>
-                      {item.resolved ? (
-                        <Chip label="Resolved" color="success" size="small" sx={{ fontSize: '0.75rem', height: 24 }} />
-                      ) : (
-                        <Chip label="Active" color="warning" size="small" sx={{ fontSize: '0.75rem', height: 24 }} />
-                      )}
-                    </Box>
-
-                    {/* Comments Section */}
-                    {item.comments && item.comments.length > 0 && (
-                      <Box sx={{ mt: 1.5, p: 1.5, bgcolor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.02)' : '#f5f5f5', borderRadius: 1 }}>
-                        <Typography variant="caption" sx={{ 
-                          mb: 1.5, 
-                          color: theme.palette.mode === 'dark' ? '#ffffff' : '#000000',
-                          fontSize: '0.8rem',
-                          fontWeight: 600
-                        }}>
-                          Comments ({item.comments.length})
-                        </Typography>
-                        {item.comments.map((comment, index) => (
-                          <Box key={comment.id || index} sx={{ mb: 1, p: 1.5, bgcolor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.05)' : '#ffffff', borderRadius: 1 }}>
-                            {/* Main Comment */}
-                            <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1, mb: 1 }}>
-                              <Avatar 
-                                sx={{ width: 24, height: 24, fontSize: '0.75rem' }}
-                                src={comment.authorProfilePic}
-                              >
-                                {comment.authorName?.charAt(0) || 'U'}
-                              </Avatar>
-                              <Box sx={{ flex: 1 }}>
-                                <Typography variant="caption" sx={{ fontWeight: 600, color: theme.palette.mode === 'dark' ? '#ffffff' : '#000000' }}>
-                                  {comment.authorName}
-                                </Typography>
-                                <Typography variant="body2" sx={{ color: theme.palette.mode === 'dark' ? '#cccccc' : '#333333', mt: 0.5 }}>
-                                  {comment.text}
-                                </Typography>
-                                
-                                {/* Comment Actions */}
-                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 1 }}>
-                                  <IconButton
-                                    size="small"
-                                    onClick={() => handleCommentLike(item.id, item.type, comment.id)}
-                                    sx={{ 
-                                      color: hasUserLikedComment(comment) ? '#f44336' : (theme.palette.mode === 'dark' ? '#cccccc' : '#666666'),
-                                      p: 0.5
-                                    }}
-                                  >
-                                    <Favorite sx={{ fontSize: 14 }} />
-                                  </IconButton>
-                                  <Typography variant="caption" sx={{ color: theme.palette.mode === 'dark' ? '#cccccc' : '#666666' }}>
-                                    {comment.likeCount || 0}
-                                  </Typography>
-                                  <Button
-                                    size="small"
-                                    startIcon={<Reply sx={{ fontSize: 14 }} />}
-                                    onClick={() => setReplyDialog({ open: true, itemId: item.id, itemType: item.type, parentCommentId: comment.id || index.toString() })}
-                                    sx={{ 
-                                      textTransform: 'none', 
-                                      color: theme.palette.mode === 'dark' ? '#cccccc' : '#666666',
-                                      minWidth: 'auto',
-                                      p: 0.5
-                                    }}
-                                  >
-                                    Reply
-                                  </Button>
-                                </Box>
-                              </Box>
-                            </Box>
-                            
-                            {/* Replies */}
-                            {comment.replies && comment.replies.length > 0 && (
-                              <Box sx={{ ml: 4, mt: 1 }}>
-                                {comment.replies.map((reply, replyIndex) => (
-                                  <Box key={reply.id || replyIndex} sx={{ mb: 1, p: 1, bgcolor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.02)' : '#f8f9fa', borderRadius: 1 }}>
-                                    <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1 }}>
-                                      <Avatar 
-                                        sx={{ width: 20, height: 20, fontSize: '0.6rem' }}
-                                        src={reply.authorProfilePic}
-                                      >
-                                        {reply.authorName?.charAt(0) || 'U'}
-                                      </Avatar>
-                                      <Box sx={{ flex: 1 }}>
-                                        <Typography variant="caption" sx={{ fontWeight: 600, color: theme.palette.mode === 'dark' ? '#ffffff' : '#000000' }}>
-                                          {reply.authorName}
-                                        </Typography>
-                                        <Typography variant="body2" sx={{ color: theme.palette.mode === 'dark' ? '#cccccc' : '#333333', mt: 0.5 }}>
-                                          {reply.text}
-                                        </Typography>
-                                        
-                                        {/* Reply Actions */}
-                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5 }}>
-                                          <IconButton
-                                            size="small"
-                                            onClick={() => handleCommentLike(item.id, item.type, reply.id, true, comment.id)}
-                                            sx={{ 
-                                              color: hasUserLikedComment(reply, true) ? '#f44336' : (theme.palette.mode === 'dark' ? '#cccccc' : '#666666'),
-                                              p: 0.25
-                                            }}
-                                          >
-                                            <Favorite sx={{ fontSize: 12 }} />
-                                          </IconButton>
-                                          <Typography variant="caption" sx={{ color: theme.palette.mode === 'dark' ? '#cccccc' : '#666666', fontSize: '0.7rem' }}>
-                                            {reply.likeCount || 0}
-                                          </Typography>
-                                        </Box>
-                                      </Box>
-                                    </Box>
-                                  </Box>
-                                ))}
-                              </Box>
-                            )}
-                          </Box>
-                    ))}
-                  </Box>
-                )}
 
                     {/* Action Buttons */}
                     <Box sx={{ display: 'flex', gap: 2, mt: 2, pt: 2, borderTop: theme.palette.mode === 'dark' ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid #e0e0e0' }}>
@@ -779,12 +806,221 @@ export default function TeacherLostFound({ currentUser: propCurrentUser, userPro
                         Like {item.likeCount > 0 && `(${item.likeCount})`}
                       </Button>
                     </Box>
-              </Paper>
+                  </Paper>
                 );
               })}
-          </Box>
-        </Box>
-      )}
+            </Box>
+          </Paper>
+        </Grid>
+
+        {/* Right Column - Lost Items */}
+        <Grid item xs={12} md={6}>
+          <Paper sx={{ p: 3, height: '100%', bgcolor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.05)' : '#ffffff' }}>
+            {/* Lost Items Header */}
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+              <Typography variant="h5" sx={{ 
+                color: theme.palette.mode === 'dark' ? '#ffffff' : '#000000',
+                fontWeight: 700,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1
+              }}>
+                <Box sx={{ 
+                  width: 8, 
+                  height: 8, 
+                  borderRadius: '50%', 
+                  bgcolor: '#f44336',
+                  display: 'inline-block'
+                }} />
+                Lost Items
+              </Typography>
+              <Button
+                variant="outlined"
+                size="small"
+                onClick={() => handleOpenAddItem('lost')}
+                sx={{
+                  bgcolor: 'transparent',
+                  color: theme.palette.mode === 'dark' ? '#ffffff' : '#000000',
+                  border: theme.palette.mode === 'dark' ? '1px solid #ffffff' : '1px solid #000000',
+                  px: 2,
+                  py: 1,
+                  fontSize: '0.75rem',
+                  fontWeight: 500,
+                  borderRadius: 1,
+                  '&:hover': {
+                    bgcolor: '#f44336',
+                    color: '#ffffff',
+                    border: '1px solid #f44336',
+                    transform: 'translateY(-1px)',
+                    boxShadow: '0 2px 8px rgba(244, 67, 54, 0.3)'
+                  },
+                  transition: 'all 0.3s ease'
+                }}
+                startIcon={<Add sx={{ fontSize: '0.875rem' }} />}
+              >
+                Add Lost Item
+              </Button>
+            </Box>
+
+            {/* Lost Items Search */}
+            <TextField
+              fullWidth
+              placeholder="Search lost items..." 
+              value={lostSearch}
+              onChange={e => setLostSearch(e.target.value)}
+              size="small"
+              sx={{ mb: 3 }}
+              InputProps={{
+                startAdornment: <Search sx={{ mr: 1, color: 'text.secondary' }} />
+              }}
+            />
+
+            {/* Lost Items List */}
+            <Box sx={{ maxHeight: '70vh', overflowY: 'auto' }}>
+              {filteredLost.length === 0 ? (
+                <Paper sx={{ p: 4, textAlign: 'center', bgcolor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.02)' : '#f5f5f5' }}>
+                  <Typography variant="h6" sx={{ color: theme.palette.mode === 'dark' ? '#ffffff' : '#000000' }}>
+                    No lost items yet
+                  </Typography>
+                  <Typography variant="body2" sx={{ color: theme.palette.mode === 'dark' ? '#cccccc' : '#666666' }}>
+                    Be the first to report a lost item!
+                  </Typography>
+                </Paper>
+              ) : filteredLost.map(item => {
+                const posterInfo = getPosterInfo(item);
+                
+                return (
+                  <Paper 
+                    key={`lost-${item.id}`} 
+                    sx={{ 
+                      mb: 2, 
+                      p: 2,
+                      bgcolor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.02)' : '#ffffff',
+                      border: theme.palette.mode === 'dark' ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid #e0e0e0',
+                      borderRadius: 1.5,
+                      borderLeft: '3px solid #f44336'
+                    }}
+                  >
+                    {/* Item Header */}
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                        <Avatar 
+                          src={posterInfo.name === 'Teacher' && currentUser?.photoURL ? currentUser.photoURL : undefined}
+                          sx={{ 
+                            bgcolor: posterInfo.color === 'primary' ? '#1976d2' : 
+                                   posterInfo.color === 'secondary' ? '#9c27b0' : '#757575',
+                            width: 32,
+                            height: 32
+                          }}
+                        >
+                          {posterInfo.icon}
+                        </Avatar>
+                        <Box>
+                          <Typography variant="subtitle1" sx={{ 
+                            fontWeight: 600, 
+                            color: theme.palette.mode === 'dark' ? '#ffffff' : '#000000',
+                            fontSize: '1rem'
+                          }}>
+                            {item.name}
+                          </Typography>
+                          <Typography variant="caption" sx={{ 
+                            color: theme.palette.mode === 'dark' ? '#cccccc' : '#666666',
+                            fontSize: '0.75rem'
+                          }}>
+                            {posterInfo.name} • {new Date(item.createdAt?.toDate?.() || item.createdAt).toLocaleDateString()}
+                          </Typography>
+                        </Box>
+                      </Box>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Chip 
+                          label={item.resolved ? 'Resolved' : 'Active'} 
+                          color={item.resolved ? 'success' : 'warning'} 
+                          size="small"
+                          sx={{ fontSize: '0.75rem', height: 24 }}
+                        />
+                      </Box>
+                    </Box>
+
+                    {/* Item Content */}
+                    <Typography variant="body2" sx={{ 
+                      mb: 1.5, 
+                      color: theme.palette.mode === 'dark' ? '#ffffff' : '#000000',
+                      fontSize: '0.9rem',
+                      lineHeight: 1.4
+                    }}>
+                      {item.description}
+                    </Typography>
+
+                    {/* Image */}
+                    {item.image && (
+                      <Box sx={{ mb: 1.5 }}>
+                        <img 
+                          src={item.image} 
+                          alt={item.name} 
+                          style={{ 
+                            width: '100%', 
+                            maxWidth: '200px',
+                            height: 'auto', 
+                            objectFit: 'cover',
+                            borderRadius: '6px',
+                            border: theme.palette.mode === 'dark' ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid #e0e0e0'
+                          }}
+                        />
+                      </Box>
+                    )}
+
+                    {/* Location and Time */}
+                    <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', mb: 1.5 }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                        <LocationOn sx={{ fontSize: 14, color: theme.palette.mode === 'dark' ? '#cccccc' : '#666666' }} />
+                        <Typography variant="caption" sx={{ 
+                          color: theme.palette.mode === 'dark' ? '#cccccc' : '#666666',
+                          fontSize: '0.75rem'
+                        }}>
+                          {item.location}
+                        </Typography>
+                      </Box>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                        <AccessTime sx={{ fontSize: 14, color: theme.palette.mode === 'dark' ? '#cccccc' : '#666666' }} />
+                        <Typography variant="caption" sx={{ 
+                          color: theme.palette.mode === 'dark' ? '#cccccc' : '#666666',
+                          fontSize: '0.75rem'
+                        }}>
+                          Lost: {item.timeLost || 'Unknown'}
+                        </Typography>
+                      </Box>
+                    </Box>
+
+                    {/* Action Buttons */}
+                    <Box sx={{ display: 'flex', gap: 2, mt: 2, pt: 2, borderTop: theme.palette.mode === 'dark' ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid #e0e0e0' }}>
+                      <Button
+                        startIcon={<Comment />}
+                        onClick={() => setCommentDialog({ open: true, itemId: item.id, itemType: item.type })}
+                        sx={{ color: theme.palette.mode === 'dark' ? '#ffffff' : '#666666' }}
+                      >
+                        Comment {item.comments?.length > 0 && `(${item.comments.length})`}
+                      </Button>
+                      <Button
+                        startIcon={<ThumbUp />}
+                        onClick={() => handleLike(item.id, item.type)}
+                        sx={{ 
+                          color: hasUserLiked(item) ? '#1976d2' : (theme.palette.mode === 'dark' ? '#ffffff' : '#666666'),
+                          '&:hover': {
+                            color: hasUserLiked(item) ? '#1565c0' : '#1976d2'
+                          }
+                        }}
+                      >
+                        Like {item.likeCount > 0 && `(${item.likeCount})`}
+                      </Button>
+                    </Box>
+                  </Paper>
+                );
+              })}
+            </Box>
+          </Paper>
+        </Grid>
+      </Grid>
+
 
       {/* Comment Dialog */}
       <Dialog open={commentDialog.open} onClose={() => setCommentDialog({ open: false, itemId: null, itemType: '' })} maxWidth="sm" fullWidth>
@@ -891,6 +1127,343 @@ export default function TeacherLostFound({ currentUser: propCurrentUser, userPro
           </Button>
         </DialogActions>
       </Dialog>
+
+
+      {/* Add Item Modal */}
+      <Modal
+        open={addItemModal.open}
+        onClose={handleCloseAddItem}
+        closeAfterTransition
+        BackdropComponent={Backdrop}
+        BackdropProps={{
+          timeout: 500,
+        }}
+      >
+        <Fade in={addItemModal.open}>
+          <Box sx={{
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            width: { xs: '95%', sm: '80%', md: '60%', lg: '50%' },
+            maxWidth: 600,
+            maxHeight: '90vh',
+            bgcolor: theme.palette.mode === 'dark' ? 'rgba(0, 0, 0, 0.9)' : 'rgba(255, 255, 255, 0.95)',
+            borderRadius: 2,
+            boxShadow: 24,
+            overflow: 'auto',
+            backdropFilter: 'blur(10px)',
+            border: theme.palette.mode === 'dark' ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid rgba(0, 0, 0, 0.1)'
+          }}>
+            <Box sx={{ p: 3 }}>
+              {/* Modal Header */}
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3, pb: 2, borderBottom: theme.palette.mode === 'dark' ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid #e0e0e0' }}>
+                <Typography variant="h4" sx={{ 
+                  color: theme.palette.mode === 'dark' ? '#ffffff' : '#000000',
+                  fontWeight: 700,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 1
+                }}>
+                  <Add sx={{ color: addItemModal.type === 'lost' ? '#f44336' : '#4caf50' }} />
+                  Report {addItemModal.type === 'lost' ? 'Lost' : 'Found'} Item
+                </Typography>
+                <IconButton onClick={handleCloseAddItem} sx={{ color: theme.palette.mode === 'dark' ? '#ffffff' : '#000000' }}>
+                  <Typography variant="h6">×</Typography>
+                </IconButton>
+              </Box>
+
+              {/* Form */}
+              <form onSubmit={handleSubmit}>
+                <TextField 
+                  fullWidth 
+                  size="medium" 
+                  label="Item Name" 
+                  value={form.name} 
+                  onChange={e => setForm(f => ({ ...f, name: e.target.value }))} 
+                  sx={{ mb: 3 }} 
+                  required
+                />
+                <TextField 
+                  fullWidth 
+                  size="medium" 
+                  label="Description" 
+                  multiline 
+                  minRows={3} 
+                  value={form.description} 
+                  onChange={e => setForm(f => ({ ...f, description: e.target.value }))} 
+                  sx={{ mb: 3 }} 
+                  required
+                />
+                <TextField 
+                  fullWidth 
+                  size="medium" 
+                  label="Location" 
+                  value={form.location} 
+                  onChange={e => setForm(f => ({ ...f, location: e.target.value }))} 
+                  sx={{ mb: 3 }} 
+                  required
+                />
+                
+                {/* Image Upload */}
+                <Box sx={{ mb: 3 }}>
+                  <Button
+                    component="label"
+                    variant="outlined"
+                    startIcon={<CloudUpload />}
+                    sx={{ mb: 2 }}
+                  >
+                    Upload Image
+                    <input type="file" accept="image/*" hidden onChange={handleImageUpload} />
+                  </Button>
+                  {form.image && (
+                    <Box sx={{ mt: 2 }}>
+                      <img 
+                        src={form.image} 
+                        alt={addItemModal.type} 
+                        style={{ 
+                          maxWidth: '100%', 
+                          maxHeight: '300px', 
+                          borderRadius: '8px',
+                          border: theme.palette.mode === 'dark' ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid #e0e0e0'
+                        }} 
+                      />
+                    </Box>
+                  )}
+                </Box>
+                
+                {/* Action Buttons */}
+                <Box sx={{ display: 'flex', gap: 2, justifyContent: 'flex-end' }}>
+                  <Button 
+                    variant="outlined" 
+                    onClick={handleCloseAddItem}
+                    sx={{
+                      textTransform: 'none',
+                      color: theme.palette.mode === 'dark' ? '#ffffff' : '#000000',
+                      borderColor: theme.palette.mode === 'dark' ? '#ffffff' : '#000000',
+                      px: 3
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                  <Button 
+                    type="submit" 
+                    variant="contained" 
+                    disabled={submitting} 
+                    sx={{
+                      textTransform: 'none', 
+                      bgcolor: addItemModal.type === 'lost' ? '#f44336' : '#4caf50', 
+                      color: '#fff',
+                      px: 3,
+                      '&:hover': { 
+                        bgcolor: addItemModal.type === 'lost' ? '#d32f2f' : '#388e3c'
+                      }
+                    }}
+                  >
+                    {submitting ? 'Submitting...' : `Submit ${addItemModal.type === 'lost' ? 'Lost' : 'Found'} Item`}
+                  </Button>
+                </Box>
+              </form>
+            </Box>
+          </Box>
+        </Fade>
+      </Modal>
+
+      {/* History Modal */}
+      <Modal
+        open={historyModal.open}
+        onClose={handleCloseHistory}
+        closeAfterTransition
+        BackdropComponent={Backdrop}
+        BackdropProps={{
+          timeout: 500,
+        }}
+      >
+        <Fade in={historyModal.open}>
+          <Box sx={{
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            width: { xs: '95%', sm: '90%', md: '80%', lg: '70%' },
+            maxWidth: 1200,
+            maxHeight: '90vh',
+            bgcolor: theme.palette.mode === 'dark' ? 'rgba(0, 0, 0, 0.9)' : 'rgba(255, 255, 255, 0.95)',
+            borderRadius: 2,
+            boxShadow: 24,
+            overflow: 'auto',
+            backdropFilter: 'blur(10px)',
+            border: theme.palette.mode === 'dark' ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid rgba(0, 0, 0, 0.1)'
+          }}>
+            <Box sx={{ p: 3 }}>
+              {/* Modal Header */}
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3, pb: 2, borderBottom: theme.palette.mode === 'dark' ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid #e0e0e0' }}>
+                <Typography variant="h4" sx={{ 
+                  color: theme.palette.mode === 'dark' ? '#ffffff' : '#000000',
+                  fontWeight: 700,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 1
+                }}>
+                  <History sx={{ color: historyModal.type === 'lost' ? '#f44336' : '#4caf50' }} />
+                  {historyModal.type === 'lost' ? 'Lost Item' : 'Found Item'} History
+                </Typography>
+                <IconButton onClick={handleCloseHistory} sx={{ color: theme.palette.mode === 'dark' ? '#ffffff' : '#000000' }}>
+                  <Typography variant="h6">×</Typography>
+                </IconButton>
+              </Box>
+
+              {/* History Items List */}
+              <Box sx={{ maxHeight: '60vh', overflowY: 'auto' }}>
+                {historyModal.items.length === 0 ? (
+                  <Paper sx={{ p: 4, textAlign: 'center', bgcolor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.02)' : '#f5f5f5' }}>
+                    <Typography variant="h6" sx={{ color: theme.palette.mode === 'dark' ? '#ffffff' : '#000000' }}>
+                      No {historyModal.type} items in history
+                    </Typography>
+                    <Typography variant="body2" sx={{ color: theme.palette.mode === 'dark' ? '#cccccc' : '#666666' }}>
+                      {historyModal.type === 'lost' ? 'Lost' : 'Found'} items will appear here once reported
+                    </Typography>
+                  </Paper>
+                ) : historyModal.items.map(item => {
+                  const posterInfo = getPosterInfo(item);
+                  
+                  return (
+                    <Paper 
+                      key={`${historyModal.type}-history-${item.id}`} 
+                      sx={{ 
+                        mb: 2, 
+                        p: 3,
+                        bgcolor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.02)' : '#ffffff',
+                        border: theme.palette.mode === 'dark' ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid #e0e0e0',
+                        borderRadius: 1.5,
+                        borderLeft: historyModal.type === 'lost' ? '4px solid #f44336' : '4px solid #4caf50'
+                      }}
+                    >
+                      {/* Item Header */}
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                          <Avatar 
+                            src={posterInfo.name === 'Teacher' && currentUser?.photoURL ? currentUser.photoURL : undefined}
+                            sx={{ 
+                              bgcolor: posterInfo.color === 'primary' ? '#1976d2' : 
+                                   posterInfo.color === 'secondary' ? '#9c27b0' : '#757575',
+                              width: 40,
+                              height: 40
+                            }}
+                          >
+                            {posterInfo.icon}
+                          </Avatar>
+                          <Box>
+                            <Typography variant="h6" sx={{ 
+                              fontWeight: 600, 
+                              color: theme.palette.mode === 'dark' ? '#ffffff' : '#000000',
+                              fontSize: '1.1rem'
+                            }}>
+                              {item.name}
+                            </Typography>
+                            <Typography variant="body2" sx={{ 
+                              color: theme.palette.mode === 'dark' ? '#cccccc' : '#666666',
+                              fontSize: '0.9rem'
+                            }}>
+                              {posterInfo.name} • {new Date(item.createdAt?.toDate?.() || item.createdAt).toLocaleDateString()}
+                            </Typography>
+                          </Box>
+                        </Box>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <Chip 
+                            label={item.resolved ? 'Resolved' : 'Active'} 
+                            color={item.resolved ? 'success' : 'warning'} 
+                            size="small"
+                            sx={{ fontSize: '0.8rem', height: 28 }}
+                          />
+                        </Box>
+                      </Box>
+
+                      {/* Item Content */}
+                      <Typography variant="body1" sx={{ 
+                        mb: 2, 
+                        color: theme.palette.mode === 'dark' ? '#ffffff' : '#000000',
+                        fontSize: '1rem',
+                        lineHeight: 1.5
+                      }}>
+                        {item.description}
+                      </Typography>
+
+                      {/* Image */}
+                      {item.image && (
+                        <Box sx={{ mb: 2 }}>
+                          <img 
+                            src={item.image} 
+                            alt={item.name} 
+                            style={{ 
+                              width: '100%', 
+                              maxWidth: '300px',
+                              height: 'auto', 
+                              objectFit: 'cover',
+                              borderRadius: '8px',
+                              border: theme.palette.mode === 'dark' ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid #e0e0e0'
+                            }}
+                          />
+                        </Box>
+                      )}
+
+                      {/* Location and Time */}
+                      <Box sx={{ display: 'flex', gap: 3, alignItems: 'center', mb: 2 }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <LocationOn sx={{ fontSize: 16, color: theme.palette.mode === 'dark' ? '#cccccc' : '#666666' }} />
+                          <Typography variant="body2" sx={{ 
+                            color: theme.palette.mode === 'dark' ? '#cccccc' : '#666666',
+                            fontSize: '0.9rem'
+                          }}>
+                            {item.location}
+                          </Typography>
+                        </Box>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <AccessTime sx={{ fontSize: 16, color: theme.palette.mode === 'dark' ? '#cccccc' : '#666666' }} />
+                          <Typography variant="body2" sx={{ 
+                            color: theme.palette.mode === 'dark' ? '#cccccc' : '#666666',
+                            fontSize: '0.9rem'
+                          }}>
+                            {historyModal.type === 'lost' ? `Lost: ${item.timeLost || 'Unknown'}` : `Found: ${item.timeFound || 'Unknown'}`}
+                          </Typography>
+                        </Box>
+                      </Box>
+
+                      {/* Action Buttons */}
+                      <Box sx={{ display: 'flex', gap: 2, mt: 2, pt: 2, borderTop: theme.palette.mode === 'dark' ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid #e0e0e0' }}>
+                        <Button
+                          startIcon={<Comment />}
+                          onClick={() => setCommentDialog({ open: true, itemId: item.id, itemType: item.type })}
+                          variant="outlined"
+                          size="small"
+                          sx={{ 
+                            color: theme.palette.mode === 'dark' ? '#ffffff' : '#000000',
+                            borderColor: theme.palette.mode === 'dark' ? '#ffffff' : '#000000'
+                          }}
+                        >
+                          Comment {item.comments?.length > 0 && `(${item.comments.length})`}
+                        </Button>
+                        <Button
+                          startIcon={<ThumbUp />}
+                          onClick={() => handleLike(item.id, item.type)}
+                          variant="outlined"
+                          size="small"
+                          sx={{ 
+                            color: hasUserLiked(item) ? '#1976d2' : (theme.palette.mode === 'dark' ? '#ffffff' : '#000000'),
+                            borderColor: hasUserLiked(item) ? '#1976d2' : (theme.palette.mode === 'dark' ? '#ffffff' : '#000000')
+                          }}
+                        >
+                          Like {item.likeCount > 0 && `(${item.likeCount})`}
+                        </Button>
+                      </Box>
+                    </Paper>
+                  );
+                })}
+              </Box>
+            </Box>
+          </Box>
+        </Fade>
+      </Modal>
 
       <Snackbar open={snackbar.open} autoHideDuration={4000} onClose={() => setSnackbar({ ...snackbar, open: false })}>
         <Alert onClose={() => setSnackbar({ ...snackbar, open: false })} severity={snackbar.severity} sx={{ width: '100%' }}>
