@@ -42,8 +42,7 @@ import {
   Badge,
   Delete,
   Edit,
-  Search,
-  Refresh
+  Search
 } from '@mui/icons-material';
 import { collection, getDocs, updateDoc, doc, addDoc, query, orderBy, where, deleteDoc } from 'firebase/firestore';
 import { db } from '../firebase';
@@ -333,34 +332,14 @@ export default function TeacherRequest() {
 
   return (
     <Box sx={{ pt: { xs: 2, sm: 3 }, pl: { xs: 2, sm: 3, md: 4 }, pr: { xs: 2, sm: 3, md: 4 } }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-        <Typography variant="h4" sx={{ 
-          fontWeight: 700, 
-          color: theme.palette.mode === 'dark' ? '#ffffff' : '#800000', 
-          mt: 1
-        }}>
-          Teacher Request Management
-        </Typography>
-        <Button
-          variant="outlined"
-          onClick={fetchTeacherRequests}
-          startIcon={<Refresh />}
-          disabled={loading}
-          sx={{
-            textTransform: 'none',
-            bgcolor: '#fff',
-            color: '#000',
-            borderColor: '#000',
-            '&:hover': {
-              bgcolor: '#800000',
-              color: '#fff',
-              borderColor: '#800000'
-            }
-          }}
-        >
-          {loading ? 'Loading...' : 'Refresh'}
-        </Button>
-      </Box>
+      <Typography variant="h4" gutterBottom sx={{ 
+        fontWeight: 700, 
+        color: theme.palette.mode === 'dark' ? '#ffffff' : '#800000', 
+        mb: 2, 
+        mt: 1
+      }}>
+        Teacher Request Management
+      </Typography>
       
       <Typography variant="body1" color="text.secondary" sx={{ mb: 4 }}>
         Review and approve teacher registration requests. Teachers cannot log in until their accounts are approved.
