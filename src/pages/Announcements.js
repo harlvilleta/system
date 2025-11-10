@@ -33,7 +33,7 @@ const convertToBase64 = (file) => {
 export default function Announcements() {
   const theme = useTheme();
   const location = useLocation();
-  const [form, setForm] = useState({ title: "", message: "", date: "", audience: "All", scheduleDate: "", expiryDate: "", photo: null });
+  const [form, setForm] = useState({ title: "", message: "", date: "", audience: "All", scheduleDate: "", expiryDate: "", photo: null, visibility: "public" });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
   const [announcements, setAnnouncements] = useState([]);
@@ -51,7 +51,7 @@ export default function Announcements() {
   const [activities, setActivities] = useState([]);
   const [photoPreview, setPhotoPreview] = useState(null);
   const [photoBase64, setPhotoBase64] = useState('');
-  const [selectedCard, setSelectedCard] = useState('total');
+  const [selectedCard, setSelectedCard] = useState(null);
 
   useEffect(() => {
     // Get current user and role
@@ -77,7 +77,12 @@ export default function Announcements() {
   }, []);
 
   useEffect(() => {
-    setCompletedAnnouncements(announcements.filter(a => a.completed));
+    const now = new Date();
+    // Include both manually completed announcements and expired announcements
+    const completed = announcements.filter(a => 
+      a.completed || (a.expiryDate && new Date(a.expiryDate) <= now)
+    );
+    setCompletedAnnouncements(completed);
   }, [announcements]);
 
   // Handle navigation from notification
@@ -221,6 +226,7 @@ export default function Announcements() {
         scheduleDate: form.scheduleDate,
         expiryDate: form.expiryDate,
         photoUrl: photoUrl,
+        visibility: form.visibility || "public",
         createdAt: new Date().toISOString(),
         postedBy: userName,
         postedByEmail: userEmail,
@@ -252,7 +258,7 @@ export default function Announcements() {
 
       await logActivity({ message: `Announcement posted: ${form.title}`, type: 'add_announcement' });
       setSnackbar({ open: true, message: "Announcement submitted for approval!", severity: "success" });
-      setForm({ title: "", message: "", date: "", audience: "All", scheduleDate: "", expiryDate: "", photo: null });
+      setForm({ title: "", message: "", date: "", audience: "All", scheduleDate: "", expiryDate: "", photo: null, visibility: "public" });
       setPhotoPreview(null);
       setPhotoBase64('');
       setFormModalOpen(false);
@@ -382,33 +388,68 @@ export default function Announcements() {
       if (!a.pinned && b.pinned) return 1;
       return new Date(b.createdAt || b.date) - new Date(a.createdAt || a.date);
     });
-    const recent = sortedActive.slice(0, 3);
-    const mainList = sortedActive.slice(3);
-    const filteredMain = search
-      ? mainList.filter(a =>
-          (a.title?.toLowerCase().includes(search.toLowerCase()) ||
-           a.message?.toLowerCase().includes(search.toLowerCase()))
-        )
-      : mainList;
-    return { recent, mainList: filteredMain };
+    
+    // Apply search filter to all active announcements first
+    const filteredActive = search
+      ? sortedActive.filter(a => {
+          // Handle visibility filters
+          if (search.toLowerCase() === "public") {
+            return a.visibility !== "private";
+          }
+          if (search.toLowerCase() === "private") {
+            return a.visibility === "private";
+          }
+          // Handle other search terms
+          return (a.title?.toLowerCase().includes(search.toLowerCase()) ||
+                  a.message?.toLowerCase().includes(search.toLowerCase()));
+        })
+      : sortedActive;
+    
+    const recent = filteredActive.slice(0, 3);
+    const mainList = filteredActive.slice(3);
+    return { recent, mainList };
   }
   function getRecycleBinAnnouncements(recycleBin, search) {
     const sorted = [...recycleBin].sort((a, b) => new Date(b.deletedAt) - new Date(a.deletedAt));
     return search
-      ? sorted.filter(a =>
-          (a.title?.toLowerCase().includes(search.toLowerCase()) ||
-           a.message?.toLowerCase().includes(search.toLowerCase()))
-        )
+      ? sorted.filter(a => {
+          // Handle visibility filters
+          if (search.toLowerCase() === "public") {
+            return a.visibility !== "private";
+          }
+          if (search.toLowerCase() === "private") {
+            return a.visibility === "private";
+          }
+          // Handle other search terms
+          return (a.title?.toLowerCase().includes(search.toLowerCase()) ||
+                  a.message?.toLowerCase().includes(search.toLowerCase()));
+        })
       : sorted;
   }
   function getCompletedAnnouncements(announcements, search) {
-    const completed = announcements.filter(a => a.completed);
-    const sorted = [...completed].sort((a, b) => new Date(b.completedAt || b.date) - new Date(a.completedAt || a.date));
+    const now = new Date();
+    // Include both manually completed announcements and expired announcements
+    const completed = announcements.filter(a => 
+      a.completed || (a.expiryDate && new Date(a.expiryDate) <= now)
+    );
+    const sorted = [...completed].sort((a, b) => {
+      const aDate = a.completedAt || (a.expiryDate ? new Date(a.expiryDate) : null) || a.date || 0;
+      const bDate = b.completedAt || (b.expiryDate ? new Date(b.expiryDate) : null) || b.date || 0;
+      return new Date(bDate) - new Date(aDate);
+    });
     return search
-      ? sorted.filter(a =>
-          (a.title?.toLowerCase().includes(search.toLowerCase()) ||
-           a.message?.toLowerCase().includes(search.toLowerCase()))
-        )
+      ? sorted.filter(a => {
+          // Handle visibility filters
+          if (search.toLowerCase() === "public") {
+            return a.visibility !== "private";
+          }
+          if (search.toLowerCase() === "private") {
+            return a.visibility === "private";
+          }
+          // Handle other search terms
+          return (a.title?.toLowerCase().includes(search.toLowerCase()) ||
+                  a.message?.toLowerCase().includes(search.toLowerCase()));
+        })
       : sorted;
   }
   function getScheduledAnnouncements(announcements, search) {
@@ -418,23 +459,41 @@ export default function Announcements() {
     );
     const sorted = [...scheduled].sort((a, b) => new Date(a.scheduleDate) - new Date(b.scheduleDate));
     return search
-      ? sorted.filter(a =>
-          (a.title?.toLowerCase().includes(search.toLowerCase()) ||
-           a.message?.toLowerCase().includes(search.toLowerCase()))
-        )
+      ? sorted.filter(a => {
+          // Handle visibility filters
+          if (search.toLowerCase() === "public") {
+            return a.visibility !== "private";
+          }
+          if (search.toLowerCase() === "private") {
+            return a.visibility === "private";
+          }
+          // Handle other search terms
+          return (a.title?.toLowerCase().includes(search.toLowerCase()) ||
+                  a.message?.toLowerCase().includes(search.toLowerCase()));
+        })
       : sorted;
   }
   function getExpiredAnnouncements(announcements, search) {
     const now = new Date();
+    // Only show expired announcements that haven't been manually marked as completed
+    // (Expired announcements are now counted as completed, so this list will be empty or minimal)
     const expired = announcements.filter(a =>
       !a.completed && a.expiryDate && new Date(a.expiryDate) <= now
     );
     const sorted = [...expired].sort((a, b) => new Date(b.expiryDate) - new Date(a.expiryDate));
     return search
-      ? sorted.filter(a =>
-          (a.title?.toLowerCase().includes(search.toLowerCase()) ||
-           a.message?.toLowerCase().includes(search.toLowerCase()))
-        )
+      ? sorted.filter(a => {
+          // Handle visibility filters
+          if (search.toLowerCase() === "public") {
+            return a.visibility !== "private";
+          }
+          if (search.toLowerCase() === "private") {
+            return a.visibility === "private";
+          }
+          // Handle other search terms
+          return (a.title?.toLowerCase().includes(search.toLowerCase()) ||
+                  a.message?.toLowerCase().includes(search.toLowerCase()));
+        })
       : sorted;
   }
 
@@ -763,12 +822,29 @@ export default function Announcements() {
           }}
         />
         <Chip 
-          label="With Photos" 
-          variant="outlined"
-          onClick={() => setSearch("photo")}
+          label="Public" 
+          variant={search === "public" ? "filled" : "outlined"}
+          onClick={() => setSearch(search === "public" ? "" : "public")}
           sx={{ 
-            color: '#000000',
-              bgcolor: 'transparent',
+            color: search === "public" ? '#ffffff' : '#000000',
+            bgcolor: search === "public" ? '#800000' : 'transparent',
+            borderColor: '#000000',
+            borderWidth: 2,
+            fontWeight: 500,
+              '&:hover': {
+                bgcolor: '#800000',
+                color: '#000000',
+                borderColor: '#800000'
+              }
+          }}
+        />
+        <Chip 
+          label="Private" 
+          variant={search === "private" ? "filled" : "outlined"}
+          onClick={() => setSearch(search === "private" ? "" : "private")}
+          sx={{ 
+            color: search === "private" ? '#ffffff' : '#000000',
+            bgcolor: search === "private" ? '#800000' : 'transparent',
             borderColor: '#000000',
             borderWidth: 2,
             fontWeight: 500,
@@ -811,7 +887,7 @@ export default function Announcements() {
         )}
       </Box>
 
-      {/* Recent and Completed Announcements Side by Side */}
+      {/* Recent and Scheduled Announcements Side by Side */}
       <Grid container spacing={3} sx={{ mb: 4 }}>
         {/* Recent Announcements - Left Side */}
         <Grid item xs={12} md={6} sx={{ display: 'flex', flexDirection: 'column' }}>
@@ -823,7 +899,7 @@ export default function Announcements() {
             flexDirection: 'column'
           }}>
             <Typography variant="h6" sx={{ mb: 1, fontWeight: 700, color: '#800000' }}>
-              Recent Announcements
+              Active Announcements
             </Typography>
             <Box sx={{ 
               flex: 1,
@@ -832,7 +908,7 @@ export default function Announcements() {
               overflow: 'auto'
             }}>
               {recent.length === 0 ? (
-                <Typography align="center" color="text.secondary" sx={{ mt: 4 }}>No recent announcements.</Typography>
+                <Typography align="center" color="text.secondary" sx={{ mt: 4 }}>No active announcements.</Typography>
               ) : (
                 <Stack spacing={0.5} sx={{ maxWidth: '100%' }}>
                   {recent.map(a => (
@@ -857,8 +933,9 @@ export default function Announcements() {
                         <Typography fontWeight={700} sx={{ color: '#4caf50' }}>{a.title}</Typography>
                         {a.pinned && <Chip label="📌 Pinned" color="warning" size="small" sx={{ fontSize: '0.7rem' }} />}
                         {a.priority === 'Urgent' && <Chip label="🚨 Urgent" color="error" size="small" sx={{ fontSize: '0.7rem' }} />}
-                        <Chip label="🆕 Recent" color="success" variant="outlined" size="small" sx={{ fontSize: '0.7rem' }} />
+                        <Chip label="🟢 Active" color="success" variant="outlined" size="small" sx={{ fontSize: '0.7rem' }} />
                         <Chip label={`👤 ${a.audience}`} color="secondary" size="small" sx={{ fontSize: '0.7rem' }} />
+                        <Chip label={a.visibility === "private" ? "🔒 Private" : "🌐 Public"} color={a.visibility === "private" ? "default" : "info"} size="small" sx={{ fontSize: '0.7rem' }} />
                         {a.completed && <Chip label="✅ Completed" color="success" size="small" sx={{ fontSize: '0.7rem' }} />}
                       </Stack>}
                       subheader={
@@ -948,7 +1025,7 @@ export default function Announcements() {
           </Box>
         </Grid>
 
-        {/* Completed Announcements - Right Side */}
+        {/* Scheduled Announcements - Right Side */}
         <Grid item xs={12} md={6} sx={{ display: 'flex', flexDirection: 'column' }}>
           <Box sx={{ 
             maxWidth: '100%', 
@@ -957,8 +1034,8 @@ export default function Announcements() {
             display: 'flex',
             flexDirection: 'column'
           }}>
-            <Typography variant="h6" sx={{ mb: 1, fontWeight: 700, color: '#43a047' }}>
-              Completed Announcements
+            <Typography variant="h6" sx={{ mb: 1, fontWeight: 700, color: '#0288d1' }}>
+              Scheduled Announcements
             </Typography>
             <Box sx={{ 
               flex: 1,
@@ -966,19 +1043,31 @@ export default function Announcements() {
               maxHeight: '600px',
               overflow: 'auto'
             }}>
-              {filteredCompleted.length === 0 ? (
-                <Typography align="center" color="text.secondary" sx={{ mt: 4 }}>No completed announcements.</Typography>
+              {scheduledList.length === 0 ? (
+                <Typography align="center" color="text.secondary" sx={{ mt: 4 }}>No scheduled announcements.</Typography>
               ) : (
                 <Stack spacing={0.5}>
-                  {filteredCompleted.map(a => (
-                    <Card key={a.id} sx={{ mb: 0.5, borderLeft: '3px solid #43a047', boxShadow: 1, px: 0.5, py: 0.25, minHeight: 'auto' }}>
+                  {scheduledList.map(a => (
+                    <Card key={a.id} sx={{ mb: 0.5, borderLeft: '3px solid #0288d1', boxShadow: 1, px: 0.5, py: 0.25, minHeight: 'auto' }}>
                       <CardHeader
-                        title={<Stack direction="row" alignItems="center" spacing={1}>
+                        title={<Stack direction="row" alignItems="center" spacing={1} flexWrap="wrap">
                           <Typography fontWeight={700}>{a.title}</Typography>
-                          <Chip label="Completed" color="success" size="small" />
-                          <Chip label={a.audience} color="secondary" size="small" />
+                          <Chip label="📅 Scheduled" color="primary" size="small" sx={{ fontSize: '0.7rem' }} />
+                          <Chip label={a.audience} color="secondary" size="small" sx={{ fontSize: '0.7rem' }} />
+                          <Chip label={a.visibility === "private" ? "🔒 Private" : "🌐 Public"} color={a.visibility === "private" ? "default" : "info"} size="small" sx={{ fontSize: '0.7rem' }} />
                         </Stack>}
-                        subheader={a.completedAt ? new Date(a.completedAt).toLocaleDateString() : a.date ? new Date(a.date).toLocaleDateString() : ''}
+                        subheader={
+                          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                            <Typography variant="body2" color="text.secondary">
+                              📅 Scheduled: {a.scheduleDate ? new Date(a.scheduleDate).toLocaleString() : 'Not set'}
+                            </Typography>
+                            {a.expiryDate && (
+                              <Typography variant="body2" color="text.secondary">
+                                ⏰ Expires: {new Date(a.expiryDate).toLocaleString()}
+                              </Typography>
+                            )}
+                          </Box>
+                        }
                         action={
                           <Stack direction="row" spacing={1}>
                             <Tooltip title="View"><IconButton 
@@ -1029,8 +1118,101 @@ export default function Announcements() {
           </Box>
         </Grid>
       </Grid>
-      {/* Main List for current tab */}
-      {(
+      
+      {/* Completed Announcements Section - Below the 2-column layout */}
+      {filteredCompleted.length > 0 && (
+        <Box sx={{ mb: 4, maxWidth: '100%', width: '100%' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+            <Typography variant="h6" sx={{ fontWeight: 700, color: '#43a047' }}>
+              ✅ Completed Announcements
+            </Typography>
+            <Chip 
+              label={`${filteredCompleted.length} completed`} 
+              color="success" 
+              variant="outlined"
+              sx={{ fontWeight: 600 }}
+            />
+          </Box>
+          <Stack spacing={0.5}>
+            {filteredCompleted.map(a => (
+              <Card key={a.id} sx={{ mb: 0.5, borderLeft: '3px solid #43a047', boxShadow: 1, px: 0.5, py: 0.25, minHeight: 'auto' }}>
+                <CardHeader
+                  title={<Stack direction="row" alignItems="center" spacing={1} flexWrap="wrap">
+                    <Typography fontWeight={700}>{a.title}</Typography>
+                    {a.completed ? (
+                      <Chip label="Completed" color="success" size="small" />
+                    ) : (
+                      <Chip label="⏰ Expired" color="error" size="small" />
+                    )}
+                    <Chip label={a.audience} color="secondary" size="small" />
+                    <Chip label={a.visibility === "private" ? "🔒 Private" : "🌐 Public"} color={a.visibility === "private" ? "default" : "info"} size="small" />
+                  </Stack>}
+                  subheader={
+                    <Box>
+                      {a.completedAt ? (
+                        <Typography variant="body2" color="text.secondary">
+                          Completed: {new Date(a.completedAt).toLocaleDateString()}
+                        </Typography>
+                      ) : a.expiryDate ? (
+                        <Typography variant="body2" color="text.secondary">
+                          Expired: {new Date(a.expiryDate).toLocaleDateString()}
+                        </Typography>
+                      ) : (
+                        <Typography variant="body2" color="text.secondary">
+                          {a.date ? new Date(a.date).toLocaleDateString() : ''}
+                        </Typography>
+                      )}
+                    </Box>
+                  }
+                  action={
+                    <Stack direction="row" spacing={1}>
+                      <Tooltip title="View"><IconButton 
+                        onClick={() => setViewAnnouncement(a)}
+                        sx={{
+                          '&:hover': {
+                            color: '#1976d2',
+                            bgcolor: 'rgba(25, 118, 210, 0.04)'
+                          }
+                        }}
+                      ><VisibilityIcon /></IconButton></Tooltip>
+                      <Tooltip title="Print"><IconButton 
+                        onClick={() => handlePrint(a)}
+                        sx={{
+                          '&:hover': {
+                            color: '#666666',
+                            bgcolor: 'rgba(102, 102, 102, 0.04)'
+                          }
+                        }}
+                      ><PrintIcon /></IconButton></Tooltip>
+                    </Stack>
+                  }
+                />
+                <CardContent>
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>{a.message}</Typography>
+                  {a.photoUrl && (
+                    <Box sx={{ mt: 2, display: 'flex', justifyContent: 'center' }}>
+                      <img
+                        src={a.photoUrl}
+                        alt="Announcement"
+                        style={{
+                          maxWidth: '100%',
+                          maxHeight: '300px',
+                          objectFit: 'cover',
+                          borderRadius: '8px',
+                          border: '1px solid #e0e0e0',
+                          display: 'block'
+                        }}
+                      />
+                    </Box>
+                  )}
+                </CardContent>
+              </Card>
+            ))}
+          </Stack>
+        </Box>
+      )}
+      {/* Filtered Announcements Section - Shows when a stats card is clicked */}
+      {selectedCard && (
         <Box sx={{ mb: 4, maxWidth: '100%', width: '100%' }}>
           <Typography variant="h6" sx={{ mb: 1, fontWeight: 700 }}>{getCardTitle()}</Typography>
           {selected.length > 0 && userRole === 'Admin' && (
@@ -1074,6 +1256,7 @@ export default function Announcements() {
                       <Typography fontWeight={700}>{a.title}</Typography>
                       {a.pinned && <Chip label="Pinned" color="info" size="small" icon={<PushPinIcon fontSize="small" />} />}
                       <Chip label={a.audience} color="secondary" size="small" />
+                      <Chip label={a.visibility === "private" ? "🔒 Private" : "🌐 Public"} color={a.visibility === "private" ? "default" : "info"} size="small" />
                       {a.completed && <Chip label="Completed" color="success" size="small" />}
                     </Stack>}
                     subheader={a.date ? new Date(a.date).toLocaleDateString() : ''}
@@ -1118,11 +1301,12 @@ export default function Announcements() {
         </Box>
       )}
 
+      {/* Scheduled Announcements Section - Only show if there are scheduled announcements not shown in the 2-column layout */}
       {scheduledList.length > 0 && (
         <Box sx={{ mb: 4, maxWidth: '100%', width: '100%' }}>
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
             <Typography variant="h6" sx={{ fontWeight: 700, color: '#0288d1' }}>
-              📅 Scheduled Announcements
+              📅 Additional Scheduled Announcements
             </Typography>
             <Chip 
               label={`${scheduledList.length} scheduled`} 
@@ -1167,6 +1351,7 @@ export default function Announcements() {
                       variant="outlined"
                       sx={{ fontSize: '0.7rem' }}
                     />
+                    <Chip label={a.visibility === "private" ? "🔒 Private" : "🌐 Public"} color={a.visibility === "private" ? "default" : "info"} size="small" sx={{ fontSize: '0.7rem' }} />
                   </Box>
                 }
                 subheader={
@@ -1273,6 +1458,7 @@ export default function Announcements() {
                       variant="outlined"
                       sx={{ fontSize: '0.7rem' }}
                     />
+                    <Chip label={a.visibility === "private" ? "🔒 Private" : "🌐 Public"} color={a.visibility === "private" ? "default" : "info"} size="small" sx={{ fontSize: '0.7rem' }} />
                   </Box>
                 }
                 subheader={
@@ -1340,6 +1526,10 @@ export default function Announcements() {
               <TextField label="Message" name="message" value={form.message} onChange={handleChange} required fullWidth multiline minRows={1} />
               <TextField label="Target Audience" name="audience" value={form.audience} onChange={handleChange} select fullWidth>
                 {audiences.map((aud) => <MenuItem key={aud} value={aud}>{aud}</MenuItem>)}
+              </TextField>
+              <TextField label="Post Visibility" name="visibility" value={form.visibility} onChange={handleChange} select fullWidth>
+                <MenuItem value="public">Public</MenuItem>
+                <MenuItem value="private">Private</MenuItem>
               </TextField>
               <TextField label="Date" name="date" type="date" value={form.date} onChange={handleChange} InputLabelProps={{ shrink: true }} fullWidth />
               <TextField label="Schedule Date" name="scheduleDate" type="datetime-local" value={form.scheduleDate} onChange={handleChange} InputLabelProps={{ shrink: true }} fullWidth />
@@ -1494,6 +1684,7 @@ export default function Announcements() {
               <Typography variant="h6" fontWeight={700}>{viewAnnouncement.title}</Typography>
               <Divider sx={{ my: 1 }} />
               <Typography><b>Audience:</b> {viewAnnouncement.audience}</Typography>
+              <Typography><b>Visibility:</b> {viewAnnouncement.visibility === "private" ? "Private" : "Public"}</Typography>
               <Typography><b>Date:</b> {viewAnnouncement.date ? new Date(viewAnnouncement.date).toLocaleDateString() : ''}</Typography>
               <Typography sx={{ mt: 2 }}>{viewAnnouncement.message}</Typography>
               {viewAnnouncement.photoUrl && (
@@ -1528,6 +1719,10 @@ export default function Announcements() {
               <TextField label="Message" value={editAnnouncement.message} onChange={e => setEditAnnouncement({ ...editAnnouncement, message: e.target.value })} fullWidth multiline minRows={1} sx={{ mb: 1 }} />
               <TextField label="Audience" value={editAnnouncement.audience} onChange={e => setEditAnnouncement({ ...editAnnouncement, audience: e.target.value })} select fullWidth sx={{ mb: 1 }}>
                 {audiences.map((aud) => <MenuItem key={aud} value={aud}>{aud}</MenuItem>)}
+              </TextField>
+              <TextField label="Post Visibility" value={editAnnouncement.visibility || "public"} onChange={e => setEditAnnouncement({ ...editAnnouncement, visibility: e.target.value })} select fullWidth sx={{ mb: 1 }}>
+                <MenuItem value="public">Public</MenuItem>
+                <MenuItem value="private">Private</MenuItem>
               </TextField>
               <TextField label="Date" type="date" value={editAnnouncement.date} onChange={e => setEditAnnouncement({ ...editAnnouncement, date: e.target.value })} InputLabelProps={{ shrink: true }} fullWidth sx={{ mb: 1 }} />
               <DialogActions>

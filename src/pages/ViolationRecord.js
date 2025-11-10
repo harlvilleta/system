@@ -17,7 +17,26 @@ import VisibilityIcon from '@mui/icons-material/Visibility';
 import { logActivity } from '../firebase';
 import emailjs from 'emailjs-com';
 
-const statusColors = { Pending: 'warning', Solved: 'success' };
+const statusColors = { Open: 'info', 'In Progress': 'warning', Pending: 'warning', Resolved: 'success', Expulsion: 'error' };
+
+// Penalty mapping based on severity level
+const getPenalty = (severity) => {
+  switch(severity) {
+    case 'Level 1': return 'Warning';
+    case 'Level 2': return 'Suspension';
+    case 'Level 3': return 'Dropping/Dismissal';
+    case 'Level 4': return 'Expulsion';
+    default: return 'N/A';
+  }
+};
+
+// Severity colors for Level 1-4
+const severityColors = {
+  'Level 1': 'success',
+  'Level 2': 'warning',
+  'Level 3': 'error',
+  'Level 4': 'error'
+};
 const EMAILJS_SERVICE_ID = 'service_7pgle82';
 const EMAILJS_TEMPLATE_ID = 'template_f5q7j6q';
 const EMAILJS_USER_ID = 'L77JuF4PF3ZtGkwHm';
@@ -26,12 +45,16 @@ export default function ViolationRecord() {
   const theme = useTheme();
   const [records, setRecords] = useState([]);
   const [search, setSearch] = useState("");
+  const [showExpelledModal, setShowExpelledModal] = useState(false);
+  const [expelledPage, setExpelledPage] = useState(0);
+  const [expelledRowsPerPage, setExpelledRowsPerPage] = useState(8);
   const [imagePreview, setImagePreview] = useState(null);
   const [form, setForm] = useState({
     studentId: "",
     violation: "",
     classification: "",
     severity: "",
+    penalty: "",
     date: "",
     time: "",
     location: "",
@@ -39,7 +62,8 @@ export default function ViolationRecord() {
     witnesses: "",
     actionTaken: "",
     reportedBy: "",
-    status: "Pending",
+    status: "Open",
+    resolution: "",
     image: null,
     studentName: ""
   });
@@ -76,7 +100,9 @@ export default function ViolationRecord() {
     name: '',
     id: '',
     violation: '',
-    location: ''
+    location: '',
+    course: '',
+    year: ''
   });
   
   // Teacher-specific state
@@ -180,14 +206,38 @@ export default function ViolationRecord() {
       }
     };
     fetchViolations();
-    // Fetch all students for ID lookup
+    // Fetch all students for ID lookup (from both collections)
     const fetchStudents = async () => {
       try {
-        const snap = await getDocs(collection(db, "students"));
-        const studentsData = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        // Fetch from 'students' collection
+        const studentsSnap = await getDocs(collection(db, "students"));
+        const studentsData = studentsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        
+        // Fetch from 'users' collection (registered students)
+        const usersSnap = await getDocs(query(collection(db, "users"), where("role", "==", "Student")));
+        const registeredStudentsData = usersSnap.docs.map(doc => {
+          const data = doc.data();
+          return {
+            id: doc.id,
+            studentId: data.studentId || data.idNumber || doc.id,
+            firstName: data.firstName || data.fullName?.split(' ')[0] || '',
+            lastName: data.lastName || data.fullName?.split(' ').slice(1).join(' ') || '',
+            email: data.email || '',
+            course: data.course || '',
+            year: data.year || '',
+            section: data.section || '',
+            createdAt: data.createdAt || '',
+            updatedAt: data.updatedAt || '',
+            profilePic: data.profilePic || '',
+            isRegisteredUser: true
+          };
+        });
+        
+        // Combine both collections
+        const allStudents = [...studentsData, ...registeredStudentsData];
         
         // Sort students by creation date (newest first)
-        const sortedStudents = studentsData.sort((a, b) => {
+        const sortedStudents = allStudents.sort((a, b) => {
           const dateA = a.createdAt ? new Date(a.createdAt) : new Date(0);
           const dateB = b.createdAt ? new Date(b.createdAt) : new Date(0);
           return dateB - dateA; // Descending order (newest first)
@@ -195,6 +245,7 @@ export default function ViolationRecord() {
         
         setStudents(sortedStudents);
       } catch (e) {
+        console.error('Error fetching students:', e);
         setStudents([]);
       }
     };
@@ -283,7 +334,13 @@ export default function ViolationRecord() {
     }
   }, [openMeetingsModal, openMeetingModal, meetingSnackbar]);
 
-  const baseByStatus = statusFilter === 'all' ? records : records.filter(v => (statusFilter === 'pending' ? v.status === 'Pending' : statusFilter === 'solved' ? v.status === 'Solved' : true));
+  const baseByStatus = statusFilter === 'all' ? records : records.filter(v => {
+    if (statusFilter === 'open') return v.status === 'Open';
+    if (statusFilter === 'inProgress') return v.status === 'In Progress';
+    if (statusFilter === 'pending') return v.status === 'Pending';
+    if (statusFilter === 'resolved') return v.status === 'Resolved';
+    return true;
+  });
   // Sort newest first using createdAt if available
   const sortedByDate = [...baseByStatus].sort((a, b) => {
     const da = a.createdAt ? new Date(a.createdAt).getTime() : 0;
@@ -291,6 +348,7 @@ export default function ViolationRecord() {
     return db - da;
   });
   const filtered = (() => {
+    // Apply search filter
     const term = search.trim().toLowerCase();
     if (!term) {
       return sortedByDate;
@@ -331,8 +389,10 @@ export default function ViolationRecord() {
 
   // Summary stats
   const total = records.length;
+  const open = records.filter(v => v.status === 'Open').length;
+  const inProgress = records.filter(v => v.status === 'In Progress').length;
   const pending = records.filter(v => v.status === 'Pending').length;
-  const solved = records.filter(v => v.status === 'Solved').length;
+  const resolved = records.filter(v => v.status === 'Resolved').length;
 
   const handleFormChange = (e) => {
     const { name, value } = e.target;
@@ -425,12 +485,32 @@ export default function ViolationRecord() {
       const studentEmail = student?.email;
       const studentName = student ? `${student.firstName} ${student.lastName}` : form.studentName;
       
+      // Count existing violations for this student
+      const studentViolations = records.filter(v => 
+        v.studentId === form.studentId || 
+        (v.studentName && form.studentName && v.studentName.trim() === form.studentName.trim())
+      );
+      const violationCount = studentViolations.length;
+      
+      // If student has 3 violations, this will be the 4th - automatically expel
+      let finalStatus = form.status || "Open";
+      if (violationCount >= 3) {
+        finalStatus = "Expulsion";
+        setSnackbar({ 
+          open: true, 
+          message: `⚠️ WARNING: This student has ${violationCount} existing violations. This is the 4th violation. Status automatically set to "Expulsion".`, 
+          severity: "warning" 
+        });
+      }
+      
       const violationData = {
         ...form,
         image: imageUrl,
+        penalty: form.penalty || getPenalty(form.severity),
         timestamp: new Date().toISOString(),
         createdAt: new Date().toISOString(),
-        status: "Pending"
+        status: finalStatus,
+        violationCount: violationCount + 1 // Store the violation count (this will be the new count)
       };
       
       const violationRef = await addDoc(collection(db, "violations"), violationData);
@@ -439,6 +519,14 @@ export default function ViolationRecord() {
       if (studentEmail) {
         try {
           // Create comprehensive notification message with all violation details
+          const expulsionWarning = violationCount >= 3 
+            ? `\n\n🚨 CRITICAL NOTICE: EXPULSION\nThis is your ${violationCount + 1}${violationCount === 3 ? 'th' : violationCount === 2 ? 'rd' : 'nd'} violation. You have been EXPELLED from the institution.\n\n` 
+            : violationCount === 2 
+            ? `\n\n⚠️ WARNING: This is your 3rd violation. One more violation will result in EXPULSION.\n\n` 
+            : violationCount === 1 
+            ? `\n\n⚠️ WARNING: This is your 2nd violation. Two more violations will result in EXPULSION.\n\n` 
+            : '';
+          
           const notificationMessage = `
 🚨 NEW VIOLATION REPORTED
 
@@ -453,7 +541,9 @@ A new violation has been reported for you with the following details:
 • Date: ${form.date}
 • Time: ${form.time || 'Not specified'}
 • Location: ${form.location || 'Not specified'}
-
+• Status: ${finalStatus}
+• Total Violations: ${violationCount + 1}
+${expulsionWarning}
 📝 DESCRIPTION:
 ${form.description || 'No description provided'}
 
@@ -524,6 +614,7 @@ School Administration
         violation: "",
         classification: "",
         severity: "",
+        penalty: "",
         date: "",
         time: "",
         location: "",
@@ -531,7 +622,8 @@ School Administration
         witnesses: "",
         actionTaken: "",
         reportedBy: "",
-        status: "Pending",
+        status: "Open",
+        resolution: "",
         image: null,
         studentName: ""
       });
@@ -719,56 +811,92 @@ School Administration
         </Typography>
       </Box>
       {/* Summary Cards */}
-      <Grid container spacing={3} sx={{ mb: 3 }}>
-        <Grid item xs={12} sm={6} md={4}>
-          <Card onClick={() => setStatusFilter('all')} sx={{ 
-            cursor: 'pointer', 
-            boxShadow: 2, 
-            borderLeft: '4px solid #800000',
-            textAlign: 'center',
-            '&:hover': {
-              boxShadow: '0 4px 8px rgba(0,0,0,0.15)'
-            }
-          }}>
-            <CardContent sx={{ textAlign: 'center' }}>
-              <Typography variant="h4" sx={{ color: theme.palette.mode === 'dark' ? '#ffffff' : '#000000' }} fontWeight={700}>{total}</Typography>
-              <Typography variant="body2" color="textSecondary">Total Violations</Typography>
-            </CardContent>
-          </Card>
-        </Grid>
-        <Grid item xs={12} sm={6} md={4}>
-          <Card onClick={() => setStatusFilter('pending')} sx={{ 
-            cursor: 'pointer', 
-            boxShadow: 2, 
-            borderLeft: '4px solid #800000',
-            textAlign: 'center',
-            '&:hover': {
-              boxShadow: '0 4px 8px rgba(0,0,0,0.15)'
-            }
-          }}>
-            <CardContent sx={{ textAlign: 'center' }}>
-              <Typography variant="h4" sx={{ color: theme.palette.mode === 'dark' ? '#ffffff' : '#000000' }} fontWeight={700}>{pending}</Typography>
-              <Typography variant="body2" color="textSecondary">Pending</Typography>
-            </CardContent>
-          </Card>
-        </Grid>
-        <Grid item xs={12} sm={6} md={4}>
-          <Card onClick={() => setStatusFilter('solved')} sx={{ 
-            cursor: 'pointer', 
-            boxShadow: 2, 
-            borderLeft: '4px solid #800000',
-            textAlign: 'center',
-            '&:hover': {
-              boxShadow: '0 4px 8px rgba(0,0,0,0.15)'
-            }
-          }}>
-            <CardContent sx={{ textAlign: 'center' }}>
-              <Typography variant="h4" sx={{ color: theme.palette.mode === 'dark' ? '#ffffff' : '#000000' }} fontWeight={700}>{solved}</Typography>
-              <Typography variant="body2" color="textSecondary">Solved</Typography>
-            </CardContent>
-          </Card>
-        </Grid>
-      </Grid>
+      <Box sx={{ 
+        display: 'flex', 
+        gap: 2, 
+        mb: 3,
+        flexWrap: { xs: 'wrap', md: 'nowrap' },
+        '& > *': {
+          flex: { xs: '1 1 100%', sm: '1 1 calc(50% - 8px)', md: '1 1 0' },
+          minWidth: 0
+        }
+      }}>
+        <Card onClick={() => setStatusFilter('all')} sx={{ 
+          cursor: 'pointer', 
+          boxShadow: 2, 
+          borderLeft: '4px solid #800000',
+          textAlign: 'center',
+          flex: 1,
+          '&:hover': {
+            boxShadow: '0 4px 8px rgba(0,0,0,0.15)'
+          }
+        }}>
+          <CardContent sx={{ textAlign: 'center' }}>
+            <Typography variant="h4" sx={{ color: theme.palette.mode === 'dark' ? '#ffffff' : '#000000' }} fontWeight={700}>{total}</Typography>
+            <Typography variant="body2" color="textSecondary">Total Violations</Typography>
+          </CardContent>
+        </Card>
+        <Card onClick={() => setStatusFilter('open')} sx={{ 
+          cursor: 'pointer', 
+          boxShadow: 2, 
+          borderLeft: '4px solid #800000',
+          textAlign: 'center',
+          flex: 1,
+          '&:hover': {
+            boxShadow: '0 4px 8px rgba(0,0,0,0.15)'
+          }
+        }}>
+          <CardContent sx={{ textAlign: 'center' }}>
+            <Typography variant="h4" sx={{ color: theme.palette.mode === 'dark' ? '#ffffff' : '#000000' }} fontWeight={700}>{open}</Typography>
+            <Typography variant="body2" color="textSecondary">Open</Typography>
+          </CardContent>
+        </Card>
+        <Card onClick={() => setStatusFilter('inProgress')} sx={{ 
+          cursor: 'pointer', 
+          boxShadow: 2, 
+          borderLeft: '4px solid #800000',
+          textAlign: 'center',
+          flex: 1,
+          '&:hover': {
+            boxShadow: '0 4px 8px rgba(0,0,0,0.15)'
+          }
+        }}>
+          <CardContent sx={{ textAlign: 'center' }}>
+            <Typography variant="h4" sx={{ color: theme.palette.mode === 'dark' ? '#ffffff' : '#000000' }} fontWeight={700}>{inProgress}</Typography>
+            <Typography variant="body2" color="textSecondary">In Progress</Typography>
+          </CardContent>
+        </Card>
+        <Card onClick={() => setStatusFilter('pending')} sx={{ 
+          cursor: 'pointer', 
+          boxShadow: 2, 
+          borderLeft: '4px solid #800000',
+          textAlign: 'center',
+          flex: 1,
+          '&:hover': {
+            boxShadow: '0 4px 8px rgba(0,0,0,0.15)'
+          }
+        }}>
+          <CardContent sx={{ textAlign: 'center' }}>
+            <Typography variant="h4" sx={{ color: theme.palette.mode === 'dark' ? '#ffffff' : '#000000' }} fontWeight={700}>{pending}</Typography>
+            <Typography variant="body2" color="textSecondary">Pending</Typography>
+          </CardContent>
+        </Card>
+        <Card onClick={() => setStatusFilter('resolved')} sx={{ 
+          cursor: 'pointer', 
+          boxShadow: 2, 
+          borderLeft: '4px solid #800000',
+          textAlign: 'center',
+          flex: 1,
+          '&:hover': {
+            boxShadow: '0 4px 8px rgba(0,0,0,0.15)'
+          }
+        }}>
+          <CardContent sx={{ textAlign: 'center' }}>
+            <Typography variant="h4" sx={{ color: theme.palette.mode === 'dark' ? '#ffffff' : '#000000' }} fontWeight={700}>{resolved}</Typography>
+            <Typography variant="body2" color="textSecondary">Resolved</Typography>
+          </CardContent>
+        </Card>
+      </Box>
 
 
       {/* Add Violation and History Buttons */}
@@ -835,7 +963,14 @@ School Administration
           sx: {
             borderRadius: 2,
             maxHeight: '70vh',
-            minHeight: '40vh'
+            minHeight: '40vh',
+            position: 'fixed',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            margin: 0,
+            width: '90%',
+            maxWidth: '1200px'
           }
         }}
       >
@@ -865,13 +1000,15 @@ School Administration
         </DialogTitle>
         
         <DialogContent sx={{ p: 0 }}>
-          {/* Search Bar Section */}
+          {/* Search Bar and Filters Section */}
           <Box sx={{ 
             p: 1.5, 
             bgcolor: '#fafafa', 
             borderBottom: '1px solid #e0e0e0',
             display: 'flex',
-            justifyContent: 'flex-start'
+            flexWrap: 'wrap',
+            gap: 2,
+            alignItems: 'center'
           }}>
             <TextField
               value={historyFilter.name}
@@ -879,7 +1016,7 @@ School Administration
               placeholder="Search by Student Name/ID, Violation Type, Reporter, Location..."
               size="small"
               sx={{ 
-                width: '180px',
+                width: '250px',
                 '& .MuiOutlinedInput-root': {
                   bgcolor: '#ffffff',
                   '&:hover': {
@@ -902,32 +1039,141 @@ School Administration
                 )
               }}
             />
+            <TextField
+              select
+              label="Filter by Course"
+              value={historyFilter.course}
+              onChange={(e) => setHistoryFilter({...historyFilter, course: e.target.value})}
+              size="small"
+              sx={{ 
+                minWidth: '150px',
+                '& .MuiOutlinedInput-root': {
+                  bgcolor: '#ffffff',
+                  '&:hover': {
+                    '& .MuiOutlinedInput-notchedOutline': {
+                      borderColor: '#800000'
+                    }
+                  },
+                  '&.Mui-focused': {
+                    '& .MuiOutlinedInput-notchedOutline': {
+                      borderColor: '#800000'
+                    }
+                  }
+                }
+              }}
+            >
+              <MenuItem value="">All Courses</MenuItem>
+              {[...new Set(students.map(s => s.course).filter(Boolean))].sort().map(course => (
+                <MenuItem key={course} value={course}>{course}</MenuItem>
+              ))}
+            </TextField>
+            <TextField
+              select
+              label="Filter by Year"
+              value={historyFilter.year}
+              onChange={(e) => setHistoryFilter({...historyFilter, year: e.target.value})}
+              size="small"
+              sx={{ 
+                minWidth: '150px',
+                '& .MuiOutlinedInput-root': {
+                  bgcolor: '#ffffff',
+                  '&:hover': {
+                    '& .MuiOutlinedInput-notchedOutline': {
+                      borderColor: '#800000'
+                    }
+                  },
+                  '&.Mui-focused': {
+                    '& .MuiOutlinedInput-notchedOutline': {
+                      borderColor: '#800000'
+                    }
+                  }
+                }
+              }}
+            >
+              <MenuItem value="">All Years</MenuItem>
+              <MenuItem value="1st Year">1st Year</MenuItem>
+              {[...new Set(students.map(s => s.year).filter(Boolean))].sort().map(year => (
+                <MenuItem key={year} value={year}>{year}</MenuItem>
+              ))}
+            </TextField>
+            {(historyFilter.course || historyFilter.year) && (
+              <Button
+                variant="outlined"
+                size="small"
+                onClick={() => setHistoryFilter({...historyFilter, course: '', year: ''})}
+                sx={{
+                  minWidth: '100px',
+                  bgcolor: '#ffffff',
+                  color: '#800000',
+                  borderColor: '#800000',
+                  '&:hover': {
+                    bgcolor: '#800000',
+                    color: '#ffffff',
+                    borderColor: '#800000'
+                  }
+                }}
+              >
+                Clear Filters
+              </Button>
+            )}
           </Box>
 
           {/* Table Section */}
-          <Box sx={{ flex: 1 }}>
+          <Box sx={{ flex: 1, minHeight: '300px' }}>
             {(() => {
-              // Filter records based on search term
+              // Enrich records with student course and year
+              const enrichedRecords = records.map(record => {
+                // Try multiple matching strategies
+                const student = students.find(s => 
+                  s.id === record.studentId || 
+                  s.studentId === record.studentId ||
+                  s.idNumber === record.studentId ||
+                  (s.firstName && s.lastName && record.studentName && 
+                   `${s.firstName} ${s.lastName}`.trim() === record.studentName.trim())
+                );
+                return {
+                  ...record,
+                  course: student?.course || '',
+                  year: student?.year || ''
+                };
+              });
+
+              // Filter records based on search term and filters
               const searchTerm = historyFilter.name.trim().toLowerCase();
-              const filteredHistory = searchTerm ? records.filter(record => {
-                const name = (record.studentName || '').toLowerCase();
-                const id = (record.studentId || '').toLowerCase();
-                const violation = (record.violation || record.violationType || '').toLowerCase();
-                const location = (record.location || '').toLowerCase();
-                const reporter = (record.reportedBy || record.reportedByName || '').toLowerCase();
-                const description = (record.description || '').toLowerCase();
-                const severity = (record.severity || '').toLowerCase();
-                const status = (record.status || '').toLowerCase();
-                
-                return name.includes(searchTerm) || 
-                       id.includes(searchTerm) || 
-                       violation.includes(searchTerm) || 
-                       location.includes(searchTerm) ||
-                       reporter.includes(searchTerm) ||
-                       description.includes(searchTerm) ||
-                       severity.includes(searchTerm) ||
-                       status.includes(searchTerm);
-              }) : records;
+              let filteredHistory = enrichedRecords;
+
+              // Apply search filter
+              if (searchTerm) {
+                filteredHistory = filteredHistory.filter(record => {
+                  const name = (record.studentName || '').toLowerCase();
+                  const id = (record.studentId || '').toLowerCase();
+                  const violation = (record.violation || record.violationType || '').toLowerCase();
+                  const location = (record.location || '').toLowerCase();
+                  const reporter = (record.reportedBy || record.reportedByName || '').toLowerCase();
+                  const description = (record.description || '').toLowerCase();
+                  const severity = (record.severity || '').toLowerCase();
+                  const status = (record.status || '').toLowerCase();
+                  
+                  return name.includes(searchTerm) || 
+                         id.includes(searchTerm) || 
+                         violation.includes(searchTerm) || 
+                         location.includes(searchTerm) ||
+                         reporter.includes(searchTerm) ||
+                         description.includes(searchTerm) ||
+                         severity.includes(searchTerm) ||
+                         status.includes(searchTerm);
+                });
+              }
+
+              // Apply course filter
+              if (historyFilter.course) {
+                filteredHistory = filteredHistory.filter(record => record.course === historyFilter.course);
+              }
+
+              // Apply year filter
+              if (historyFilter.year) {
+                filteredHistory = filteredHistory.filter(record => record.year === historyFilter.year);
+              }
 
               // Get paginated records
               const paginatedRecords = useMemo(() => {
@@ -939,7 +1185,10 @@ School Administration
               return (
                 <>
                   <TableContainer component={Paper} elevation={2} sx={{ 
-                    bgcolor: theme.palette.mode === 'dark' ? '#2d2d2d' : '#ffffff'
+                    bgcolor: theme.palette.mode === 'dark' ? '#2d2d2d' : '#ffffff',
+                    minHeight: '300px',
+                    maxHeight: '50vh',
+                    overflow: 'auto'
                   }}>
               <Table stickyHeader>
                 <TableHead>
@@ -1394,18 +1643,27 @@ School Administration
                 </TextField>
               </Grid>
               <Grid item xs={12} sm={4}>
-                <TextField label="Severity" name="severity" value={form.severity} onChange={handleFormChange} select fullWidth required helperText="Severity level">
+                <TextField label="Severity Level" name="severity" value={form.severity} onChange={(e) => {
+                  const newSeverity = e.target.value;
+                  const penalty = getPenalty(newSeverity);
+                  setForm(f => ({ ...f, severity: newSeverity, penalty: penalty }));
+                }} select fullWidth required helperText="Select severity level">
                   <MenuItem value="">Select</MenuItem>
-                  <MenuItem value="Low">Low</MenuItem>
-                  <MenuItem value="Medium">Medium</MenuItem>
-                  <MenuItem value="High">High</MenuItem>
-                  <MenuItem value="Critical">Critical</MenuItem>
+                  <MenuItem value="Level 1">Level 1</MenuItem>
+                  <MenuItem value="Level 2">Level 2</MenuItem>
+                  <MenuItem value="Level 3">Level 3</MenuItem>
+                  <MenuItem value="Level 4">Level 4</MenuItem>
                 </TextField>
               </Grid>
               <Grid item xs={12} sm={4}>
-                <TextField label="Status" name="status" value={form.status} onChange={handleFormChange} select fullWidth required helperText="Mark as pending or solved">
+                <TextField label="Penalty" name="penalty" value={form.penalty || getPenalty(form.severity)} disabled fullWidth helperText="Auto-assigned based on severity" />
+              </Grid>
+              <Grid item xs={12} sm={4}>
+                <TextField label="Status" name="status" value={form.status} onChange={handleFormChange} select fullWidth required helperText="Select status">
+                  <MenuItem value="Open">Open</MenuItem>
+                  <MenuItem value="In Progress">In Progress</MenuItem>
                   <MenuItem value="Pending">Pending</MenuItem>
-                  <MenuItem value="Solved">Solved</MenuItem>
+                  <MenuItem value="Resolved">Resolved</MenuItem>
                 </TextField>
               </Grid>
               <Grid item xs={12} sm={4}>
@@ -1443,6 +1701,9 @@ School Administration
               <Grid item xs={12}>
                 <TextField label="Description" name="description" value={form.description} onChange={handleFormChange} fullWidth multiline minRows={3} helperText="Describe the violation (optional)" />
               </Grid>
+              <Grid item xs={12}>
+                <TextField label="Resolution" name="resolution" value={form.resolution} onChange={handleFormChange} fullWidth multiline minRows={2} helperText="Resolution action (e.g., cleaning the CR, community service, etc.)" placeholder="e.g., Cleaning the CR, Community service, etc." />
+              </Grid>
             </Grid>
           </form>
         </DialogContent>
@@ -1462,6 +1723,7 @@ School Administration
                 violation: "",
                 classification: "",
                 severity: "",
+                penalty: "",
                 date: "",
                 time: "",
                 location: "",
@@ -1469,7 +1731,8 @@ School Administration
                 witnesses: "",
                 actionTaken: "",
                 reportedBy: "",
-                status: "Pending",
+                status: "Open",
+                resolution: "",
                 image: null,
                 studentName: ""
               });
@@ -1514,7 +1777,7 @@ School Administration
       <Divider sx={{ mb: 3 }} />
       
       {/* Search Bar */}
-      <Box sx={{ mb: 3 }}>
+      <Box sx={{ mb: 3, display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
         <TextField
           value={search}
           onChange={e => setSearch(e.target.value)}
@@ -1544,6 +1807,22 @@ School Administration
             )
           }}
         />
+        <Button
+          variant="outlined"
+          color="error"
+          onClick={() => setShowExpelledModal(true)}
+          sx={{
+            borderColor: '#d32f2f',
+            color: '#d32f2f',
+            bgcolor: 'transparent',
+            '&:hover': {
+              bgcolor: 'rgba(211, 47, 47, 0.1)',
+              borderColor: '#b71c1c'
+            }
+          }}
+        >
+          Expelled Students
+        </Button>
       </Box>
 
       {/* Expanded Table Container */}
@@ -1577,7 +1856,7 @@ School Administration
                 fontWeight: 600,
                 fontSize: '16px',
                 padding: '16px'
-                  }}>Violation</TableCell>
+                  }} align="center">Total Violations</TableCell>
                   <TableCell sx={{ 
                     bgcolor: '#800000',
                 color: '#ffffff', 
@@ -1598,6 +1877,13 @@ School Administration
                 fontWeight: 600,
                 fontSize: '16px',
                 padding: '16px'
+              }}>Penalty</TableCell>
+              <TableCell sx={{ 
+                bgcolor: '#800000',
+                color: '#ffffff', 
+                fontWeight: 600,
+                fontSize: '16px',
+                padding: '16px'
                   }}>Date</TableCell>
                   <TableCell sx={{ 
                     bgcolor: '#800000',
@@ -1606,13 +1892,6 @@ School Administration
                 fontSize: '16px',
                 padding: '16px'
                   }}>Status</TableCell>
-              <TableCell sx={{ 
-                bgcolor: '#800000',
-                color: '#ffffff', 
-                fontWeight: 600,
-                fontSize: '16px',
-                padding: '16px'
-                  }}>Reported By</TableCell>
               <TableCell sx={{ 
                 bgcolor: '#800000',
                 color: '#ffffff', 
@@ -1654,20 +1933,29 @@ School Administration
                   {v.studentId || 'N/A'}
                 </TableCell>
                 <TableCell 
+                  align="center"
                   sx={{ 
                     fontSize: 14, 
                     fontWeight: 500,
-                    maxWidth: 200,
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap',
                     padding: '12px 16px'
                   }} 
                   onClick={() => setViewViolation(v)}
                 >
-                  <Tooltip title={v.violation || ''}>
-                    <span>{v.violation || 'N/A'}</span>
-                  </Tooltip>
+                  {(() => {
+                    const studentViolations = records.filter(r => 
+                      r.studentId === v.studentId || 
+                      (r.studentName && v.studentName && r.studentName.trim() === v.studentName.trim())
+                    );
+                    const violationCount = studentViolations.length;
+                    return (
+                      <Chip 
+                        label={violationCount}
+                        size="small"
+                        color={violationCount >= 4 ? 'error' : violationCount >= 3 ? 'warning' : 'default'}
+                        sx={{ fontWeight: 600 }}
+                      />
+                    );
+                  })()}
                 </TableCell>
                 <TableCell 
                   sx={{ 
@@ -1690,12 +1978,22 @@ School Administration
                   <Chip 
                     label={v.severity || 'N/A'} 
                     size="small" 
-                    color={
-                      v.severity === 'Critical' ? 'error' :
-                      v.severity === 'High' ? 'error' :
-                      v.severity === 'Medium' ? 'warning' :
-                      v.severity === 'Low' ? 'success' : 'default'
-                    }
+                    color={severityColors[v.severity] || 'default'}
+                    variant="outlined"
+                  />
+                </TableCell>
+                <TableCell 
+                  sx={{ 
+                    fontSize: 14, 
+                    fontWeight: 500,
+                    padding: '12px 16px'
+                  }} 
+                  onClick={() => setViewViolation(v)}
+                >
+                  <Chip 
+                    label={v.penalty || getPenalty(v.severity) || 'N/A'} 
+                    size="small" 
+                    color="secondary"
                     variant="outlined"
                   />
                 </TableCell>
@@ -1720,22 +2018,9 @@ School Administration
                   <Chip 
                     label={v.status || 'N/A'} 
                     size="small" 
-                    color={
-                      v.status === 'Solved' ? 'success' :
-                      v.status === 'Pending' ? 'warning' : 'default'
-                    }
+                    color={statusColors[v.status] || 'default'}
                     variant="outlined"
                   />
-                </TableCell>
-                <TableCell 
-                  sx={{ 
-                    fontSize: 14, 
-                    fontWeight: 500,
-                    padding: '12px 16px'
-                  }} 
-                  onClick={() => setViewViolation(v)}
-                >
-                  {v.reportedBy || v.reportedByName || 'N/A'}
                 </TableCell>
                 <TableCell align="center" sx={{ padding: '12px 16px' }}>
                     <Stack direction="row" spacing={1} justifyContent="center">
@@ -1843,21 +2128,47 @@ School Administration
       <Dialog open={!!viewViolation} onClose={() => setViewViolation(null)} maxWidth="md" fullWidth>
         <DialogTitle className="no-print" sx={{ fontWeight: 700, color: '#800000' }}>Student Violation Record</DialogTitle>
         <DialogContent dividers>
-          {viewViolation && (
+          {viewViolation && (() => {
+            // Count violations for this student
+            const studentViolations = records.filter(v => 
+              v.studentId === viewViolation.studentId || 
+              (v.studentName && viewViolation.studentName && v.studentName.trim() === viewViolation.studentName.trim())
+            );
+            const violationCount = studentViolations.length;
+            
+            return (
             <Box id="violation-document" sx={{ typography: 'body1' }}>
               <Typography variant="h6" sx={{ mb: 2 }}>{viewViolation.studentName}</Typography>
+              <Box sx={{ mb: 2, p: 2, bgcolor: violationCount >= 4 ? '#ffebee' : violationCount >= 3 ? '#fff3cd' : '#e3f2fd', borderRadius: 1, border: `2px solid ${violationCount >= 4 ? '#d32f2f' : violationCount >= 3 ? '#ff9800' : '#1976d2'}` }}>
+                <Typography variant="h6" sx={{ color: violationCount >= 4 ? '#d32f2f' : violationCount >= 3 ? '#f57c00' : '#1976d2', fontWeight: 700, mb: 0.5 }}>
+                  Total Violations: {violationCount}
+                </Typography>
+                {violationCount >= 4 && (
+                  <Typography variant="body2" sx={{ color: '#d32f2f', fontWeight: 600 }}>
+                    ⚠️ This student has been EXPELLED (4 or more violations) - Status: Expulsion
+                  </Typography>
+                )}
+                {violationCount === 3 && (
+                  <Typography variant="body2" sx={{ color: '#f57c00', fontWeight: 600 }}>
+                    ⚠️ WARNING: Next violation will result in EXPULSION
+                  </Typography>
+                )}
+              </Box>
               <Grid container spacing={1} sx={{ mb: 1 }}>
                 <Grid item xs={6}><Typography><b>Student ID:</b> {viewViolation.studentId}</Typography></Grid>
                 <Grid item xs={6}><Typography><b>Date:</b> {viewViolation.date}</Typography></Grid>
                 <Grid item xs={6}><Typography><b>Time:</b> {viewViolation.time}</Typography></Grid>
                 <Grid item xs={12}><Typography><b>Violation:</b> {viewViolation.violation}</Typography></Grid>
                 <Grid item xs={6}><Typography><b>Classification:</b> {viewViolation.classification}</Typography></Grid>
-                <Grid item xs={6}><Typography><b>Severity:</b> {viewViolation.severity}</Typography></Grid>
+                <Grid item xs={6}><Typography><b>Severity:</b> {viewViolation.severity || 'N/A'}</Typography></Grid>
+                <Grid item xs={6}><Typography><b>Penalty:</b> {viewViolation.penalty || getPenalty(viewViolation.severity) || 'N/A'}</Typography></Grid>
+                <Grid item xs={6}><Typography><b>Status:</b> {viewViolation.status || 'N/A'}</Typography></Grid>
                 {viewViolation.location && (<Grid item xs={12}><Typography><b>Location:</b> {viewViolation.location}</Typography></Grid>)}
                 {viewViolation.reportedBy && (<Grid item xs={12}><Typography><b>Reported By:</b> {viewViolation.reportedBy}</Typography></Grid>)}
                 {viewViolation.actionTaken && (<Grid item xs={12}><Typography><b>Action Taken:</b> {viewViolation.actionTaken}</Typography></Grid>)}
                 {viewViolation.witnesses && (<Grid item xs={12}><Typography><b>Witnesses:</b> {viewViolation.witnesses}</Typography></Grid>)}
                 {viewViolation.description && (<Grid item xs={12}><Typography><b>Description:</b> {viewViolation.description}</Typography></Grid>)}
+                {viewViolation.resolution && (<Grid item xs={12}><Typography><b>Resolution:</b> {viewViolation.resolution}</Typography></Grid>)}
               </Grid>
               {viewViolation.image && (
                 <Box sx={{ mt: 2, textAlign: 'center' }}>
@@ -1898,7 +2209,8 @@ School Administration
                 </Button>
               </Box>
             </Box>
-          )}
+            );
+          })()}
         </DialogContent>
         <DialogActions className="no-print">
           <Button onClick={() => window.print()} variant="outlined">Print</Button>
@@ -1919,16 +2231,25 @@ School Administration
                 <MenuItem value="Policy/Rules">Policy/Rules</MenuItem>
                 <MenuItem value="Other">Other</MenuItem>
               </TextField>
-              <TextField label="Severity" value={editViolation.severity} onChange={e => setEditViolation({ ...editViolation, severity: e.target.value })} select fullWidth sx={{ mb: 1 }}>
-                <MenuItem value="Low">Low</MenuItem>
-                <MenuItem value="Medium">Medium</MenuItem>
-                <MenuItem value="High">High</MenuItem>
-                <MenuItem value="Critical">Critical</MenuItem>
+              <TextField label="Severity Level" value={editViolation.severity} onChange={e => {
+                const newSeverity = e.target.value;
+                const penalty = getPenalty(newSeverity);
+                setEditViolation({ ...editViolation, severity: newSeverity, penalty: penalty });
+              }} select fullWidth sx={{ mb: 1 }}>
+                <MenuItem value="Level 1">Level 1</MenuItem>
+                <MenuItem value="Level 2">Level 2</MenuItem>
+                <MenuItem value="Level 3">Level 3</MenuItem>
+                <MenuItem value="Level 4">Level 4</MenuItem>
               </TextField>
+              <TextField label="Penalty" value={editViolation.penalty || getPenalty(editViolation.severity)} disabled fullWidth sx={{ mb: 1 }} helperText="Auto-assigned based on severity" />
               <TextField label="Status" value={editViolation.status} onChange={e => setEditViolation({ ...editViolation, status: e.target.value })} select fullWidth sx={{ mb: 1 }}>
+                <MenuItem value="Open">Open</MenuItem>
+                <MenuItem value="In Progress">In Progress</MenuItem>
                 <MenuItem value="Pending">Pending</MenuItem>
-                <MenuItem value="Solved">Solved</MenuItem>
+                <MenuItem value="Resolved">Resolved</MenuItem>
+                <MenuItem value="Expulsion">Expulsion</MenuItem>
               </TextField>
+              <TextField label="Resolution" value={editViolation.resolution || ''} onChange={e => setEditViolation({ ...editViolation, resolution: e.target.value })} fullWidth multiline minRows={2} sx={{ mb: 1 }} helperText="Resolution action (e.g., cleaning the CR, community service, etc.)" />
               <TextField label="Date" type="date" value={editViolation.date} onChange={e => setEditViolation({ ...editViolation, date: e.target.value })} InputLabelProps={{ shrink: true }} fullWidth sx={{ mb: 1 }} />
               <TextField label="Time" type="time" value={editViolation.time} onChange={e => setEditViolation({ ...editViolation, time: e.target.value })} InputLabelProps={{ shrink: true }} fullWidth sx={{ mb: 1 }} />
               <TextField label="Location" value={editViolation.location} onChange={e => setEditViolation({ ...editViolation, location: e.target.value })} fullWidth sx={{ mb: 1 }} />
@@ -1985,6 +2306,116 @@ School Administration
         <DialogActions>
           <Button onClick={() => setDeleteConfirm({ open: false, id: null })}>Cancel</Button>
           <Button color="error" variant="contained" onClick={() => handleDelete(deleteConfirm.id)}>Delete</Button>
+        </DialogActions>
+      </Dialog>
+      {/* Expelled Students Modal */}
+      <Dialog open={showExpelledModal} onClose={() => setShowExpelledModal(false)} maxWidth="lg" fullWidth>
+        <DialogTitle sx={{ fontWeight: 700, color: '#d32f2f' }}>Expelled Students</DialogTitle>
+        <DialogContent dividers>
+          {(() => {
+            // Get unique expelled students (4+ violations or status = 'Expulsion')
+            const expelledStudentsMap = new Map();
+            records.forEach(v => {
+              const studentViolations = records.filter(r => 
+                r.studentId === v.studentId || 
+                (r.studentName && v.studentName && r.studentName.trim() === v.studentName.trim())
+              );
+              const violationCount = studentViolations.length;
+              
+              if (violationCount >= 4 || v.status === 'Expulsion') {
+                const key = v.studentId || v.studentName;
+                if (!expelledStudentsMap.has(key)) {
+                  expelledStudentsMap.set(key, {
+                    studentId: v.studentId,
+                    studentName: v.studentName,
+                    violationCount: violationCount,
+                    status: v.status === 'Expulsion' ? 'Expulsion' : 'Expulsion',
+                    latestViolation: v
+                  });
+                }
+              }
+            });
+            
+            const expelledStudents = Array.from(expelledStudentsMap.values());
+            
+            // Pagination
+            const startIndex = expelledPage * expelledRowsPerPage;
+            const endIndex = startIndex + expelledRowsPerPage;
+            const paginatedExpelledStudents = expelledStudents.slice(startIndex, endIndex);
+            
+            return (
+              <Box>
+                <Typography variant="body2" sx={{ mb: 2, color: 'text.secondary' }}>
+                  Total Expelled Students: {expelledStudents.length}
+                </Typography>
+                <TableContainer component={Paper} sx={{ maxHeight: 500 }}>
+                  <Table stickyHeader>
+                    <TableHead>
+                      <TableRow sx={{ bgcolor: '#d32f2f' }}>
+                        <TableCell sx={{ bgcolor: '#d32f2f', color: '#ffffff', fontWeight: 600 }}>Student Name</TableCell>
+                        <TableCell sx={{ bgcolor: '#d32f2f', color: '#ffffff', fontWeight: 600 }}>Student ID</TableCell>
+                        <TableCell align="center" sx={{ bgcolor: '#d32f2f', color: '#ffffff', fontWeight: 600 }}>Total Violations</TableCell>
+                        <TableCell align="center" sx={{ bgcolor: '#d32f2f', color: '#ffffff', fontWeight: 600 }}>Status</TableCell>
+                        <TableCell sx={{ bgcolor: '#d32f2f', color: '#ffffff', fontWeight: 600 }}>Latest Violation Date</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {expelledStudents.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={5} align="center" sx={{ py: 4 }}>
+                            <Typography variant="h6" color="text.secondary">
+                              No expelled students found.
+                            </Typography>
+                          </TableCell>
+                        </TableRow>
+                      ) : paginatedExpelledStudents.map((student, idx) => (
+                        <TableRow key={student.studentId || idx} hover>
+                          <TableCell sx={{ fontWeight: 500 }}>{student.studentName || 'N/A'}</TableCell>
+                          <TableCell>{student.studentId || 'N/A'}</TableCell>
+                          <TableCell align="center">
+                            <Chip 
+                              label={student.violationCount}
+                              size="small"
+                              color="error"
+                              sx={{ fontWeight: 600 }}
+                            />
+                          </TableCell>
+                          <TableCell align="center">
+                            <Chip 
+                              label={student.status}
+                              size="small"
+                              color="error"
+                              variant="outlined"
+                            />
+                          </TableCell>
+                          <TableCell>{student.latestViolation?.date || 'N/A'}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+                <TablePagination
+                  rowsPerPageOptions={[8]}
+                  component="div"
+                  count={expelledStudents.length}
+                  rowsPerPage={expelledRowsPerPage}
+                  page={expelledPage}
+                  onPageChange={(event, newPage) => setExpelledPage(newPage)}
+                  onRowsPerPageChange={(event) => {
+                    setExpelledRowsPerPage(parseInt(event.target.value, 10));
+                    setExpelledPage(0);
+                  }}
+                  sx={{
+                    bgcolor: theme.palette.mode === 'dark' ? '#2d2d2d' : '#ffffff',
+                    borderTop: theme.palette.mode === 'dark' ? '1px solid #404040' : '1px solid #e0e0e0'
+                  }}
+                />
+              </Box>
+            );
+          })()}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setShowExpelledModal(false)} color="primary">Close</Button>
         </DialogActions>
       </Dialog>
       {/* Meeting Modal */}

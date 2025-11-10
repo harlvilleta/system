@@ -370,6 +370,24 @@ function UserHeader({ currentUser, userProfile }) {
   );
 }
 
+// Component to preserve current route on refresh
+function PreserveRoute({ defaultPath, userRole }) {
+  const location = useLocation();
+  const navigate = useNavigate();
+  
+  useEffect(() => {
+    // Only redirect to default if we're on the root path
+    // Otherwise, preserve the current route (do nothing)
+    if (location.pathname === '/' || location.pathname === '') {
+      navigate(defaultPath, { replace: true });
+    }
+    // If we're already on a valid route, do nothing - React Router will handle it
+  }, [location.pathname, defaultPath, navigate]);
+  
+  // Return a loading indicator or null - React Router will handle the actual routing
+  return null;
+}
+
 function App() {
   const [user, setUser] = useState(null);
   const [userRole, setUserRole] = useState(null);
@@ -703,6 +721,11 @@ function App() {
             <Route path="/*" element={
               (() => {
                 console.log('Routing decision:', { userRole, user: !!user, currentUser: !!currentUser });
+                // Wait for role to be determined before routing
+                if (!userRole && user) {
+                  // Still loading role - show loading state (handled by outer loading check)
+                  return false;
+                }
                 return (userRole === 'Admin' || userRole === 'Teacher');
               })() ? (
                 userRole === 'Admin' ? (
@@ -721,7 +744,7 @@ function App() {
                         msOverflowStyle: 'none'
                       }}>
                         <Routes>
-                          <Route path="/" element={<Navigate to="/overview" />} />
+                          <Route path="/" element={<PreserveRoute defaultPath="/overview" userRole={userRole} />} />
                           <Route path="/overview" element={<Overview />} />
                           <Route path="/students/*" element={<Students />} />
                                                     <Route path="/activity" element={<Activity />} />
@@ -772,7 +795,7 @@ function App() {
                         msOverflowStyle: 'none'
                       }}>
                         <Routes>
-                          <Route path="/" element={<Navigate to="/teacher-dashboard" />} />
+                          <Route path="/" element={<PreserveRoute defaultPath="/teacher-dashboard" userRole={userRole} />} />
                           <Route path="/teacher-dashboard" element={<TeacherDashboard currentUser={currentUser} userProfile={userProfile} />} />
                           <Route path="/teacher-students" element={<TeacherStudentsView currentUser={currentUser} />} />
                           <Route path="/teacher-announcements" element={<Announcements />} />
@@ -794,6 +817,11 @@ function App() {
                 )
               ) : (() => {
                 console.log('Student routing decision:', { userRole, user: !!user });
+                // Wait for role to be determined before routing
+                if (!userRole && user) {
+                  // Still loading role - show loading state (handled by outer loading check)
+                  return false;
+                }
                 // Route to student dashboard if userRole is 'Student' or if user exists but role is not Admin/Teacher
                 return userRole === 'Student' || (user && userRole !== 'Admin' && userRole !== 'Teacher');
               })() ? (
@@ -808,7 +836,7 @@ function App() {
                       minHeight: "calc(100vh - 32px)"
                     }}>
                       <Routes>
-                        <Route path="/" element={<UserDashboard currentUser={currentUser} userProfile={userProfile} />} />
+                        <Route path="/" element={<PreserveRoute defaultPath="/user-dashboard" userRole={userRole} />} />
                         <Route path="/user-dashboard" element={<UserDashboard currentUser={currentUser} userProfile={userProfile} />} />
                         <Route path="/violations" element={<UserViolations currentUser={currentUser} />} />
                         <Route path="/announcements" element={<UserAnnouncements />} />

@@ -133,7 +133,7 @@ export default function Profile() {
     setRetryCount(0);
     
     try {
-      await loadUserProfile(currentUser.uid);
+      await loadUserProfile(currentUser);
       setSnackbar({
         open: true,
         message: 'Connection restored successfully!',
@@ -153,7 +153,7 @@ export default function Profile() {
     const unsubscribe = auth.onAuthStateChanged((user) => {
       setCurrentUser(user);
       if (user) {
-        loadUserProfile(user.uid);
+        loadUserProfile(user);
       }
     });
 
@@ -165,15 +165,17 @@ export default function Profile() {
     if (connectionStatus === 'disconnected') {
       const interval = setInterval(async () => {
         try {
-          // Try a simple database operation to check connection
-          await dbOperation(
-            () => getDoc(doc(db, 'users', currentUser?.uid || 'test')),
-            'Connection check',
-            1 // Only 1 retry for connection check
-          );
+          // Try a simple database operation to check connection - use students collection
+          if (currentUser?.email) {
+            await dbOperation(
+              () => getDocs(query(collection(db, 'students'), where('registeredEmail', '==', currentUser.email))),
+              'Connection check',
+              1 // Only 1 retry for connection check
+            );
+          }
           // If successful, reload profile
           if (currentUser) {
-            await loadUserProfile(currentUser.uid);
+            await loadUserProfile(currentUser);
           }
         } catch (error) {
           // Connection still not available, do nothing
@@ -185,30 +187,24 @@ export default function Profile() {
   }, [connectionStatus, currentUser]);
 
 
-  const loadUserProfile = async (uid) => {
+  const loadUserProfile = async (user) => {
     try {
-      console.log('🔍 Profile - Fetching data for user:', currentUser?.email);
+      const userEmail = user?.email || currentUser?.email;
+      const userId = user?.uid || currentUser?.uid;
+      console.log('🔍 Profile - Fetching data for user:', userEmail);
       
-      // First, try to get user data from the users collection
-      const userDoc = await dbOperation(
-        () => getDoc(doc(db, 'users', uid)),
-        'Load user profile'
-      );
-      
-      let userData = {};
-      if (userDoc.exists()) {
-        userData = userDoc.data();
-      }
-
-      // Fetch student data from students collection (priority) - same logic as UserDashboard
+      // PRIORITY: Fetch student data from students collection first
       let studentData = {};
-      if (currentUser?.email) {
+      let foundStudentData = false;
+      let studentDocId = ""; // Store the document ID
+      
+      if (userEmail) {
         try {
           // Strategy 1: Match registeredEmail field
           let studentsSnapshot = null;
           const studentsQuery1 = query(
             collection(db, 'students'),
-            where('registeredEmail', '==', currentUser.email)
+            where('registeredEmail', '==', userEmail)
           );
           studentsSnapshot = await getDocs(studentsQuery1);
           console.log('📚 Profile - Strategy 1 - registeredEmail match:', studentsSnapshot.size, 'documents found');
@@ -217,7 +213,7 @@ export default function Profile() {
           if (studentsSnapshot.empty) {
             const studentsQuery2 = query(
               collection(db, 'students'),
-              where('email', '==', currentUser.email)
+              where('email', '==', userEmail)
             );
             studentsSnapshot = await getDocs(studentsQuery2);
             console.log('📚 Profile - Strategy 2 - email field match:', studentsSnapshot.size, 'documents found');
@@ -227,7 +223,7 @@ export default function Profile() {
           if (studentsSnapshot.empty) {
             const studentsQuery3 = query(
               collection(db, 'students'),
-              where('registeredEmail', '==', currentUser.email.toLowerCase())
+              where('registeredEmail', '==', userEmail.toLowerCase())
             );
             studentsSnapshot = await getDocs(studentsQuery3);
             console.log('📚 Profile - Strategy 3 - Lowercase registeredEmail match:', studentsSnapshot.size, 'documents found');
@@ -241,8 +237,8 @@ export default function Profile() {
             
             const matchingStudents = allStudentsSnapshot.docs.filter(doc => {
               const data = doc.data();
-              return (data.registeredEmail && data.registeredEmail.toLowerCase() === currentUser.email.toLowerCase()) ||
-                     (data.email && data.email.toLowerCase() === currentUser.email.toLowerCase());
+              return (data.registeredEmail && data.registeredEmail.toLowerCase() === userEmail.toLowerCase()) ||
+                     (data.email && data.email.toLowerCase() === userEmail.toLowerCase());
             });
             
             if (matchingStudents.length > 0) {
@@ -258,39 +254,103 @@ export default function Profile() {
           if (!studentsSnapshot.empty) {
             const studentDoc = studentsSnapshot.docs[0];
             studentData = studentDoc.data();
+            // Store the document ID as the student ID (e.g., SCC-22-00000002)
+            studentDocId = studentDoc.id;
+            studentData.id = studentDocId;
+            foundStudentData = true;
             console.log('✅ Profile - Student data fetched from students collection:', studentData);
+            console.log('✅ Profile - Student document ID:', studentDocId);
+            console.log('✅ Profile - Student email:', studentData.registeredEmail || studentData.email);
+            console.log('✅ Profile - Student course:', studentData.course);
+            console.log('✅ Profile - Student year:', studentData.year);
+            console.log('✅ Profile - Student section:', studentData.section);
           } else {
-            console.log('❌ Profile - No student data found in students collection for:', currentUser.email);
+            console.log('❌ Profile - No student data found in students collection for:', userEmail);
           }
         } catch (studentError) {
           console.log('⚠️ Profile - Could not load student data from students collection:', studentError);
         }
       }
 
-      // Merge user data and student data, prioritizing student data for student-specific fields
+      // Only fetch from users collection if no student data found
+      let userData = {};
+      if (!foundStudentData) {
+        try {
+          const userDoc = await dbOperation(
+            () => getDoc(doc(db, 'users', userId)),
+            'Load user profile (fallback)'
+          );
+          
+          if (userDoc.exists()) {
+            userData = userDoc.data();
+            console.log('📄 Profile - User data fetched from users collection (fallback):', userData);
+            
+            // If user has a studentId, try to fetch student data by document ID
+            if (userData.studentId && !foundStudentData) {
+              try {
+                console.log('🔍 Profile - Trying to fetch student by document ID:', userData.studentId);
+                const studentDocById = await getDoc(doc(db, 'students', userData.studentId));
+                if (studentDocById.exists()) {
+                  studentData = studentDocById.data();
+                  studentDocId = studentDocById.id;
+                  studentData.id = studentDocId;
+                  foundStudentData = true;
+                  console.log('✅ Profile - Student data found by document ID:', studentData);
+                  console.log('✅ Profile - Student document ID:', studentDocId);
+                }
+              } catch (studentIdError) {
+                console.log('⚠️ Profile - Could not fetch student by document ID:', studentIdError);
+              }
+            }
+          }
+        } catch (userError) {
+          console.log('⚠️ Profile - Could not load user data from users collection:', userError);
+        }
+      }
+
+      // Merge data, prioritizing student data from students collection
       const mergedData = {
         ...userData,
         ...studentData, // Student data takes precedence
-        // Keep user-specific fields from userData
-        email: userData.email || studentData.registeredEmail || studentData.email || currentUser?.email || "",
-        profilePic: userData.profilePic || studentData.image || null,
-        role: userData.role || "Student"
+        // Keep user-specific fields from userData only if no student data
+        email: foundStudentData 
+          ? (studentData.registeredEmail || studentData.email || userEmail || "")
+          : (userData.email || userEmail || ""),
+        profilePic: foundStudentData 
+          ? (studentData.image || null)
+          : (userData.profilePic || null),
+        role: foundStudentData ? "Student" : (userData.role || "Student")
       };
 
       setProfile(prev => ({
         ...prev,
-        id: uid,
-        studentId: mergedData.studentId || mergedData.id || "",
-        email: mergedData.email,
+        id: userId,
+        // Use the document ID from students collection as studentId (e.g., SCC-22-00000002)
+        // The document ID in students collection IS the student ID
+        // Match admin dashboard: use document ID first, then data.id, then data.studentId
+        studentId: foundStudentData 
+          ? (studentDocId || studentData.id || studentData.studentId || "") 
+          : (mergedData.studentId || ""),
+        // Use registeredEmail first (matching admin dashboard), then email field
+        email: foundStudentData
+          ? (studentData.registeredEmail || studentData.email || userEmail || "")
+          : (mergedData.email || userEmail || ""),
         firstName: mergedData.firstName || mergedData.fullName?.split(' ')[0] || "",
         lastName: mergedData.lastName || mergedData.fullName?.split(' ').slice(1).join(' ') || "",
         middleInitial: mergedData.middleInitial || "",
         sex: mergedData.sex || "",
         age: mergedData.age || "",
         birthdate: mergedData.birthdate || "",
-        course: mergedData.course || "",
-        year: mergedData.year || "",
-        section: mergedData.section || "",
+        // Ensure course, year, and section come from students collection (matching admin dashboard)
+        course: foundStudentData 
+          ? (studentData.course || "") 
+          : (mergedData.course || ""),
+        year: foundStudentData 
+          ? (studentData.year || "") 
+          : (mergedData.year || ""),
+        section: foundStudentData 
+          ? (studentData.section || "") 
+          : (mergedData.section || ""),
         sccNumber: mergedData.sccNumber || "",
         contact: mergedData.contact || mergedData.phoneNumber || "",
         fatherName: mergedData.fatherName || "",
@@ -304,13 +364,13 @@ export default function Profile() {
         role: mergedData.role || "Student"
       }));
 
-      if (!userDoc.exists()) {
+      if (!foundStudentData && !userData.id) {
         // If user document doesn't exist, create a basic profile and save it
         const basicProfile = {
-          id: uid,
-          email: currentUser?.email || "",
-          firstName: currentUser?.displayName?.split(' ')[0] || "",
-          lastName: currentUser?.displayName?.split(' ').slice(1).join(' ') || "",
+          id: userId,
+          email: userEmail || "",
+          firstName: user?.displayName?.split(' ')[0] || "",
+          lastName: user?.displayName?.split(' ').slice(1).join(' ') || "",
           role: "Student",
           createdAt: new Date().toISOString()
         };
@@ -320,7 +380,7 @@ export default function Profile() {
         // Automatically create the user document in the background
         try {
           await dbOperation(
-            () => setDoc(doc(db, 'users', uid), basicProfile),
+            () => setDoc(doc(db, 'users', userId), basicProfile),
             'Create user profile'
           );
           console.log('✅ User profile created automatically');

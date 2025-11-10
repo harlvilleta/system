@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Typography, Box, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TextField, InputAdornment, Card, CardContent, CardHeader, Grid, Chip, Avatar, Tooltip, IconButton, Dialog, DialogTitle, DialogContent, DialogActions, Divider, Tabs, Tab, LinearProgress, CircularProgress, Button, useTheme } from "@mui/material";
+import { Typography, Box, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TextField, InputAdornment, Card, CardContent, CardHeader, Grid, Chip, Avatar, Tooltip, IconButton, Dialog, DialogTitle, DialogContent, DialogActions, Divider, Tabs, Tab, LinearProgress, CircularProgress, Button, MenuItem, Stack, useTheme } from "@mui/material";
 import { collection, getDocs, query, orderBy, where } from "firebase/firestore";
 import { db } from "../firebase";
 import SearchIcon from '@mui/icons-material/Search';
@@ -13,29 +13,66 @@ export default function ViolationStatus() {
   const [selectedTab, setSelectedTab] = useState(0);
   const [viewViolation, setViewViolation] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [filterType, setFilterType] = useState(null); // 'classification' or 'severity'
+  const [filterValue, setFilterValue] = useState('');
 
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
       try {
-        // Fetch violations
-        const violationsSnap = await getDocs(query(collection(db, "violations"), orderBy("timestamp", "desc")));
-        const violationsData = violationsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        // Fetch all violations (same as ViolationRecord.js)
+        const violationsSnap = await getDocs(collection(db, "violations"));
+        const violationsData = violationsSnap.docs.map(doc => ({ 
+          id: doc.id, 
+          ...doc.data(),
+          // Normalize field names for consistent display
+          violation: doc.data().violation || doc.data().violationType || 'N/A',
+          studentName: doc.data().studentName || 'N/A',
+          studentId: doc.data().studentId || doc.data().studentIdNumber || 'N/A',
+          reportedBy: doc.data().reportedBy || doc.data().reportedByName || 'N/A',
+          classification: doc.data().classification || 'N/A',
+          severity: doc.data().severity || 'N/A',
+          date: doc.data().date || 'N/A',
+          time: doc.data().time || 'N/A',
+          location: doc.data().location || 'N/A',
+          description: doc.data().description || 'N/A',
+          witnesses: doc.data().witnesses || 'N/A',
+          actionTaken: doc.data().actionTaken || 'N/A',
+          status: doc.data().status || 'Pending',
+          timestamp: doc.data().timestamp || doc.data().createdAt || new Date().toISOString()
+        }));
+        // Sort by timestamp/createdAt in memory (newest first)
+        violationsData.sort((a, b) => {
+          const dateA = a.timestamp ? new Date(a.timestamp).getTime() : 0;
+          const dateB = b.timestamp ? new Date(b.timestamp).getTime() : 0;
+          return dateB - dateA;
+        });
         setViolations(violationsData);
       } catch (error) {
         console.error("Error fetching data:", error);
+        setViolations([]);
       }
       setLoading(false);
     };
     fetchData();
   }, []);
 
-  const filteredViolations = violations.filter(v =>
-    v.studentId?.toLowerCase().includes(search.toLowerCase()) ||
-    v.violation?.toLowerCase().includes(search.toLowerCase()) ||
-    v.studentName?.toLowerCase().includes(search.toLowerCase()) ||
-    v.classification?.toLowerCase().includes(search.toLowerCase())
-  );
+  const filteredViolations = violations.filter(v => {
+    // Search filter
+    const matchesSearch = 
+      v.studentId?.toLowerCase().includes(search.toLowerCase()) ||
+      v.violation?.toLowerCase().includes(search.toLowerCase()) ||
+      v.studentName?.toLowerCase().includes(search.toLowerCase()) ||
+      v.classification?.toLowerCase().includes(search.toLowerCase());
+    
+    // Classification filter
+    const matchesClassification = !filterType || filterType !== 'classification' || !filterValue || v.classification === filterValue;
+    
+    // Severity filter
+    const matchesSeverity = !filterType || filterType !== 'severity' || !filterValue || v.severity === filterValue;
+    
+    return matchesSearch && matchesClassification && matchesSeverity;
+  });
 
   const getStatusColor = (status) => {
     return 'primary';
@@ -69,11 +106,14 @@ export default function ViolationStatus() {
     }
   };
 
-  // Calculate statistics
+  // Calculate statistics (matching ViolationRecord.js status options)
   const stats = {
     totalViolations: violations.length,
     pendingViolations: violations.filter(v => v.status === 'Pending').length,
-    solvedViolations: violations.filter(v => v.status === 'Solved').length
+    openViolations: violations.filter(v => v.status === 'Open').length,
+    inProgressViolations: violations.filter(v => v.status === 'In Progress').length,
+    resolvedViolations: violations.filter(v => v.status === 'Resolved').length,
+    solvedViolations: violations.filter(v => v.status === 'Solved' || v.status === 'Resolved').length // Keep for backward compatibility
   };
 
   // Calculate percentages
@@ -106,34 +146,6 @@ export default function ViolationStatus() {
       <Typography variant="h4" gutterBottom fontWeight={700} sx={{ color: theme.palette.mode === 'dark' ? '#ffffff' : '#800000', mb: 2, mt: 1 }}>
         Violation Status & Analytics
       </Typography>
-
-      {/* Summary Cards */}
-      <Grid container spacing={3} sx={{ mb: 3 }}>
-        <Grid item xs={12} sm={6} md={4}>
-          <Card sx={{ boxShadow: 2, borderLeft: '4px solid #800000' }}>
-            <CardContent sx={{ textAlign: 'center' }}>
-              <Typography variant="h4" sx={{ color: theme.palette.mode === 'dark' ? '#ffffff' : '#000000' }} fontWeight={700}>{stats.totalViolations}</Typography>
-              <Typography variant="body2" sx={{ color: theme.palette.mode === 'dark' ? '#ffffff' : 'text.secondary' }}>Total Violations</Typography>
-            </CardContent>
-          </Card>
-        </Grid>
-        <Grid item xs={12} sm={6} md={4}>
-          <Card sx={{ boxShadow: 2, borderLeft: '4px solid #800000' }}>
-            <CardContent sx={{ textAlign: 'center' }}>
-              <Typography variant="h4" sx={{ color: theme.palette.mode === 'dark' ? '#ffffff' : '#000000' }} fontWeight={700}>{stats.pendingViolations}</Typography>
-              <Typography variant="body2" sx={{ color: theme.palette.mode === 'dark' ? '#ffffff' : 'text.secondary' }}>Pending</Typography>
-            </CardContent>
-          </Card>
-        </Grid>
-        <Grid item xs={12} sm={6} md={4}>
-          <Card sx={{ boxShadow: 2, borderLeft: '4px solid #800000' }}>
-            <CardContent sx={{ textAlign: 'center' }}>
-              <Typography variant="h4" sx={{ color: theme.palette.mode === 'dark' ? '#ffffff' : '#000000' }} fontWeight={700}>{stats.solvedViolations}</Typography>
-              <Typography variant="body2" sx={{ color: theme.palette.mode === 'dark' ? '#ffffff' : 'text.secondary' }}>Solved</Typography>
-            </CardContent>
-          </Card>
-        </Grid>
-      </Grid>
 
       {/* Analytics Cards */}
       <Grid container spacing={2} sx={{ mb: 3 }}>
@@ -190,7 +202,7 @@ export default function ViolationStatus() {
       </Grid>
 
       {/* Search Bar */}
-      <Paper sx={{ p: 2, mb: 3 }}>
+      <Box sx={{ mb: 3 }}>
         <TextField
           value={search}
           onChange={e => setSearch(e.target.value)}
@@ -205,17 +217,107 @@ export default function ViolationStatus() {
             )
           }}
         />
-      </Paper>
+      </Box>
 
-      {/* Tabs */}
-      <Paper sx={{ mb: 3 }}>
-        <Tabs value={selectedTab} onChange={handleTabChange} sx={{ borderBottom: 1, borderColor: 'divider' }}>
-          <Tab label={`All Violations (${filteredViolations.length})`} />
-          <Tab label={`Pending (${filteredViolations.filter(v => v.status === 'Pending').length})`} />
-          <Tab label={`Solved (${filteredViolations.filter(v => v.status === 'Solved').length})`} />
-          <Tab label={`Critical (${filteredViolations.filter(v => v.severity === 'Critical').length})`} />
-        </Tabs>
-      </Paper>
+      {/* Filter Chips and Dropdowns */}
+      <Box sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
+        <Typography variant="body2" sx={{ fontWeight: 600, color: theme.palette.mode === 'dark' ? '#ffffff' : '#000000' }}>
+          Filter by:
+        </Typography>
+        <Stack direction="row" spacing={1} flexWrap="wrap">
+          <Chip
+            label="Classification"
+            onClick={() => {
+              setFilterType('classification');
+              setFilterValue('');
+            }}
+            variant="outlined"
+            sx={{
+              cursor: 'pointer',
+              bgcolor: '#ffffff',
+              color: '#000000',
+              borderColor: '#000000',
+              '&:hover': {
+                bgcolor: 'rgba(128, 0, 0, 0.1)',
+                color: '#000000',
+                borderColor: '#000000'
+              }
+            }}
+          />
+          <Chip
+            label="Severity"
+            onClick={() => {
+              setFilterType('severity');
+              setFilterValue('');
+            }}
+            variant="outlined"
+            sx={{
+              cursor: 'pointer',
+              bgcolor: '#ffffff',
+              color: '#000000',
+              borderColor: '#000000',
+              '&:hover': {
+                bgcolor: 'rgba(128, 0, 0, 0.1)',
+                color: '#000000',
+                borderColor: '#000000'
+              }
+            }}
+          />
+          {filterType && (
+            <Chip
+              label="Clear Filter"
+              onClick={() => {
+                setFilterType(null);
+                setFilterValue('');
+              }}
+              variant="outlined"
+              sx={{ 
+                cursor: 'pointer',
+                bgcolor: '#ffffff',
+                color: '#000000',
+                borderColor: '#000000',
+                '&:hover': {
+                  bgcolor: 'rgba(128, 0, 0, 0.1)',
+                  color: '#000000',
+                  borderColor: '#000000'
+                }
+              }}
+            />
+          )}
+        </Stack>
+        {filterType === 'classification' && (
+          <TextField
+            select
+            label="Select Classification"
+            value={filterValue}
+            onChange={(e) => setFilterValue(e.target.value)}
+            size="small"
+            sx={{ minWidth: 200 }}
+          >
+            <MenuItem value="">All Classifications</MenuItem>
+            <MenuItem value="Academic">Academic</MenuItem>
+            <MenuItem value="Behavioral">Behavioral</MenuItem>
+            <MenuItem value="Policy/Rules">Policy/Rules</MenuItem>
+            <MenuItem value="Other">Other</MenuItem>
+          </TextField>
+        )}
+        {filterType === 'severity' && (
+          <TextField
+            select
+            label="Select Severity Level"
+            value={filterValue}
+            onChange={(e) => setFilterValue(e.target.value)}
+            size="small"
+            sx={{ minWidth: 200 }}
+          >
+            <MenuItem value="">All Severity Levels</MenuItem>
+            <MenuItem value="Level 1">Level 1</MenuItem>
+            <MenuItem value="Level 2">Level 2</MenuItem>
+            <MenuItem value="Level 3">Level 3</MenuItem>
+            <MenuItem value="Level 4">Level 4</MenuItem>
+          </TextField>
+        )}
+      </Box>
 
       {/* Violations Table */}
       <TableContainer component={Paper} sx={{ maxHeight: 600, mr: 3 }}>
@@ -259,14 +361,7 @@ export default function ViolationStatus() {
           <TableBody>
             {filteredViolations.length === 0 ? (
               <TableRow><TableCell colSpan={6} align="center">No violations found.</TableCell></TableRow>
-            ) : filteredViolations
-                .filter(v => {
-                  if (selectedTab === 1) return v.status === 'Pending';
-                  if (selectedTab === 2) return v.status === 'Solved';
-                  if (selectedTab === 3) return v.severity === 'Critical';
-                  return true;
-                })
-                .map((violation, idx) => (
+            ) : filteredViolations.map((violation, idx) => (
                   <TableRow key={violation.id || idx} hover>
                     <TableCell>{formatDate(violation.timestamp)}</TableCell>
                     <TableCell>{violation.studentId}</TableCell>

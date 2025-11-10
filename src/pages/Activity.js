@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Box, Typography, Grid, Card, CardContent, CardHeader, TextField, Button, MenuItem, Paper, List, ListItem, ListItemText, Divider, Stack, Snackbar, Alert, IconButton, Dialog, DialogTitle, DialogContent, DialogActions, Chip, InputAdornment, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, useTheme } from "@mui/material";
+import { Box, Typography, Grid, Card, CardContent, CardHeader, TextField, Button, MenuItem, Paper, List, ListItem, ListItemText, Divider, Stack, Snackbar, Alert, IconButton, Dialog, DialogTitle, DialogContent, DialogActions, Chip, InputAdornment, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Avatar, useTheme } from "@mui/material";
 import { EventNote, History, CheckCircle, Edit, Delete, Visibility, Event, Schedule, Category } from "@mui/icons-material";
 import { collection, addDoc, getDocs, updateDoc, doc, orderBy, query, deleteDoc } from "firebase/firestore";
 import { db, logActivity } from "../firebase";
@@ -7,122 +7,7 @@ import SearchIcon from '@mui/icons-material/Search';
 
 const categories = ["Seminar", "Meeting", "Workshop", "Event", "Other"];
 
-function ActivityForm({ onActivityAdded }) {
-  const [form, setForm] = useState({
-    title: "",
-    date: "",
-    startTime: "",
-    endTime: "",
-    organizer: "",
-    location: "",
-    category: "Seminar",
-    maxParticipants: "",
-    description: ""
-  });
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
-
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setForm((prev) => ({ ...prev, [name]: value }));
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!form.title || !form.date || !form.startTime || !form.endTime || !form.organizer || !form.location || !form.category || !form.maxParticipants || !form.description) {
-      setSnackbar({ open: true, message: "Please fill in all fields.", severity: "error" });
-      return;
-    }
-    setIsSubmitting(true);
-    try {
-      await addDoc(collection(db, "activities"), {
-        ...form,
-        createdAt: new Date().toISOString(),
-        completed: false
-      });
-      await logActivity({ message: `Activity scheduled: ${form.title}`, type: 'add_activity' });
-      setSnackbar({ open: true, message: "Activity scheduled!", severity: "success" });
-      setForm({
-        title: "",
-        date: "",
-        startTime: "",
-        endTime: "",
-        organizer: "",
-        location: "",
-        category: "Seminar",
-        maxParticipants: "",
-        description: ""
-      });
-      if (onActivityAdded) onActivityAdded();
-    } catch (e) {
-      setSnackbar({ open: true, message: "Error scheduling activity.", severity: "error" });
-    }
-    setIsSubmitting(false);
-  };
-
-  return (
-    <Paper sx={{ p: 3, mb: 3 }}>
-      <Typography variant="h5" gutterBottom>Schedule New Activity</Typography>
-      <Box component="form" onSubmit={handleSubmit}>
-        <Grid container spacing={2}>
-          <Grid item xs={12} sm={6}>
-            <TextField fullWidth label="Title" name="title" value={form.title} onChange={handleChange} required />
-          </Grid>
-          <Grid item xs={12} sm={6}>
-            <TextField fullWidth type="date" label="Date" name="date" value={form.date} onChange={handleChange} InputLabelProps={{ shrink: true }} required />
-          </Grid>
-          <Grid item xs={12} sm={6}>
-            <TextField fullWidth type="time" label="Start Time" name="startTime" value={form.startTime} onChange={handleChange} InputLabelProps={{ shrink: true }} required />
-              </Grid>
-          <Grid item xs={12} sm={6}>
-            <TextField fullWidth type="time" label="End Time" name="endTime" value={form.endTime} onChange={handleChange} InputLabelProps={{ shrink: true }} required />
-              </Grid>
-          <Grid item xs={12} sm={6}>
-            <TextField fullWidth label="Organizer" name="organizer" value={form.organizer} onChange={handleChange} required />
-              </Grid>
-          <Grid item xs={12} sm={6}>
-            <TextField fullWidth label="Location" name="location" value={form.location} onChange={handleChange} required />
-          </Grid>
-          <Grid item xs={12} sm={6}>
-            <TextField fullWidth select label="Category" name="category" value={form.category} onChange={handleChange} required>
-              {categories.map((cat) => <MenuItem key={cat} value={cat}>{cat}</MenuItem>)}
-                </TextField>
-              </Grid>
-          <Grid item xs={12} sm={6}>
-            <TextField fullWidth type="number" label="Max Participants" name="maxParticipants" value={form.maxParticipants} onChange={handleChange} required />
-          </Grid>
-          <Grid item xs={12}>
-            <TextField fullWidth multiline minRows={3} label="Description" name="description" value={form.description} onChange={handleChange} required />
-          </Grid>
-          <Grid item xs={12}>
-            <Button 
-              type="submit" 
-              variant="outlined" 
-              disabled={isSubmitting}
-              sx={{ 
-                bgcolor: 'white',
-                color: 'black',
-                borderColor: 'black',
-                '&:hover': {
-                  bgcolor: '#800000',
-                  color: 'white',
-                  borderColor: '#800000'
-                }
-              }}
-            >
-              {isSubmitting ? "Saving..." : "Save Activity"}
-            </Button>
-          </Grid>
-        </Grid>
-      </Box>
-      <Snackbar open={snackbar.open} autoHideDuration={4000} onClose={() => setSnackbar({ ...snackbar, open: false })}>
-        <Alert onClose={() => setSnackbar({ ...snackbar, open: false })} severity={snackbar.severity} sx={{ width: '100%' }}>
-          {snackbar.message}
-        </Alert>
-      </Snackbar>
-    </Paper>
-  );
-}
+// ActivityForm removed - this page is for viewing activities, not creating them
 
 function SummaryCard({ stats, onCardClick }) {
   const theme = useTheme();
@@ -460,134 +345,140 @@ function SearchBar({ value, onChange, placeholder }) {
 
 
 function ScheduledActivities({ activities, onMarkCompleted, onViewActivity, search, onSearch }) {
+  const theme = useTheme();
   const filtered = activities.filter(a => !a.completed && (
     a.title.toLowerCase().includes(search.toLowerCase()) ||
     a.organizer?.toLowerCase().includes(search.toLowerCase()) ||
     a.category?.toLowerCase().includes(search.toLowerCase())
   ));
+  
   return (
     <Paper sx={{ p: 3, mb: 3 }}>
-      <Typography variant="h5" gutterBottom>Scheduled Activities</Typography>
-      <SearchBar value={search} onChange={onSearch} placeholder="Search scheduled..." />
+      <Typography variant="h5" gutterBottom sx={{ color: theme.palette.mode === 'dark' ? '#ffffff' : '#800000', mb: 2 }}>
+        Activities for You
+      </Typography>
+      <Typography variant="body2" sx={{ 
+        color: theme.palette.mode === 'dark' ? '#cccccc' : '#666666', 
+        mb: 2,
+        fontStyle: 'italic'
+      }}>
+        Activities created by administrators
+      </Typography>
+      <SearchBar value={search} onChange={onSearch} placeholder="Search activities..." />
       {filtered.length === 0 ? (
-        <Typography align="center" color="text.secondary">No scheduled activities.</Typography>
+        <Box sx={{ textAlign: 'center', py: 3 }}>
+          <Event sx={{ fontSize: 48, color: theme.palette.mode === 'dark' ? '#ffffff' : 'text.secondary', mb: 1 }} />
+          <Typography variant="body2" sx={{ color: theme.palette.mode === 'dark' ? '#ffffff' : 'text.secondary' }}>
+            No admin activities available
+          </Typography>
+          <Typography variant="caption" sx={{ color: theme.palette.mode === 'dark' ? '#ffffff' : 'text.secondary', mt: 1, display: 'block' }}>
+            Administrators will create activities that will appear here
+          </Typography>
+        </Box>
       ) : (
-        <>
-          {filtered.map((a) => (
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          {filtered.map((activity) => (
             <Card 
-              key={a.id} 
+              key={activity.id}
               sx={{ 
-                mb: 2, 
-                borderLeft: '4px solid #ff9800', 
-                boxShadow: 3,
-                cursor: 'pointer',
-                transition: 'all 0.3s ease-in-out',
+                border: '1px solid',
+                borderColor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)',
                 borderRadius: 2,
+                bgcolor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.02)' : 'rgba(128, 0, 0, 0.02)',
+                transition: 'all 0.3s ease',
                 '&:hover': {
-                  boxShadow: 6,
-                  transform: 'translateY(-4px)',
-                  borderLeft: '4px solid #f57c00',
-                  '& .card-title': {
-                    color: 'primary.main'
-                  }
+                  transform: 'translateY(-2px)',
+                  boxShadow: theme.palette.mode === 'dark' ? '0 8px 25px rgba(0, 0, 0, 0.3)' : '0 8px 25px rgba(128, 0, 0, 0.15)',
+                  borderColor: '#800000'
                 }
               }}
-              onClick={() => onViewActivity(a)}
             >
-              <CardHeader
-                title={
-                  <Stack direction="row" alignItems="center" spacing={1} flexWrap="wrap">
-                    <Typography 
-                      fontWeight={700} 
-                      className="card-title"
-                      sx={{ fontSize: '1.1rem', transition: 'color 0.3s ease' }}
-                    >
-                      {a.title}
+              <CardContent sx={{ p: 2 }}>
+                <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 2 }}>
+                  <Box sx={{ 
+                    bgcolor: 'success.main',
+                    width: 48, 
+                    height: 48,
+                    borderRadius: '50%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0
+                  }}>
+                    <Event sx={{ fontSize: 24, color: 'white' }} />
+                  </Box>
+                  <Box sx={{ flex: 1, minWidth: 0 }}>
+                    <Typography variant="h6" fontWeight={600} sx={{ 
+                      color: theme.palette.mode === 'dark' ? '#ffffff' : '#000000',
+                      mb: 1,
+                      fontSize: '1.1rem'
+                    }}>
+                      {activity.title || activity.name}
                     </Typography>
-                    <Chip 
-                      label={a.category} 
-                      color="primary" 
-                      size="small" 
-                      variant="outlined"
-                    />
-                    <Chip 
-                      label="Scheduled" 
-                      color="warning" 
-                      size="small" 
-                    />
-                  </Stack>
-                }
-                subheader={a.date ? new Date(a.date).toLocaleDateString() : ''}
-              />
-              <CardContent sx={{ pt: 0 }}>
-                <Typography 
-                  variant="body2" 
-                  color="text.secondary" 
-                  sx={{ 
-                    mb: 2,
-                    display: '-webkit-box',
-                    WebkitLineClamp: 2,
-                    WebkitBoxOrient: 'vertical',
-                    overflow: 'hidden'
-                  }}
-                >
-                  {a.description || 'No description available'}
-                </Typography>
-                <Stack direction="row" spacing={1} sx={{ mb: 2 }} flexWrap="wrap">
-                  {a.organizer && (
-                    <Chip 
-                      label={`👤 ${a.organizer}`} 
-                      size="small" 
-                      variant="outlined" 
-                      sx={{ fontSize: '0.75rem' }}
-                    />
-                  )}
-                  {a.location && (
-                    <Chip 
-                      label={`📍 ${a.location}`} 
-                      size="small" 
-                      variant="outlined"
-                      sx={{ fontSize: '0.75rem' }}
-                    />
-                  )}
-                </Stack>
-                <Stack direction="row" spacing={1} alignItems="center">
-                  <Typography 
-                    variant="caption" 
-                    color="text.secondary" 
-                    sx={{ 
-                      fontWeight: 500,
-                      flexGrow: 1
-                    }}
-                  >
-                    📅 {a.date ? new Date(a.date).toLocaleDateString('en-US', {
-                      weekday: 'short',
-                      month: 'short',
-                      day: 'numeric'
-                    }) : 'Date TBD'}
-                  </Typography>
-                  <Button 
-                    variant="contained" 
-                    color="success" 
-                    size="small" 
-                    onClick={(e) => {
-                      e.stopPropagation(); // Prevent card click when button is clicked
-                      onMarkCompleted(a);
-                    }}
-                    sx={{ 
-                      minWidth: 'auto',
-                      px: 2,
-                      py: 0.5,
-                      fontSize: '0.75rem'
-                    }}
-                  >
-                    ✓ Complete
-                  </Button>
-                </Stack>
+                    
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, mb: 1.5 }}>
+                      <Typography variant="body2" sx={{ 
+                        color: theme.palette.mode === 'dark' ? '#cccccc' : '#666666',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 0.5
+                      }}>
+                        <strong>📝 Description:</strong> {activity.description || activity.content || 'No description available'}
+                      </Typography>
+                      <Typography variant="body2" sx={{ 
+                        color: theme.palette.mode === 'dark' ? '#cccccc' : '#666666',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 0.5
+                      }}>
+                        <strong>📍 Location:</strong> {activity.location || 'TBA'}
+                      </Typography>
+                      <Typography variant="body2" sx={{ 
+                        color: theme.palette.mode === 'dark' ? '#cccccc' : '#666666',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 0.5
+                      }}>
+                        <strong>📅 Date:</strong> {activity.date ? new Date(activity.date).toLocaleDateString() : 'TBA'}
+                      </Typography>
+                      <Typography variant="body2" sx={{ 
+                        color: theme.palette.mode === 'dark' ? '#cccccc' : '#666666',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 0.5
+                      }}>
+                        <strong>⏰ Time:</strong> {activity.time || activity.startTime ? `${activity.startTime} - ${activity.endTime || 'TBA'}` : 'TBA'}
+                      </Typography>
+                    </Box>
+                    
+                    <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', alignItems: 'center' }}>
+                      <Chip 
+                        label={activity.status || 'Active'} 
+                        size="small"
+                        color={activity.status === 'active' ? 'success' : activity.status === 'inactive' ? 'default' : 'primary'}
+                        sx={{ 
+                          fontWeight: 500,
+                          textTransform: 'capitalize',
+                          fontSize: '0.75rem'
+                        }}
+                      />
+                      <Chip 
+                        label="Admin" 
+                        size="small"
+                        sx={{ 
+                          fontWeight: 500,
+                          backgroundColor: '#800000',
+                          color: 'white',
+                          fontSize: '0.7rem'
+                        }}
+                      />
+                    </Box>
+                  </Box>
+                </Box>
               </CardContent>
             </Card>
           ))}
-        </>
+        </Box>
       )}
     </Paper>
   );
@@ -641,7 +532,7 @@ export default function Activity() {
     fetchActivities();
   }, [refresh]);
 
-  const handleActivityAdded = () => setRefresh(r => !r);
+  // handleActivityAdded removed - no longer needed since we removed ActivityForm
 
   const handleCardClick = (filter) => {
     setActivityFilter(filter);
@@ -695,7 +586,7 @@ export default function Activity() {
     } catch (e) {
       setSnackbar({ open: true, message: "Error updating activity.", severity: "error" });
     }
-    setIsEditSubmitting(false);
+    setIsSubmitting(false);
   };
 
   const handleEventFormChange = (e) => {
@@ -734,7 +625,13 @@ export default function Activity() {
           </Box>
         </Grid>
         <Grid item xs={12}>
-          <ActivityForm onActivityAdded={handleActivityAdded} />
+          <ScheduledActivities 
+            activities={activities} 
+            onMarkCompleted={handleMarkCompleted} 
+            onViewActivity={handleView} 
+            search={searchScheduled} 
+            onSearch={setSearchScheduled} 
+          />
         </Grid>
       </Grid>
       

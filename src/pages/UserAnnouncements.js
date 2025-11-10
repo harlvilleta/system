@@ -25,7 +25,24 @@ export default function UserAnnouncements() {
     
     const unsubscribe = onSnapshot(announcementsQuery, (snap) => {
       const announcementsData = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      setAnnouncements(announcementsData);
+      // Filter out private announcements - only show public announcements to regular users
+      const publicAnnouncements = announcementsData.filter(a => a.visibility !== "private");
+      // Filter to show only active announcements (not completed, not expired, within schedule/expiry dates)
+      const now = new Date();
+      const activeAnnouncements = publicAnnouncements.filter(a => {
+        // Check if completed (manually or expired)
+        const isCompleted = a.completed || (a.expiryDate && new Date(a.expiryDate) <= now);
+        if (isCompleted) return false;
+        
+        // Check if scheduled date has passed
+        if (a.scheduleDate && new Date(a.scheduleDate) > now) return false;
+        
+        // Check if expiry date hasn't passed
+        if (a.expiryDate && new Date(a.expiryDate) <= now) return false;
+        
+        return true;
+      });
+      setAnnouncements(activeAnnouncements);
       setLoading(false);
     });
 

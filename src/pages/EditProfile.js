@@ -36,6 +36,9 @@ export default function EditProfile() {
     contact: "",
     email: "",
     homeAddress: "",
+    course: "",
+    year: "",
+    section: "",
     image: null,
     role: "Student"
   });
@@ -63,26 +66,132 @@ export default function EditProfile() {
 
   const loadUserProfile = async (uid) => {
     try {
-      const userDoc = await getDoc(doc(db, 'users', uid));
-      if (userDoc.exists()) {
-        const userData = userDoc.data();
-        setProfile(prev => ({
-          ...prev,
-          id: uid,
-          studentId: userData.studentId || "",
-          email: userData.email || currentUser?.email || "",
-          firstName: userData.firstName || userData.fullName?.split(' ')[0] || "",
-          lastName: userData.lastName || userData.fullName?.split(' ').slice(1).join(' ') || "",
-          middleInitial: userData.middleInitial || "",
-          sex: userData.sex || "",
-          age: userData.age || "",
-          birthdate: userData.birthdate || "",
-          contact: userData.contact || userData.phoneNumber || "",
-          homeAddress: userData.homeAddress || userData.address || "",
-          image: userData.profilePic || null,
-          role: userData.role || "Student"
-        }));
+      console.log('🔍 EditProfile - Fetching data for user:', currentUser?.email);
+      
+      // PRIORITY: Fetch student data from students collection first
+      let studentData = {};
+      let foundStudentData = false;
+      let studentDocId = ""; // Store the document ID
+      
+      if (currentUser?.email) {
+        try {
+          // Strategy 1: Match registeredEmail field
+          let studentsSnapshot = null;
+          const studentsQuery1 = query(
+            collection(db, 'students'),
+            where('registeredEmail', '==', currentUser.email)
+          );
+          studentsSnapshot = await getDocs(studentsQuery1);
+          console.log('📚 EditProfile - Strategy 1 - registeredEmail match:', studentsSnapshot.size, 'documents found');
+          
+          // Strategy 2: Match email field (if no results)
+          if (studentsSnapshot.empty) {
+            const studentsQuery2 = query(
+              collection(db, 'students'),
+              where('email', '==', currentUser.email)
+            );
+            studentsSnapshot = await getDocs(studentsQuery2);
+            console.log('📚 EditProfile - Strategy 2 - email field match:', studentsSnapshot.size, 'documents found');
+          }
+          
+          // Strategy 3: Case-insensitive registeredEmail match (if no results)
+          if (studentsSnapshot.empty) {
+            const studentsQuery3 = query(
+              collection(db, 'students'),
+              where('registeredEmail', '==', currentUser.email.toLowerCase())
+            );
+            studentsSnapshot = await getDocs(studentsQuery3);
+            console.log('📚 EditProfile - Strategy 3 - Lowercase registeredEmail match:', studentsSnapshot.size, 'documents found');
+          }
+          
+          // Strategy 4: Get all students and filter client-side (if still no results)
+          if (studentsSnapshot.empty) {
+            console.log('📚 EditProfile - Strategy 4 - Fetching all students for client-side filtering...');
+            const allStudentsQuery = query(collection(db, 'students'));
+            const allStudentsSnapshot = await getDocs(allStudentsQuery);
+            
+            const matchingStudents = allStudentsSnapshot.docs.filter(doc => {
+              const data = doc.data();
+              return (data.registeredEmail && data.registeredEmail.toLowerCase() === currentUser.email.toLowerCase()) ||
+                     (data.email && data.email.toLowerCase() === currentUser.email.toLowerCase());
+            });
+            
+            if (matchingStudents.length > 0) {
+              console.log('📚 EditProfile - Strategy 4 - Found', matchingStudents.length, 'matching students');
+              studentsSnapshot = { 
+                empty: false, 
+                docs: matchingStudents,
+                size: matchingStudents.length 
+              };
+            }
+          }
+          
+          if (!studentsSnapshot.empty) {
+            const studentDoc = studentsSnapshot.docs[0];
+            studentData = studentDoc.data();
+            // Store the document ID as the student ID (e.g., SCC-22-00000002)
+            studentDocId = studentDoc.id;
+            studentData.id = studentDocId;
+            foundStudentData = true;
+            console.log('✅ EditProfile - Student data fetched from students collection:', studentData);
+            console.log('✅ EditProfile - Student document ID:', studentDocId);
+          } else {
+            console.log('❌ EditProfile - No student data found in students collection for:', currentUser.email);
+          }
+        } catch (studentError) {
+          console.log('⚠️ EditProfile - Could not load student data from students collection:', studentError);
+        }
       }
+
+      // Only fetch from users collection if no student data found
+      let userData = {};
+      if (!foundStudentData) {
+        try {
+          const userDoc = await getDoc(doc(db, 'users', uid));
+          if (userDoc.exists()) {
+            userData = userDoc.data();
+            console.log('📄 EditProfile - User data fetched from users collection (fallback):', userData);
+          }
+        } catch (userError) {
+          console.log('⚠️ EditProfile - Could not load user data from users collection:', userError);
+        }
+      }
+
+      // Merge data, prioritizing student data from students collection
+      const mergedData = {
+        ...userData,
+        ...studentData, // Student data takes precedence
+        // Keep user-specific fields from userData only if no student data
+        email: foundStudentData 
+          ? (studentData.registeredEmail || studentData.email || currentUser?.email || "")
+          : (userData.email || currentUser?.email || ""),
+        profilePic: foundStudentData 
+          ? (studentData.image || null)
+          : (userData.profilePic || null),
+        role: foundStudentData ? "Student" : (userData.role || "Student")
+      };
+
+      setProfile(prev => ({
+        ...prev,
+        id: uid,
+        // Use the document ID from students collection as studentId (e.g., SCC-22-00000002)
+        // The document ID in students collection IS the student ID
+        studentId: foundStudentData ? (studentDocId || studentData.id || "") : (mergedData.studentId || ""),
+        email: mergedData.email,
+        firstName: mergedData.firstName || mergedData.fullName?.split(' ')[0] || "",
+        lastName: mergedData.lastName || mergedData.fullName?.split(' ').slice(1).join(' ') || "",
+        middleInitial: mergedData.middleInitial || "",
+        sex: mergedData.sex || "",
+        age: mergedData.age || "",
+        birthdate: mergedData.birthdate || "",
+        contact: mergedData.contact || mergedData.phoneNumber || "",
+        homeAddress: mergedData.homeAddress || mergedData.address || "",
+        course: mergedData.course || "",
+        year: mergedData.year || "",
+        section: mergedData.section || "",
+        image: mergedData.profilePic || mergedData.image || null,
+        role: mergedData.role || "Student"
+      }));
     } catch (error) {
       console.error('Error loading user profile:', error);
     }

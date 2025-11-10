@@ -228,14 +228,31 @@ export default function TeacherDashboard() {
     const announcementsQuery = query(collection(db, 'announcements'), orderBy('createdAt', 'desc'));
     const announcementsUnsubscribe = onSnapshot(announcementsQuery, (snapshot) => {
       const announcementsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      // Filter out private announcements - only show public announcements to teachers
+      const publicAnnouncements = announcementsData.filter(a => a.visibility !== "private");
+      // Filter to show only active announcements (not completed, not expired, within schedule/expiry dates)
+      const now = new Date();
+      const activeAnnouncements = publicAnnouncements.filter(a => {
+        // Check if completed (manually or expired)
+        const isCompleted = a.completed || (a.expiryDate && new Date(a.expiryDate) <= now);
+        if (isCompleted) return false;
+        
+        // Check if scheduled date has passed
+        if (a.scheduleDate && new Date(a.scheduleDate) > now) return false;
+        
+        // Check if expiry date hasn't passed
+        if (a.expiryDate && new Date(a.expiryDate) <= now) return false;
+        
+        return true;
+      });
       // Fallback sort by whichever date field is present
-      announcementsData.sort((a, b) => {
+      activeAnnouncements.sort((a, b) => {
         const ad = new Date(a.timestamp || a.createdAt || 0).getTime();
         const bd = new Date(b.timestamp || b.createdAt || 0).getTime();
         return bd - ad;
       });
-      setAnnouncements(announcementsData);
-      console.log('Announcements loaded:', announcementsData.length);
+      setAnnouncements(activeAnnouncements);
+      console.log('Announcements loaded:', activeAnnouncements.length);
       checkAndSetLoading();
     }, (error) => {
       console.error('Error fetching announcements:', error);

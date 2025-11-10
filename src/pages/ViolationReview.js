@@ -46,16 +46,29 @@ import { collection, getDocs, query, orderBy, updateDoc, doc, addDoc, where } fr
 import { db } from '../firebase';
 
 const statusColors = {
+  'Open': 'info',
+  'In Progress': 'warning',
   'Pending': 'warning',
-  'Approved': 'success',
-  'Denied': 'error'
+  'Resolved': 'success'
 };
 
+// Penalty mapping based on severity level
+const getPenalty = (severity) => {
+  switch(severity) {
+    case 'Level 1': return 'Warning';
+    case 'Level 2': return 'Suspension';
+    case 'Level 3': return 'Dropping/Dismissal';
+    case 'Level 4': return 'Expulsion';
+    default: return 'N/A';
+  }
+};
+
+// Severity colors for Level 1-4
 const severityColors = {
-  'Minor': 'success',
-  'Moderate': 'warning',
-  'Major': 'error',
-  'Critical': 'error'
+  'Level 1': 'success',
+  'Level 2': 'warning',
+  'Level 3': 'error',
+  'Level 4': 'error'
 };
 
 export default function ViolationReview() {
@@ -121,14 +134,14 @@ export default function ViolationReview() {
 
     setProcessing(true);
     try {
-      const newStatus = approvalAction === 'approve' ? 'Approved' : 'Denied';
-      const actionText = approvalAction === 'approve' ? 'approved' : 'denied';
+      const newStatus = approvalAction === 'approve' ? 'Resolved' : 'Pending';
+      const actionText = approvalAction === 'approve' ? 'resolved' : 'kept pending';
 
       // Update violation status
       await updateDoc(doc(db, 'violations', selectedViolation.id), {
         status: newStatus,
         adminReviewed: true,
-        adminDecision: newStatus,
+        adminDecision: approvalAction === 'approve' ? 'Resolved' : 'Pending',
         adminReviewDate: new Date().toISOString(),
         adminReviewReason: approvalReason.trim() || null,
         updatedAt: new Date().toISOString()
@@ -315,11 +328,16 @@ School Administration
                     color: '#ffffff', 
                     fontWeight: 600 
                   }}>Violation Type</TableCell>
-                  <TableCell sx={{ 
+                    <TableCell sx={{ 
                     bgcolor: '#800000',
                     color: '#ffffff', 
                     fontWeight: 600 
                   }}>Severity</TableCell>
+                  <TableCell sx={{ 
+                    bgcolor: '#800000',
+                    color: '#ffffff', 
+                    fontWeight: 600 
+                  }}>Penalty</TableCell>
                   <TableCell sx={{ 
                     bgcolor: '#800000',
                     color: '#ffffff', 
@@ -335,7 +353,7 @@ School Administration
               <TableBody>
                 {violations.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} align="center" sx={{ py: 4 }}>
+                    <TableCell colSpan={8} align="center" sx={{ py: 4 }}>
                       <Typography variant="h6" color="text.secondary">
                         No violations found.
                       </Typography>
@@ -381,18 +399,20 @@ School Administration
                       </Typography>
                     </TableCell>
                     <TableCell>
-                      <Typography 
-                        variant="body2" 
-                        sx={{ 
-                          color: violation.severity === 'Minor' ? '#4caf50' : 
-                                violation.severity === 'Moderate' ? '#ff9800' : 
-                                violation.severity === 'Major' ? '#f44336' : 
-                                violation.severity === 'Critical' ? '#d32f2f' : '#000',
-                          fontWeight: 500
-                        }}
-                      >
-                        {violation.severity}
-                      </Typography>
+                      <Chip 
+                        label={violation.severity || 'N/A'} 
+                        size="small" 
+                        color={severityColors[violation.severity] || 'default'}
+                        variant="outlined"
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <Chip 
+                        label={violation.penalty || getPenalty(violation.severity) || 'N/A'} 
+                        size="small" 
+                        color="secondary"
+                        variant="outlined"
+                      />
                     </TableCell>
                     <TableCell>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -406,27 +426,24 @@ School Administration
                           justifyContent: 'center',
                           flexShrink: 0
                         }}>
-                          {violation.status === 'Approved' ? (
+                          {violation.status === 'Resolved' ? (
                             <CheckCircle sx={{ fontSize: 14, color: '#4caf50' }} />
-                          ) : violation.status === 'Denied' ? (
-                            <Cancel sx={{ fontSize: 14, color: '#f44336' }} />
+                          ) : violation.status === 'In Progress' ? (
+                            <Schedule sx={{ fontSize: 14, color: '#ff9800' }} />
                           ) : violation.status === 'Pending' ? (
                             <Schedule sx={{ fontSize: 14, color: '#ff9800' }} />
+                          ) : violation.status === 'Open' ? (
+                            <Help sx={{ fontSize: 14, color: '#2196f3' }} />
                           ) : (
                             <Help sx={{ fontSize: 14, color: '#9e9e9e' }} />
                           )}
                         </Box>
-                        <Typography 
-                          variant="body2" 
-                          sx={{ 
-                            color: violation.status === 'Pending' ? '#ff9800' : 
-                                  violation.status === 'Approved' ? '#4caf50' : 
-                                  violation.status === 'Denied' ? '#f44336' : '#000',
-                            fontWeight: 500
-                          }}
-                        >
-                          {violation.status}
-                        </Typography>
+                        <Chip 
+                          label={violation.status || 'N/A'} 
+                          size="small" 
+                          color={statusColors[violation.status] || 'default'}
+                          variant="outlined"
+                        />
                       </Box>
                     </TableCell>
                     <TableCell>
@@ -549,9 +566,31 @@ School Administration
                         <Typography variant="body2">
                           <strong>Severity:</strong> 
                           <Chip 
-                            label={selectedViolation.severity} 
+                            label={selectedViolation.severity || 'N/A'} 
                             size="small" 
-                            color={severityColors[selectedViolation.severity]}
+                            color={severityColors[selectedViolation.severity] || 'default'}
+                            sx={{ ml: 1 }}
+                          />
+                        </Typography>
+                      </Grid>
+                      <Grid item xs={6}>
+                        <Typography variant="body2">
+                          <strong>Penalty:</strong> 
+                          <Chip 
+                            label={selectedViolation.penalty || getPenalty(selectedViolation.severity) || 'N/A'} 
+                            size="small" 
+                            color="secondary"
+                            sx={{ ml: 1 }}
+                          />
+                        </Typography>
+                      </Grid>
+                      <Grid item xs={6}>
+                        <Typography variant="body2">
+                          <strong>Status:</strong> 
+                          <Chip 
+                            label={selectedViolation.status || 'N/A'} 
+                            size="small" 
+                            color={statusColors[selectedViolation.status] || 'default'}
                             sx={{ ml: 1 }}
                           />
                         </Typography>
@@ -581,6 +620,16 @@ School Administration
                           {selectedViolation.description}
                         </Typography>
                       </Grid>
+                      {selectedViolation.resolution && (
+                        <Grid item xs={12}>
+                          <Typography variant="body2">
+                            <strong>Resolution:</strong>
+                          </Typography>
+                          <Typography variant="body2" sx={{ mt: 1, p: 2, bgcolor: '#e8f5e9', borderRadius: 1 }}>
+                            {selectedViolation.resolution}
+                          </Typography>
+                        </Grid>
+                      )}
                     </Grid>
                   </Paper>
                 </Grid>
@@ -626,7 +675,7 @@ School Administration
           >
             Close
           </Button>
-          {selectedViolation && selectedViolation.status === 'Pending' && (
+          {selectedViolation && (selectedViolation.status === 'Pending' || selectedViolation.status === 'Open' || selectedViolation.status === 'In Progress') && (
             <>
               <Button
                 size="small"
@@ -646,7 +695,7 @@ School Administration
                   }
                 }}
               >
-                Approve
+                Resolve
               </Button>
               <Button
                 size="small"
@@ -666,7 +715,7 @@ School Administration
                   }
                 }}
               >
-                Reject
+                Keep Pending
               </Button>
             </>
           )}
@@ -688,7 +737,7 @@ School Administration
               <Cancel sx={{ mr: 1, color: 'error.main' }} />
             )}
             <Typography variant="h6">
-              {approvalAction === 'approve' ? 'Approve' : 'Deny'} Violation Case
+              {approvalAction === 'approve' ? 'Resolve' : 'Keep Pending'} Violation Case
             </Typography>
           </Box>
         </DialogTitle>
@@ -696,7 +745,7 @@ School Administration
           {selectedViolation && (
             <Box sx={{ mt: 2 }}>
               <Typography variant="body1" gutterBottom>
-                You are about to <strong>{approvalAction}</strong> the following violation case:
+                You are about to <strong>{approvalAction === 'approve' ? 'resolve' : 'keep pending'}</strong> the following violation case:
               </Typography>
               
               <Card variant="outlined" sx={{ p: 2, mb: 3, bgcolor: '#f5f5f5' }}>
@@ -718,7 +767,7 @@ School Administration
                 label="Reason (Optional)"
                 value={approvalReason}
                 onChange={(e) => setApprovalReason(e.target.value)}
-                placeholder={`Enter reason for ${approvalAction === 'approve' ? 'approval' : 'denial'}...`}
+                placeholder={`Enter reason for ${approvalAction === 'approve' ? 'resolution' : 'keeping pending'}...`}
                 helperText={`This reason will be included in notifications to both the student and teacher`}
               />
             </Box>
@@ -738,7 +787,7 @@ School Administration
             disabled={processing}
             startIcon={processing ? <CircularProgress size={20} /> : null}
           >
-            {processing ? 'Processing...' : `${approvalAction === 'approve' ? 'Approve' : 'Deny'} & Notify`}
+            {processing ? 'Processing...' : `${approvalAction === 'approve' ? 'Resolve' : 'Keep Pending'} & Notify`}
           </Button>
         </DialogActions>
       </Dialog>

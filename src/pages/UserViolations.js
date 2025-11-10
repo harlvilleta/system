@@ -54,10 +54,10 @@ export default function UserViolations({ currentUser }) {
 
     console.log("UserViolations - Setting up listener for user:", activeUser.email);
     
+    // Query violations - try with orderBy first, fallback without it (same as UserDashboard)
     const violationsQuery = query(
       collection(db, "violations"),
-      where("studentEmail", "==", activeUser.email),
-      orderBy("createdAt", "desc")
+      where("studentEmail", "==", activeUser.email)
     );
 
     const unsubscribe = onSnapshot(violationsQuery, (snapshot) => {
@@ -65,11 +65,27 @@ export default function UserViolations({ currentUser }) {
         id: doc.id,
         ...doc.data()
       }));
-      console.log("UserViolations - Received violations:", violationsData.length);
-      setViolations(violationsData);
+      
+      // Sort by createdAt in descending order (newest first) in JavaScript
+      const sortedViolations = violationsData.sort((a, b) => {
+        const dateA = a.createdAt ? (a.createdAt.toDate ? a.createdAt.toDate() : new Date(a.createdAt)) : new Date(0);
+        const dateB = b.createdAt ? (b.createdAt.toDate ? b.createdAt.toDate() : new Date(b.createdAt)) : new Date(0);
+        return dateB - dateA; // Descending order (newest first)
+      });
+      
+      console.log("UserViolations - Received violations:", sortedViolations.length);
+      console.log("UserViolations - Violations data:", sortedViolations);
+      console.log("UserViolations - Query email:", activeUser.email);
+      console.log("UserViolations - Sample violation studentEmail:", sortedViolations[0]?.studentEmail);
+      setViolations(sortedViolations);
       setLoading(false);
     }, (error) => {
       console.error("UserViolations - Error fetching violations:", error);
+      console.error("UserViolations - Error details:", {
+        code: error.code,
+        message: error.message,
+        queryEmail: activeUser.email
+      });
       setLoading(false);
     });
 
@@ -80,8 +96,8 @@ export default function UserViolations({ currentUser }) {
   const stats = {
     total: violations.length,
     pending: violations.filter(v => v.status === 'Pending').length,
-    solved: violations.filter(v => v.status === 'Solved').length,
-    critical: violations.filter(v => v.severity === 'Critical').length
+    inProgress: violations.filter(v => v.status === 'In Progress' || v.status === 'InProgress' || v.status === 'in progress').length,
+    solved: violations.filter(v => v.status === 'Solved').length
   };
 
   // Filter violations based on search and filters
@@ -91,8 +107,23 @@ export default function UserViolations({ currentUser }) {
       violation.classification?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       violation.reportedBy?.toLowerCase().includes(searchTerm.toLowerCase());
     
-    const matchesStatus = filterStatus === 'all' || violation.status === filterStatus;
-    const matchesSeverity = filterSeverity === 'all' || violation.severity === filterSeverity;
+    // Handle status filter - check for variations of "In Progress" and "Solved"/"Resolved"
+    let matchesStatus = true;
+    if (filterStatus !== 'all') {
+      if (filterStatus === 'In Progress' || filterStatus === 'InProgress' || filterStatus === 'in progress') {
+        matchesStatus = violation.status === 'In Progress' || violation.status === 'InProgress' || violation.status === 'in progress';
+      } else if (filterStatus === 'Solved') {
+        matchesStatus = violation.status === 'Solved' || violation.status === 'Resolved' || violation.status === 'resolved';
+      } else {
+        matchesStatus = violation.status === filterStatus;
+      }
+    }
+    
+    // Handle severity filter - check for Level 1-4
+    let matchesSeverity = true;
+    if (filterSeverity !== 'all') {
+      matchesSeverity = violation.severity === filterSeverity;
+    }
     
     return matchesSearch && matchesStatus && matchesSeverity;
   });
@@ -109,6 +140,11 @@ export default function UserViolations({ currentUser }) {
 
   const getSeverityColor = (severity) => {
     switch (severity) {
+      case 'Level 1': return 'error';
+      case 'Level 2': return 'warning';
+      case 'Level 3': return 'info';
+      case 'Level 4': return 'success';
+      // Fallback for old severity values
       case 'Critical': return 'error';
       case 'High': return 'warning';
       case 'Medium': return 'info';
@@ -120,7 +156,12 @@ export default function UserViolations({ currentUser }) {
   const getStatusColor = (status) => {
     switch (status) {
       case 'Pending': return 'warning';
-      case 'Solved': return 'success';
+      case 'In Progress':
+      case 'InProgress':
+      case 'in progress': return 'info';
+      case 'Solved':
+      case 'Resolved':
+      case 'resolved': return 'success';
       default: return 'default';
     }
   };
@@ -180,9 +221,9 @@ export default function UserViolations({ currentUser }) {
           <Card sx={{ boxShadow: 2, borderLeft: '4px solid #800000', background: 'transparent', borderRadius: 2 }}>
             <CardContent sx={{ textAlign: 'center', p: 2 }}>
               <Typography variant="h4" fontWeight={700} sx={{ color: theme.palette.mode === 'dark' ? '#ffffff' : '#000000' }}>
-                {stats.solved}
+                {stats.inProgress}
               </Typography>
-              <Typography variant="body2" color="textSecondary">Resolved</Typography>
+              <Typography variant="body2" color="textSecondary">In Progress</Typography>
             </CardContent>
           </Card>
         </Grid>
@@ -190,9 +231,9 @@ export default function UserViolations({ currentUser }) {
           <Card sx={{ boxShadow: 2, borderLeft: '4px solid #800000', background: 'transparent', borderRadius: 2 }}>
             <CardContent sx={{ textAlign: 'center', p: 2 }}>
               <Typography variant="h4" fontWeight={700} sx={{ color: theme.palette.mode === 'dark' ? '#ffffff' : '#000000' }}>
-                {stats.critical}
+                {stats.solved}
               </Typography>
-              <Typography variant="body2" color="textSecondary">Critical</Typography>
+              <Typography variant="body2" color="textSecondary">Resolved</Typography>
             </CardContent>
           </Card>
         </Grid>
@@ -224,7 +265,8 @@ export default function UserViolations({ currentUser }) {
             >
               <MenuItem value="all">All Status</MenuItem>
               <MenuItem value="Pending">Pending</MenuItem>
-              <MenuItem value="Solved">Solved</MenuItem>
+              <MenuItem value="In Progress">In Progress</MenuItem>
+              <MenuItem value="Solved">Resolved</MenuItem>
             </TextField>
           </Grid>
           <Grid item xs={12} sm={3} md={2}>
@@ -237,10 +279,10 @@ export default function UserViolations({ currentUser }) {
               onChange={(e) => setFilterSeverity(e.target.value)}
             >
               <MenuItem value="all">All Severity</MenuItem>
-              <MenuItem value="Critical">Critical</MenuItem>
-              <MenuItem value="High">High</MenuItem>
-              <MenuItem value="Medium">Medium</MenuItem>
-              <MenuItem value="Low">Low</MenuItem>
+              <MenuItem value="Level 1">Level 1</MenuItem>
+              <MenuItem value="Level 2">Level 2</MenuItem>
+              <MenuItem value="Level 3">Level 3</MenuItem>
+              <MenuItem value="Level 4">Level 4</MenuItem>
             </TextField>
           </Grid>
         </Grid>
@@ -271,23 +313,149 @@ export default function UserViolations({ currentUser }) {
                 border: '1px solid #e0e0e0',
                 borderLeft: '4px solid #800000',
                 borderRadius: 2,
-                bgcolor: '#ffffff',
+                bgcolor: theme.palette.mode === 'dark' ? '#1a1a1a' : '#ffffff',
                 boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
                 transition: 'box-shadow 0.2s',
+                cursor: 'pointer',
                 '&:hover': {
-                  boxShadow: '0 4px 8px rgba(0,0,0,0.15)'
+                  boxShadow: '0 4px 8px rgba(0,0,0,0.15)',
+                  transform: 'translateY(-2px)'
                 }
-              }}>
-                <CardContent sx={{ p: 3, textAlign: 'center' }}>
-                  {/* Large Number at Top - Exactly like the image */}
-                  <Typography variant="h2" fontWeight={700} color="#000000" sx={{ mb: 2, fontSize: '3rem' }}>
-                    {violation.id ? violation.id.slice(-2) : '01'}
+              }}
+              onClick={() => handleViewDetails(violation)}
+              >
+                <CardContent sx={{ p: 3 }}>
+                  {/* Violation Number */}
+                  <Box sx={{ textAlign: 'center', mb: 2 }}>
+                    <Typography variant="h2" fontWeight={700} sx={{ 
+                      color: theme.palette.mode === 'dark' ? '#ffffff' : '#000000', 
+                      fontSize: '3rem',
+                      mb: 1
+                    }}>
+                      {violation.id ? violation.id.slice(-2) : '01'}
+                    </Typography>
+                  </Box>
+                  
+                  {/* Violation Name */}
+                  <Typography variant="h6" fontWeight={600} sx={{ 
+                    color: theme.palette.mode === 'dark' ? '#ffffff' : '#000000',
+                    mb: 2,
+                    fontSize: '1.1rem',
+                    textAlign: 'center'
+                  }}>
+                    {violation.violation || violation.violationType || 'N/A'}
                   </Typography>
                   
-                  {/* Descriptive Text Below - Exactly like the image */}
-                  <Typography variant="h6" fontWeight={400} color="#333333" sx={{ fontSize: '1.1rem' }}>
-                    {violation.violation}
-                  </Typography>
+                  <Divider sx={{ my: 2 }} />
+                  
+                  {/* Status, Severity, Date, etc. */}
+                  <Stack spacing={1.5}>
+                    {/* Status */}
+                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <Typography variant="body2" sx={{ color: theme.palette.mode === 'dark' ? '#cccccc' : '#666666', fontWeight: 500 }}>
+                        Status:
+                      </Typography>
+                      <Chip 
+                        label={violation.status || 'Pending'} 
+                        size="small"
+                        color={getStatusColor(violation.status || 'Pending')}
+                        sx={{ fontWeight: 500 }}
+                      />
+                    </Box>
+                    
+                    {/* Severity */}
+                    {violation.severity && (
+                      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <Typography variant="body2" sx={{ color: theme.palette.mode === 'dark' ? '#cccccc' : '#666666', fontWeight: 500 }}>
+                          Severity:
+                        </Typography>
+                        <Chip 
+                          label={violation.severity} 
+                          size="small"
+                          color={getSeverityColor(violation.severity)}
+                          sx={{ fontWeight: 500 }}
+                        />
+                      </Box>
+                    )}
+                    
+                    {/* Classification */}
+                    {violation.classification && (
+                      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <Typography variant="body2" sx={{ color: theme.palette.mode === 'dark' ? '#cccccc' : '#666666', fontWeight: 500 }}>
+                          Classification:
+                        </Typography>
+                        <Chip 
+                          label={violation.classification} 
+                          size="small"
+                          color={getClassificationColor(violation.classification)}
+                          sx={{ fontWeight: 500 }}
+                        />
+                      </Box>
+                    )}
+                    
+                    {/* Date */}
+                    {violation.date && (
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <CalendarToday sx={{ fontSize: 16, color: theme.palette.mode === 'dark' ? '#cccccc' : '#666666' }} />
+                        <Typography variant="body2" sx={{ color: theme.palette.mode === 'dark' ? '#cccccc' : '#666666' }}>
+                          {violation.date}
+                        </Typography>
+                      </Box>
+                    )}
+                    
+                    {/* Time */}
+                    {violation.time && (
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <AccessTime sx={{ fontSize: 16, color: theme.palette.mode === 'dark' ? '#cccccc' : '#666666' }} />
+                        <Typography variant="body2" sx={{ color: theme.palette.mode === 'dark' ? '#cccccc' : '#666666' }}>
+                          {violation.time}
+                        </Typography>
+                      </Box>
+                    )}
+                    
+                    {/* Location */}
+                    {violation.location && (
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <LocationOn sx={{ fontSize: 16, color: theme.palette.mode === 'dark' ? '#cccccc' : '#666666' }} />
+                        <Typography variant="body2" sx={{ color: theme.palette.mode === 'dark' ? '#cccccc' : '#666666' }}>
+                          {violation.location}
+                        </Typography>
+                      </Box>
+                    )}
+                    
+                    {/* Reported By */}
+                    {violation.reportedBy && (
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Person sx={{ fontSize: 16, color: theme.palette.mode === 'dark' ? '#cccccc' : '#666666' }} />
+                        <Typography variant="body2" sx={{ color: theme.palette.mode === 'dark' ? '#cccccc' : '#666666' }}>
+                          Reported by: {violation.reportedBy}
+                        </Typography>
+                      </Box>
+                    )}
+                  </Stack>
+                  
+                  {/* View Details Button */}
+                  <Box sx={{ mt: 2, textAlign: 'center' }}>
+                    <Button
+                      variant="outlined"
+                      size="small"
+                      startIcon={<Visibility />}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleViewDetails(violation);
+                      }}
+                      sx={{
+                        borderColor: '#800000',
+                        color: '#800000',
+                        '&:hover': {
+                          borderColor: '#660000',
+                          backgroundColor: 'rgba(128, 0, 0, 0.1)'
+                        }
+                      }}
+                    >
+                      View Details
+                    </Button>
+                  </Box>
                 </CardContent>
               </Card>
             </Grid>

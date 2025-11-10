@@ -191,18 +191,13 @@ function UserOverview({ currentUser }) {
       orderBy("createdAt", "desc")
     );
 
-    // Fetch activity bookings (approved activities scheduled by admin)
-    const activityBookingsQuery = query(
-      collection(db, "activity_bookings"),
-      orderBy("createdAt", "desc"),
-      limit(20)
-    );
+    // Note: Removed activity_bookings query as we only show admin-created activities
 
-    // Fetch recent activities
+    // Fetch recent activities (admin-created)
     const activitiesQuery = query(
       collection(db, "activities"),
       orderBy("createdAt", "desc"),
-      limit(5)
+      limit(10)
     );
 
     // Fetch receipts/submissions
@@ -211,16 +206,153 @@ function UserOverview({ currentUser }) {
       where("studentEmail", "==", currentUser.email),
       orderBy("createdAt", "desc")
     );
-    const unsubActivities = onSnapshot(activitiesQuery, (snap) => {
-      try {
-        const items = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        setActivities(items);
-      } catch (error) {
-        console.error("Error processing activities data:", error);
-      }
-    }, (error) => {
-      console.error("Dashboard - Activities query error:", error);
-    });
+    let unsubActivities;
+    try {
+      unsubActivities = onSnapshot(activitiesQuery, (snap) => {
+        try {
+          const items = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+          console.log('📋 Admin Activities fetched:', items.length, 'items');
+          console.log('📋 Admin Activities data:', items);
+          
+          // Filter activities based on student's course, year, and section
+          const studentCourse = studentData?.course || userProfile?.course;
+          const studentYear = studentData?.year || userProfile?.year;
+          const studentSection = studentData?.section || userProfile?.section;
+          
+          const filteredItems = items.filter(activity => {
+            // Use flexible matching to handle case differences and data type differences
+            // Activity must have course, year, and section that match the student's
+            const courseMatch = activity.course?.toLowerCase() === studentCourse?.toLowerCase();
+            const yearMatch = activity.year?.toString() === studentYear?.toString();
+            const sectionMatch = activity.section?.toLowerCase() === studentSection?.toLowerCase();
+            
+            // Activity matches if all fields match the student's course, year, and section
+            return courseMatch && yearMatch && sectionMatch;
+          });
+          
+          console.log('📋 Filtered Activities for student:', {
+            total: items.length,
+            filtered: filteredItems.length,
+            studentCourse,
+            studentYear,
+            studentSection
+          });
+          
+          setActivities(filteredItems);
+          
+          // Update stats with filtered count
+          setStats(prev => ({
+            ...prev,
+            totalActivities: filteredItems.length
+          }));
+        } catch (error) {
+          console.error("Error processing activities data:", error);
+        }
+      }, (error) => {
+        console.error("Dashboard - Activities query error (orderBy may not exist):", error);
+        // If orderBy fails, try without it
+        const activitiesQueryFallback = query(
+          collection(db, "activities"),
+          limit(10)
+        );
+        const unsubFallback = onSnapshot(activitiesQueryFallback, (snap) => {
+          try {
+            const items = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+              .sort((a, b) => {
+                const dateA = new Date(a.createdAt?.toDate?.() || a.createdAt || 0);
+                const dateB = new Date(b.createdAt?.toDate?.() || b.createdAt || 0);
+                return dateB - dateA;
+              });
+            
+            // Filter activities based on student's course, year, and section
+            const studentCourse = studentData?.course || userProfile?.course;
+            const studentYear = studentData?.year || userProfile?.year;
+            const studentSection = studentData?.section || userProfile?.section;
+            
+            const filteredItems = items.filter(activity => {
+              // Use flexible matching to handle case differences and data type differences
+              const courseMatch = !activity.course || activity.course?.toLowerCase() === studentCourse?.toLowerCase();
+              const yearMatch = !activity.year || activity.year?.toString() === studentYear?.toString();
+              const sectionMatch = !activity.section || activity.section?.toLowerCase() === studentSection?.toLowerCase();
+              
+              // Activity matches if all specified fields match (or if field is not specified in activity)
+              return courseMatch && yearMatch && sectionMatch;
+            });
+            
+            console.log('📋 Filtered Activities (fallback) for student:', {
+              total: items.length,
+              filtered: filteredItems.length,
+              studentCourse,
+              studentYear,
+              studentSection
+            });
+            
+            setActivities(filteredItems);
+            
+            // Update stats with filtered count
+            setStats(prev => ({
+              ...prev,
+              totalActivities: filteredItems.length
+            }));
+          } catch (err) {
+            console.error("Error processing activities data (fallback):", err);
+          }
+        });
+        // Store fallback unsubscribe function
+        unsubActivities = unsubFallback;
+      });
+    } catch (error) {
+      console.error("Error setting up activities query:", error);
+      // Fallback query without orderBy
+      const activitiesQueryFallback = query(
+        collection(db, "activities"),
+        limit(10)
+      );
+      unsubActivities = onSnapshot(activitiesQueryFallback, (snap) => {
+        try {
+          const items = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+            .sort((a, b) => {
+              const dateA = new Date(a.createdAt?.toDate?.() || a.createdAt || 0);
+              const dateB = new Date(b.createdAt?.toDate?.() || b.createdAt || 0);
+              return dateB - dateA;
+            });
+          
+          // Filter activities based on student's course, year, and section
+          const studentCourse = studentData?.course || userProfile?.course;
+          const studentYear = studentData?.year || userProfile?.year;
+          const studentSection = studentData?.section || userProfile?.section;
+          
+          const filteredItems = items.filter(activity => {
+            // Use flexible matching to handle case differences and data type differences
+            // Activity must have course, year, and section that match the student's
+            const courseMatch = activity.course?.toLowerCase() === studentCourse?.toLowerCase();
+            const yearMatch = activity.year?.toString() === studentYear?.toString();
+            const sectionMatch = activity.section?.toLowerCase() === studentSection?.toLowerCase();
+            
+            // Activity matches if all fields match the student's course, year, and section
+            return courseMatch && yearMatch && sectionMatch;
+          });
+          
+          console.log('📋 Filtered Activities (fallback) for student:', {
+            total: items.length,
+            filtered: filteredItems.length,
+            studentCourse,
+            studentYear,
+            studentSection
+          });
+          
+          setActivities(filteredItems);
+          
+          // Update stats with filtered count
+          setStats(prev => ({
+            ...prev,
+            totalActivities: filteredItems.length
+          }));
+        } catch (err) {
+          console.error("Error processing activities data (fallback):", err);
+        }
+      });
+    }
 
     const unsubReceipts = onSnapshot(receiptsQuery, (snap) => {
       try {
@@ -276,13 +408,30 @@ function UserOverview({ currentUser }) {
     const unsubAnnouncements = onSnapshot(announcementsQuery, (snap) => {
       try {
         const items = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        setAnnouncements(items);
-        setAnnouncementCount(items.length);
+        // Filter out private announcements - only show public announcements to students
+        const publicAnnouncements = items.filter(a => a.visibility !== "private");
+        // Filter to show only active announcements (not completed, not expired, within schedule/expiry dates)
+        const now = new Date();
+        const activeAnnouncements = publicAnnouncements.filter(a => {
+          // Check if completed (manually or expired)
+          const isCompleted = a.completed || (a.expiryDate && new Date(a.expiryDate) <= now);
+          if (isCompleted) return false;
+          
+          // Check if scheduled date has passed
+          if (a.scheduleDate && new Date(a.scheduleDate) > now) return false;
+          
+          // Check if expiry date hasn't passed
+          if (a.expiryDate && new Date(a.expiryDate) <= now) return false;
+          
+          return true;
+        });
+        setAnnouncements(activeAnnouncements);
+        setAnnouncementCount(activeAnnouncements.length);
         
         // Update stats
         setStats(prev => ({
           ...prev,
-          totalAnnouncements: items.length
+          totalAnnouncements: activeAnnouncements.length
         }));
       } catch (error) {
         console.error("Error processing announcements data:", error);
@@ -291,93 +440,15 @@ function UserOverview({ currentUser }) {
       console.error("Dashboard - Announcements query error:", error);
     });
 
-    const unsubActivityBookings = onSnapshot(activityBookingsQuery, (snap) => {
-      try {
-        const allBookingsData = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        console.log('📊 All activity bookings query result:', snap.docs.length, 'documents');
-        console.log('📊 All activity bookings data:', allBookingsData);
-        
-        // Filter for approved activities that match student's course, year, and section
-        const approvedBookings = allBookingsData.filter(booking => {
-          if (booking.status !== 'approved') return false;
-          
-          // Get student profile data for matching
-          const studentCourse = studentData?.course || userProfile?.course || '';
-          const studentYear = studentData?.year || userProfile?.year || '';
-          const studentSection = studentData?.section || userProfile?.section || '';
-          
-          console.log('🎯 Matching activity for student:', {
-            studentCourse,
-            studentYear, 
-            studentSection,
-            activityCourse: booking.course,
-            activityYear: booking.year,
-            activitySection: booking.section,
-            activityTitle: booking.activity
-          });
-          
-          // Match course, year, and section (case-insensitive)
-          const courseMatch = studentCourse && booking.course && 
-            studentCourse.toLowerCase() === booking.course.toLowerCase();
-          const yearMatch = studentYear && booking.year && 
-            studentYear.toString() === booking.year.toString();
-          const sectionMatch = studentSection && booking.section && 
-            studentSection.toLowerCase() === booking.section.toLowerCase();
-          
-          const isMatch = courseMatch && yearMatch && sectionMatch;
-          console.log('🎯 Activity match result:', { courseMatch, yearMatch, sectionMatch, isMatch });
-          
-          return isMatch;
-        });
-        
-        console.log('📊 Approved activity bookings matching student profile:', approvedBookings.length, 'documents');
-        console.log('📊 Matching activity bookings data:', approvedBookings);
-        
-        // If no approved activities match, show pending ones as fallback
-        let bookingsToShow = approvedBookings;
-        if (approvedBookings.length === 0) {
-          const pendingBookings = allBookingsData.filter(booking => {
-            if (booking.status !== 'pending') return false;
-            
-            // Get student profile data for matching
-            const studentCourse = studentData?.course || userProfile?.course || '';
-            const studentYear = studentData?.year || userProfile?.year || '';
-            const studentSection = studentData?.section || userProfile?.section || '';
-            
-            // Match course, year, and section (case-insensitive)
-            const courseMatch = studentCourse && booking.course && 
-              studentCourse.toLowerCase() === booking.course.toLowerCase();
-            const yearMatch = studentYear && booking.year && 
-              studentYear.toString() === booking.year.toString();
-            const sectionMatch = studentSection && booking.section && 
-              studentSection.toLowerCase() === booking.section.toLowerCase();
-            
-            return courseMatch && yearMatch && sectionMatch;
-          });
-          console.log('📊 No approved activities match, showing pending:', pendingBookings.length, 'documents');
-          bookingsToShow = pendingBookings;
-        }
-        
-        setActivityBookings(bookingsToShow);
-        
-        // Update stats
-        setStats(prev => ({
-          ...prev,
-          totalActivities: bookingsToShow.length
-        }));
-      } catch (error) {
-        console.error("Error processing activity bookings data:", error);
-      }
-    }, (error) => {
-      console.error("Dashboard - Activity bookings query error:", error);
-    });
+    // Note: Removed activity bookings subscription as we only show admin-created activities
 
 
     return () => {
       unsubViolations();
       unsubAnnouncements();
-      unsubActivityBookings();
-      unsubActivities();
+      if (unsubActivities && typeof unsubActivities === 'function') {
+        unsubActivities();
+      }
       unsubReceipts();
     };
   }, [currentUser]);
@@ -386,6 +457,26 @@ function UserOverview({ currentUser }) {
   const recentAnnouncements = announcements?.slice(0, 3) || [];
   const recentActivityBookings = activityBookings?.slice(0, 3) || [];
   const recentActivityLogs = activityLogs?.slice(0, 5) || [];
+  
+  // Only show admin-created activities
+  const allActivities = activities.slice(0, 2).map(activity => ({
+    ...activity,
+    type: 'admin-created',
+    source: 'Admin'
+  })).sort((a, b) => {
+    // Sort by date, newest first
+    const dateA = new Date(a.date || a.createdAt?.toDate?.() || a.createdAt || 0);
+    const dateB = new Date(b.date || b.createdAt?.toDate?.() || b.createdAt || 0);
+    return dateB - dateA;
+  });
+  
+  // Debug: Log admin activities
+  console.log('🔍 Admin Activities Debug:', {
+    activities: activities,
+    activitiesLength: activities?.length || 0,
+    allActivities: allActivities,
+    allActivitiesLength: allActivities?.length || 0
+  });
 
   // Debug: Log activity bookings data
   console.log('🔍 Recent Activity Bookings Debug:', {
@@ -762,9 +853,11 @@ function UserOverview({ currentUser }) {
             boxShadow: 3,
             bgcolor: theme.palette.mode === 'dark' ? '#1a1a1a' : 'transparent',
             borderRadius: 2,
-            height: 'fit-content'
+            minHeight: '500px',
+            display: 'flex',
+            flexDirection: 'column'
           }}>
-            <CardContent>
+            <CardContent sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
               <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
                 <Typography variant="h6" fontWeight={700} sx={{ color: theme.palette.mode === 'dark' ? '#ffffff' : '#800000' }}>
                   Activities for You
@@ -796,83 +889,117 @@ function UserOverview({ currentUser }) {
                 mb: 2,
                 fontStyle: 'italic'
               }}>
-                Activities scheduled by teachers specifically for your course, year, and section
+                Activities created by administrators
               </Typography>
               
-              {recentActivityBookings.length > 0 ? (
-                <List>
-                  {recentActivityBookings.map((activity, index) => (
-                    <React.Fragment key={activity.id}>
-                      <ListItem sx={{ 
-                        px: 0, 
-                        py: 1,
+              {allActivities.length > 0 ? (
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, flex: 1 }}>
+                  {allActivities.map((activity) => (
+                    <Card 
+                      key={activity.id}
+                      sx={{ 
+                        border: '1px solid',
+                        borderColor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)',
+                        borderRadius: 2,
+                        bgcolor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.02)' : 'rgba(128, 0, 0, 0.02)',
+                        transition: 'all 0.3s ease',
                         '&:hover': {
-                          backgroundColor: 'transparent'
+                          transform: 'translateY(-2px)',
+                          boxShadow: theme.palette.mode === 'dark' ? '0 8px 25px rgba(0, 0, 0, 0.3)' : '0 8px 25px rgba(128, 0, 0, 0.15)',
+                          borderColor: '#800000'
                         }
-                      }}>
-                        <ListItemAvatar>
+                      }}
+                    >
+                      <CardContent sx={{ p: 2 }}>
+                        <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 2 }}>
                           <Avatar sx={{ 
                             bgcolor: 'success.main',
-                            width: 40, 
-                            height: 40
+                            width: 48, 
+                            height: 48,
+                            flexShrink: 0
                           }}>
-                            <Event sx={{ fontSize: 20 }} />
+                            <Event sx={{ fontSize: 24 }} />
                           </Avatar>
-                        </ListItemAvatar>
-                        <ListItemText
-                          primary={
-                            <Typography variant="subtitle2" fontWeight={600} sx={{ color: theme.palette.mode === 'dark' ? '#ffffff' : 'inherit' }}>
-                              {activity.activity}
+                          <Box sx={{ flex: 1, minWidth: 0 }}>
+                            <Typography variant="h6" fontWeight={600} sx={{ 
+                              color: theme.palette.mode === 'dark' ? '#ffffff' : '#000000',
+                              mb: 1,
+                              fontSize: '1.1rem'
+                            }}>
+                              {activity.activity || activity.title || activity.name}
                             </Typography>
-                          }
-                          secondary={
-                            <Box>
-                              <Typography variant="body2" sx={{ color: theme.palette.mode === 'dark' ? '#ffffff' : 'text.secondary', mb: 0.5 }}>
-                                <strong>Location:</strong> {activity.resource} • <strong>Teacher:</strong> {activity.teacherName}
+                            
+                            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, mb: 1.5 }}>
+                              <Typography variant="body2" sx={{ 
+                                color: theme.palette.mode === 'dark' ? '#cccccc' : '#666666',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 0.5
+                              }}>
+                                <strong>📝 Description:</strong> {activity.description || activity.content || 'No description available'}
                               </Typography>
-                              <Typography variant="body2" sx={{ color: theme.palette.mode === 'dark' ? '#ffffff' : 'text.secondary', mb: 0.5 }}>
-                                <strong>Target:</strong> {activity.course} - {activity.year} - Section {activity.section}
+                              <Typography variant="body2" sx={{ 
+                                color: theme.palette.mode === 'dark' ? '#cccccc' : '#666666',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 0.5
+                              }}>
+                                <strong>📍 Location:</strong> {activity.location || 'TBA'}
                               </Typography>
-                              <Typography variant="caption" sx={{ color: theme.palette.mode === 'dark' ? '#ffffff' : 'text.secondary' }}>
-                                {new Date(activity.date).toLocaleDateString()} at {activity.startTime} - {activity.endTime}
+                              <Typography variant="body2" sx={{ 
+                                color: theme.palette.mode === 'dark' ? '#cccccc' : '#666666',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 0.5
+                              }}>
+                                <strong>📅 Date:</strong> {activity.date ? new Date(activity.date).toLocaleDateString() : 'TBA'}
+                              </Typography>
+                              <Typography variant="body2" sx={{ 
+                                color: theme.palette.mode === 'dark' ? '#cccccc' : '#666666',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 0.5
+                              }}>
+                                <strong>⏰ Time:</strong> {activity.time || activity.startTime ? `${activity.startTime} - ${activity.endTime || 'TBA'}` : 'TBA'}
                               </Typography>
                             </Box>
-                          }
-                        />
-                        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 0.5 }}>
-                          <Chip 
-                            label={activity.status} 
-                            size="small"
-                            color={activity.status === 'approved' ? 'success' : activity.status === 'pending' ? 'warning' : 'default'}
-                            sx={{ 
-                              fontWeight: 500,
-                              textTransform: 'capitalize'
-                            }}
-                          />
-                          <Chip 
-                            label="For You" 
-                            size="small"
-                            sx={{ 
-                              fontWeight: 500,
-                              backgroundColor: '#800000',
-                              color: 'white',
-                              fontSize: '0.7rem'
-                            }}
-                          />
+                            
+                            <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', alignItems: 'center' }}>
+                              <Chip 
+                                label={activity.status || 'Active'} 
+                                size="small"
+                                color={activity.status === 'active' ? 'success' : activity.status === 'inactive' ? 'default' : 'primary'}
+                                sx={{ 
+                                  fontWeight: 500,
+                                  textTransform: 'capitalize',
+                                  fontSize: '0.75rem'
+                                }}
+                              />
+                              <Chip 
+                                label="Admin" 
+                                size="small"
+                                sx={{ 
+                                  fontWeight: 500,
+                                  backgroundColor: '#800000',
+                                  color: 'white',
+                                  fontSize: '0.7rem'
+                                }}
+                              />
+                            </Box>
+                          </Box>
                         </Box>
-                      </ListItem>
-                      {index < recentActivityBookings.length - 1 && <Divider />}
-                    </React.Fragment>
+                      </CardContent>
+                    </Card>
                   ))}
-                </List>
+                </Box>
               ) : (
                 <Box sx={{ textAlign: 'center', py: 3 }}>
                   <Event sx={{ fontSize: 48, color: theme.palette.mode === 'dark' ? '#ffffff' : 'text.secondary', mb: 1 }} />
                   <Typography variant="body2" sx={{ color: theme.palette.mode === 'dark' ? '#ffffff' : 'text.secondary' }}>
-                    No activities scheduled for you
+                    No admin activities available
                   </Typography>
                   <Typography variant="caption" sx={{ color: theme.palette.mode === 'dark' ? '#ffffff' : 'text.secondary', mt: 1, display: 'block' }}>
-                    Teachers will schedule activities specifically for your course ({studentData?.course || userProfile?.course || 'N/A'}), year ({studentData?.year || userProfile?.year || 'N/A'}), and section ({studentData?.section || userProfile?.section || 'N/A'})
+                    Administrators will create activities that will appear here
                   </Typography>
                 </Box>
               )}
