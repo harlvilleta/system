@@ -92,6 +92,7 @@ export default function ViolationRecord() {
   });
   const [studentInputValue, setStudentInputValue] = useState('');
   const [selectedStudent, setSelectedStudent] = useState(null);
+  const [studentAutocompleteOpen, setStudentAutocompleteOpen] = useState(false);
   const [selectedMeetingStudent, setSelectedMeetingStudent] = useState(null);
   const [statusFilter, setStatusFilter] = useState('all');
   const [showAddModal, setShowAddModal] = useState(false);
@@ -629,6 +630,7 @@ School Administration
       });
       setSelectedStudent(null);
       setStudentInputValue('');
+      setStudentAutocompleteOpen(false);
       setStudentName("");
       setImageFile(null);
       setSnackbar({ open: true, message: uploadTimedOut ? "Violation added (image upload failed) - Student notified!" : "Violation added successfully - Student notified!", severity: uploadTimedOut ? "warning" : "success" });
@@ -1456,7 +1458,12 @@ School Administration
       {/* Add New Violation Modal */}
       <Dialog 
         open={showAddModal} 
-        onClose={() => setShowAddModal(false)}
+        onClose={() => {
+          setShowAddModal(false);
+          setStudentAutocompleteOpen(false);
+          setStudentInputValue('');
+          setSelectedStudent(null);
+        }}
         maxWidth="lg"
         fullWidth
         PaperProps={{
@@ -1478,7 +1485,12 @@ School Administration
             Add New Violation
           </Typography>
           <IconButton 
-            onClick={() => setShowAddModal(false)}
+            onClick={() => {
+              setShowAddModal(false);
+              setStudentAutocompleteOpen(false);
+              setStudentInputValue('');
+              setSelectedStudent(null);
+            }}
             sx={{ 
               color: '#666666',
               '&:hover': { 
@@ -1532,12 +1544,53 @@ School Administration
                       studentId: newValue ? newValue.id : '',
                       studentName: newValue ? `${newValue.firstName} ${newValue.lastName}` : ''
                     }));
+                    // Close the dropdown and display selected student name in input
+                    if (newValue) {
+                      setStudentAutocompleteOpen(false);
+                      // Set input value to selected student's name so it displays
+                      setStudentInputValue(`${newValue.firstName} ${newValue.lastName}`);
+                    } else {
+                      setStudentInputValue('');
+                    }
                   }}
                   inputValue={studentInputValue}
-                  onInputChange={(event, newInputValue) => {
+                  onInputChange={(event, newInputValue, reason) => {
+                    // Don't update input value if reason is 'reset' (happens when option is selected)
+                    if (reason === 'reset') {
+                      setStudentAutocompleteOpen(false);
+                      return;
+                    }
                     setStudentInputValue(newInputValue);
+                    // If user is typing and there's no selected student, or they're changing the selection, open dropdown
+                    if (newInputValue && newInputValue.length > 0) {
+                      // If the input doesn't match the selected student, clear selection and open dropdown
+                      if (selectedStudent && newInputValue !== `${selectedStudent.firstName} ${selectedStudent.lastName}`) {
+                        setSelectedStudent(null);
+                        setForm(f => ({
+                          ...f,
+                          studentId: '',
+                          studentName: ''
+                        }));
+                      }
+                      setStudentAutocompleteOpen(true);
+                    } else {
+                      setStudentAutocompleteOpen(false);
+                      // If input is cleared, also clear selection
+                      if (!newInputValue) {
+                        setSelectedStudent(null);
+                        setForm(f => ({
+                          ...f,
+                          studentId: '',
+                          studentName: ''
+                        }));
+                      }
+                    }
                   }}
-                  open={studentInputValue && studentInputValue.length > 0} // Only open when typing
+                  open={studentAutocompleteOpen && studentInputValue && studentInputValue.length > 0}
+                  onClose={(event, reason) => {
+                    setStudentAutocompleteOpen(false);
+                  }}
+                  blurOnSelect={true}
                   disablePortal={false}
                   PaperComponent={({ children, ...other }) => (
                     <Paper 

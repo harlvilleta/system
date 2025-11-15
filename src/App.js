@@ -1,4 +1,6 @@
 import React, { useEffect, useState } from "react";
+// Auto-update admin user (can be removed after first run)
+import './utils/updateAdminUser';
 import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate, useLocation } from "react-router-dom";
 import { Box, AppBar, Toolbar, Typography, Avatar, Chip, IconButton, Button, CircularProgress, Alert, Tooltip, Badge, useTheme } from "@mui/material";
 import { AccountCircle, Logout, Notifications, Settings } from "@mui/icons-material";
@@ -26,7 +28,7 @@ import LandingPage from './pages/LandingPage';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { auth, db } from './firebase';
 import { getDoc, doc, setDoc, collection, query, orderBy, limit, onSnapshot, where } from 'firebase/firestore';
-import { saveAuthState, getAuthState, clearAuthState, isAuthStateValid } from './utils/authPersistence';
+import { saveAuthState, getAuthState, clearAuthState, isAuthStateValid, saveLastPath, getLastPath, clearLastPath } from './utils/authPersistence';
 import AnnouncementReport from "./pages/AnnouncementReport";
 import UserViolations from "./pages/UserViolations";
 import UserAnnouncements from "./pages/UserAnnouncements";
@@ -370,6 +372,21 @@ function UserHeader({ currentUser, userProfile }) {
   );
 }
 
+// Component to track and save current path
+function PathTracker() {
+  const location = useLocation();
+  
+  useEffect(() => {
+    // Save current path to localStorage (except for root, login, register)
+    const path = location.pathname;
+    if (path && path !== '/' && path !== '/login' && path !== '/register') {
+      saveLastPath(path);
+    }
+  }, [location.pathname]);
+  
+  return null;
+}
+
 // Component to preserve current route on refresh
 function PreserveRoute({ defaultPath, userRole }) {
   const location = useLocation();
@@ -379,7 +396,13 @@ function PreserveRoute({ defaultPath, userRole }) {
     // Only redirect to default if we're on the root path
     // Otherwise, preserve the current route (do nothing)
     if (location.pathname === '/' || location.pathname === '') {
-      navigate(defaultPath, { replace: true });
+      // Check if there's a saved last path
+      const lastPath = getLastPath();
+      if (lastPath && lastPath !== '/' && lastPath !== '') {
+        navigate(lastPath, { replace: true });
+      } else {
+        navigate(defaultPath, { replace: true });
+      }
     }
     // If we're already on a valid route, do nothing - React Router will handle it
   }, [location.pathname, defaultPath, navigate]);
@@ -454,40 +477,14 @@ function App() {
         setForceLogin(false);
         
         // First check if we have stored auth state with the correct role
+        // Note: We'll still fetch from database to ensure role is up-to-date
+        // but we can use stored auth as a quick fallback
         try {
           const storedAuth = getAuthState();
           if (isAuthStateValid(storedAuth) && storedAuth.user?.uid === user.uid) {
-            console.log('Using stored auth state with role:', storedAuth.userRole);
-            
-            // Check teacher approval status even for stored auth
-            if (storedAuth.userRole === 'Teacher' && storedAuth.userProfile?.teacherInfo) {
-              const isApproved = storedAuth.userProfile.teacherInfo.isApproved;
-              const approvalStatus = storedAuth.userProfile.teacherInfo.approvalStatus;
-              
-              if (!isApproved || approvalStatus === 'pending' || approvalStatus === 'denied') {
-                console.log('⚠️ Stored teacher auth not approved, clearing and logging out...');
-                await signOut(auth);
-                const message = approvalStatus === 'denied' 
-                  ? 'Your teacher account registration was denied. Please contact the administrator for more information.'
-                  : 'Your teacher account is pending admin approval. Please wait for approval before logging in.';
-                setAuthError(message);
-                setUser(null);
-                setCurrentUser(null);
-                setUserProfile(null);
-                setUserRole(null);
-                setForceLogin(true);
-                setLoading(false);
-                setIsRefreshing(false);
-                clearAuthState();
-                return;
-              }
-            }
-            
-            setUserProfile(storedAuth.userProfile);
-            setUserRole(storedAuth.userRole);
-            setLoading(false);
-            setIsRefreshing(false);
-            return; // Exit early with stored role
+            console.log('📦 Found stored auth state with role:', storedAuth.userRole);
+            // Don't return early - continue to fetch from database to verify role is correct
+            // This ensures role changes in database are reflected
           }
         } catch (error) {
           console.error('Error checking stored auth:', error);
@@ -506,7 +503,63 @@ function App() {
           
           if (userDoc.exists()) {
             const userData = userDoc.data();
-            const role = userData.role || 'Student';
+            console.log('📄 User document found:', { 
+              email: userData.email, 
+              role: userData.role,
+              fullName: userData.fullName,
+              hasAdminInfo: !!userData.adminInfo,
+              hasTeacherInfo: !!userData.teacherInfo
+            });
+            
+            // Get role - check for adminInfo/teacherInfo if role field is missing
+            let role = userData.role;
+            
+            // Special case: Check if this is the admin email - force Admin role
+            if (user.email === 'admin+10@school.com') {
+              console.log('🔧 Detected admin email, forcing Admin role');
+              role = 'Admin';
+              // Update the document if role is not already Admin
+              if (userData.role !== 'Admin') {
+                try {
+                  await setDoc(doc(db, 'users', userDoc.id), {
+                    role: 'Admin',
+                    adminInfo: {
+                      permissions: ['all'],
+                      adminLevel: 'super',
+                      assignedBy: 'system',
+                      assignedDate: new Date().toISOString()
+                    },
+                    updatedAt: new Date().toISOString()
+                  }, { merge: true });
+                  console.log('✅ Updated user document to Admin role');
+                } catch (updateError) {
+                  console.error('❌ Failed to update role:', updateError);
+                }
+              }
+            } else if (!role || role === null || role === undefined || role === '') {
+              // If role is missing, try to infer from other fields
+              if (userData.adminInfo) {
+                role = 'Admin';
+                console.log('🔧 Auto-detected Admin role from adminInfo field');
+              } else if (userData.teacherInfo) {
+                role = 'Teacher';
+                console.log('🔧 Auto-detected Teacher role from teacherInfo field');
+              } else {
+                role = 'Student';
+                console.log('⚠️ No role field found, defaulting to Student');
+              }
+            } else {
+              // Normalize role case (Admin, admin, ADMIN -> Admin)
+              const normalizedRole = role.charAt(0).toUpperCase() + role.slice(1).toLowerCase();
+              if (['Admin', 'Teacher', 'Student'].includes(normalizedRole)) {
+                role = normalizedRole;
+              } else {
+                console.warn('⚠️ Unknown role value:', role, '- defaulting to Student');
+                role = 'Student';
+              }
+            }
+            
+            console.log('🎭 Final detected role:', role, 'for user:', user.email);
             
             // Check teacher approval status BEFORE allowing access
             if (role === 'Teacher' && userData.teacherInfo) {
@@ -525,6 +578,7 @@ function App() {
                 setLoading(false);
                 setIsRefreshing(false);
                 clearAuthState();
+                clearLastPath();
                 return;
               }
               
@@ -540,6 +594,7 @@ function App() {
                 setLoading(false);
                 setIsRefreshing(false);
                 clearAuthState();
+                clearLastPath();
                 return;
               }
             }
@@ -568,7 +623,43 @@ function App() {
             // Save auth state to localStorage
             saveAuthState(user, userData, role);
           } else {
-            // Create default user document
+            // User document doesn't exist - check if this is the admin user
+            const isAdminEmail = user.email === 'admin+10@school.com';
+            
+            if (isAdminEmail) {
+              console.log('🔧 Creating Admin user document for:', user.email);
+              const adminUserData = {
+                email: user.email,
+                fullName: user.displayName || 'Admin User',
+                role: 'Admin',
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
+                uid: user.uid,
+                isActive: true,
+                registrationMethod: 'email',
+                adminInfo: {
+                  permissions: ['all'],
+                  adminLevel: 'super',
+                  assignedBy: 'system',
+                  assignedDate: new Date().toISOString()
+                }
+              };
+              
+              try {
+                await setDoc(doc(db, 'users', user.uid), adminUserData);
+                console.log('✅ Admin user document created');
+                setUserProfile(adminUserData);
+                setUserRole('Admin');
+                setLoading(false);
+                setIsRefreshing(false);
+                saveAuthState(user, adminUserData, 'Admin');
+                return; // Exit early
+              } catch (createError) {
+                console.error('❌ Failed to create admin user document:', createError);
+              }
+            }
+            
+            // Create default user document (Student)
             const defaultUserData = {
               email: user.email,
               fullName: user.displayName || user.email,
@@ -634,6 +725,7 @@ function App() {
         setLoading(false);
         // Clear stored auth state
         clearAuthState();
+        clearLastPath();
       }
     });
 
@@ -713,6 +805,7 @@ function App() {
           `}
         </style>
         <Router>
+          <PathTracker />
           <Routes>
             <Route path="/login" element={<Navigate to={userRole === 'Admin' ? '/overview' : userRole === 'Teacher' ? '/teacher-dashboard' : '/user-dashboard'} replace />} />
             <Route path="/register" element={<Navigate to={userRole === 'Admin' ? '/overview' : userRole === 'Teacher' ? '/teacher-dashboard' : '/user-dashboard'} replace />} />
@@ -720,13 +813,24 @@ function App() {
             {/* Admin/Teacher Routes - Only accessible to Admin/Teacher roles */}
             <Route path="/*" element={
               (() => {
-                console.log('Routing decision:', { userRole, user: !!user, currentUser: !!currentUser });
+                console.log('🔀 Admin/Teacher Routing decision:', { 
+                  userRole, 
+                  userRoleType: typeof userRole,
+                  userRoleValue: JSON.stringify(userRole),
+                  user: !!user, 
+                  currentUser: !!currentUser,
+                  isAdmin: userRole === 'Admin',
+                  isTeacher: userRole === 'Teacher'
+                });
                 // Wait for role to be determined before routing
                 if (!userRole && user) {
+                  console.log('⏳ Role not yet determined, waiting...');
                   // Still loading role - show loading state (handled by outer loading check)
                   return false;
                 }
-                return (userRole === 'Admin' || userRole === 'Teacher');
+                const isAdminOrTeacher = (userRole === 'Admin' || userRole === 'Teacher');
+                console.log('✅ Is Admin or Teacher?', isAdminOrTeacher);
+                return isAdminOrTeacher;
               })() ? (
                 userRole === 'Admin' ? (
                   <Box sx={{ display: "flex", flexDirection: "column", height: "100vh", bgcolor: "background.default" }}>
@@ -774,6 +878,15 @@ function App() {
                           <Route path="/violations-chart" element={<ViolationsChartDashboard />} />
                           <Route path="/teacher-request" element={<TeacherRequest />} />
                           <Route path="/user/*" element={<Navigate to="/overview" />} />
+                          <Route path="/*" element={
+                            (() => {
+                              const lastPath = getLastPath();
+                              if (lastPath && lastPath !== '/' && lastPath !== '/overview') {
+                                return <Navigate to={lastPath} replace />;
+                              }
+                              return <Navigate to="/overview" replace />;
+                            })()
+                          } />
                         </Routes>
                       </Box>
                     </Box>
@@ -809,21 +922,41 @@ function App() {
                           <Route path="/teacher-activity-requests" element={<TeacherActivityRequests />} />
                           <Route path="/teacher-profile" element={<Profile />} />
                           <Route path="/edit-profile" element={<EditProfile />} />
-                          <Route path="/*" element={<Navigate to="/teacher-dashboard" />} />
+                          <Route path="/*" element={
+                            (() => {
+                              const lastPath = getLastPath();
+                              if (lastPath && lastPath !== '/' && lastPath !== '/teacher-dashboard') {
+                                return <Navigate to={lastPath} replace />;
+                              }
+                              return <Navigate to="/teacher-dashboard" replace />;
+                            })()
+                          } />
                         </Routes>
                       </Box>
                     </Box>
                   </Box>
                 )
               ) : (() => {
-                console.log('Student routing decision:', { userRole, user: !!user });
+                console.log('🔀 Student routing decision:', { 
+                  userRole, 
+                  userRoleType: typeof userRole,
+                  userRoleValue: JSON.stringify(userRole),
+                  user: !!user,
+                  isStudent: userRole === 'Student',
+                  isAdmin: userRole === 'Admin',
+                  isTeacher: userRole === 'Teacher'
+                });
                 // Wait for role to be determined before routing
                 if (!userRole && user) {
+                  console.log('⏳ Role not yet determined for student routing, waiting...');
                   // Still loading role - show loading state (handled by outer loading check)
                   return false;
                 }
-                // Route to student dashboard if userRole is 'Student' or if user exists but role is not Admin/Teacher
-                return userRole === 'Student' || (user && userRole !== 'Admin' && userRole !== 'Teacher');
+                // Only route to student dashboard if userRole is explicitly 'Student'
+                // Do not route if role is null/undefined or if it's Admin/Teacher
+                const isStudent = userRole === 'Student';
+                console.log('✅ Is Student?', isStudent);
+                return isStudent;
               })() ? (
                 <Box sx={{ display: "flex", flexDirection: "column", height: "100vh", bgcolor: "background.default" }}>
                   <UserHeader currentUser={currentUser} userProfile={userProfile} />
@@ -847,7 +980,15 @@ function App() {
                         <Route path="/profile" element={<Profile />} />
                         <Route path="/edit-profile" element={<EditProfile />} />
                         <Route path="/notifications" element={<UserNotifications currentUser={currentUser} />} />
-                        <Route path="/*" element={<Navigate to="/user-dashboard" />} />
+                        <Route path="/*" element={
+                          (() => {
+                            const lastPath = getLastPath();
+                            if (lastPath && lastPath !== '/' && lastPath !== '/user-dashboard') {
+                              return <Navigate to={lastPath} replace />;
+                            }
+                            return <Navigate to="/user-dashboard" replace />;
+                          })()
+                        } />
                       </Routes>
                     </Box>
                   </Box>

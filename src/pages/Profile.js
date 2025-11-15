@@ -1134,7 +1134,7 @@ export default function Profile() {
                     </Typography>
                   </Box>
                   
-                  {profile.studentId && (
+                  {profile.studentId && profile.role !== 'Admin' && (
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                       <Typography variant="body2" sx={{ 
                         color: theme.palette.mode === 'dark' ? '#cccccc' : '#666666',
@@ -1332,6 +1332,62 @@ export default function Profile() {
                       </Typography>
                     </Box>
                   </Box>
+
+                  {/* Profile Image Display */}
+                  {profile.image && (
+                    <Box sx={{ 
+                      p: 2,
+                      bgcolor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.05)' : 'rgba(128, 0, 0, 0.05)',
+                      borderRadius: 2,
+                      border: `1px solid ${theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(128, 0, 0, 0.1)'}`,
+                      transition: 'all 0.3s ease',
+                      '&:hover': {
+                        bgcolor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.08)' : 'rgba(128, 0, 0, 0.08)',
+                        transform: 'translateY(-2px)',
+                        boxShadow: theme.palette.mode === 'dark' 
+                          ? '0 4px 12px rgba(0, 0, 0, 0.2)'
+                          : '0 4px 12px rgba(128, 0, 0, 0.1)'
+                      }
+                    }}>
+                      <Typography variant="body2" sx={{
+                        color: theme.palette.mode === 'dark' ? '#cccccc' : '#666666',
+                        fontWeight: 600,
+                        mb: 2,
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.5px',
+                        fontSize: '0.8rem'
+                      }}>
+                        Profile Picture
+                      </Typography>
+                      <Box sx={{ 
+                        display: 'flex', 
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        borderRadius: 2,
+                        overflow: 'hidden',
+                        border: `2px solid ${theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(128, 0, 0, 0.2)'}`,
+                        bgcolor: theme.palette.mode === 'dark' ? 'rgba(0, 0, 0, 0.2)' : 'rgba(255, 255, 255, 0.5)',
+                        p: 1
+                      }}>
+                        <Box
+                          component="img"
+                          src={profile.image}
+                          alt="Profile"
+                          sx={{
+                            maxWidth: '100%',
+                            maxHeight: '300px',
+                            width: 'auto',
+                            height: 'auto',
+                            objectFit: 'contain',
+                            borderRadius: 1
+                          }}
+                          onError={(e) => {
+                            e.target.style.display = 'none';
+                          }}
+                        />
+                      </Box>
+                    </Box>
+                  )}
 
                   {/* Academic Information - Read Only (Admin Only) - Only for Students */}
                   {profile.role === 'Student' && (

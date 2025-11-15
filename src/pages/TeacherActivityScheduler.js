@@ -632,9 +632,9 @@ export default function TeacherActivityScheduler() {
 
       {/* Main Content with proper spacing */}
       <Box sx={{ mb: 3 }}>
-        <Grid container spacing={3}>
+        <Grid container spacing={3} justifyContent="center">
           {/* Calendar Section */}
-          <Grid item xs={12} lg={6}>
+          <Grid item xs={12} lg={10} xl={8}>
             <Paper 
               onClick={() => console.log('Calendar clicked')}
               sx={{ 

@@ -228,59 +228,93 @@ export default function EditProfile() {
       }
       const reader = new FileReader();
       reader.onloadend = () => {
-        setProfile((prev) => ({ ...prev, image: reader.result }));
-        setSnackbar({ open: true, message: "Profile picture updated!", severity: "success" });
+        // Store as base64 string in local state only (NOT saved to database yet)
+        const base64String = reader.result;
+        // Only update local state - do NOT save to database
+        setProfile((prev) => ({ ...prev, image: base64String }));
+        setSnackbar({ open: true, message: "Image preview updated. Click 'Save Changes' to save it.", severity: "info" });
+      };
+      reader.onerror = () => {
+        setSnackbar({ open: true, message: "Error reading image file", severity: "error" });
       };
       reader.readAsDataURL(file);
+      
+      // Reset the input so the same file can be selected again if needed
+      e.target.value = '';
     }
   };
 
   const handleSaveProfile = async () => {
-    if (!currentUser) return;
+    if (!currentUser) {
+      setSnackbar({ open: true, message: "No user logged in", severity: "error" });
+      return;
+    }
     
     setSaving(true);
     try {
       const fullName = `${profile.firstName} ${profile.lastName}`.trim();
       
-      // Update Firebase Auth profile
-      await updateProfile(currentUser, {
-        displayName: fullName
-      });
+      // Validate required fields
+      if (!profile.firstName || !profile.lastName) {
+        setSnackbar({ open: true, message: "First name and last name are required", severity: "error" });
+        setSaving(false);
+        return;
+      }
 
-      // Upload image to Firebase Storage if it's a new file (not a URL)
+      // Update Firebase Auth profile
+      try {
+        await updateProfile(currentUser, {
+          displayName: fullName
+        });
+        console.log('✅ Firebase Auth profile updated');
+      } catch (authError) {
+        console.error('⚠️ Error updating Firebase Auth profile:', authError);
+        // Continue even if Auth update fails
+      }
+
+      // Save image - if base64, save as base64; if URL, keep as URL (no Firebase Storage upload)
       let imageURL = profile.image;
       if (profile.image && profile.image.startsWith('data:')) {
-        // Convert base64 to file and upload
-        const response = await fetch(profile.image);
-        const blob = await response.blob();
-        const file = new File([blob], 'profile-picture.jpg', { type: 'image/jpeg' });
-        
-        try {
-          imageURL = await uploadImageToStorage(file, currentUser.uid);
-          console.log('✅ Image uploaded to Storage:', imageURL);
-        } catch (uploadError) {
-          console.error('❌ Image upload error:', uploadError);
-          // Keep the base64 as fallback
+        // Check if base64 image is too large (Firestore has 1MB limit per field)
+        const base64Size = profile.image.length;
+        const sizeInMB = (base64Size * 3) / 4 / 1024 / 1024; // Approximate size in MB
+        if (sizeInMB > 0.9) { // Leave some buffer
+          setSnackbar({ open: true, message: "Image is too large. Please use a smaller image (max ~700KB).", severity: "error" });
+          setSaving(false);
+          return;
         }
+        console.log('✅ Image saved as base64, size:', sizeInMB.toFixed(2), 'MB');
+      } else if (profile.image) {
+        // Keep existing URL
+        console.log('✅ Image URL preserved');
       }
 
       // Update Firestore user document
-      await setDoc(doc(db, 'users', currentUser.uid), {
-        email: profile.email,
+      console.log('💾 Saving to Firestore...');
+      const userData = {
+        email: profile.email || '',
         fullName: fullName,
-        firstName: profile.firstName,
-        lastName: profile.lastName,
-        middleInitial: profile.middleInitial,
-        sex: profile.sex,
-        age: profile.age,
-        birthdate: profile.birthdate,
-        contact: profile.contact,
-        homeAddress: profile.homeAddress,
-        profilePic: imageURL,
+        firstName: profile.firstName || '',
+        lastName: profile.lastName || '',
+        middleInitial: profile.middleInitial || '',
+        sex: profile.sex || '',
+        age: profile.age || '',
+        birthdate: profile.birthdate || '',
+        contact: profile.contact || '',
+        homeAddress: profile.homeAddress || '',
         role: profile.role || 'Student',
-        studentId: profile.studentId, // Ensure studentId is included
+        studentId: profile.studentId || '',
         updatedAt: new Date().toISOString()
-      }, { merge: true });
+      };
+      
+      // Only add image fields if image exists
+      if (imageURL) {
+        userData.image = imageURL;
+        userData.profilePic = imageURL;
+      }
+      
+      await setDoc(doc(db, 'users', currentUser.uid), userData, { merge: true });
+      console.log('✅ Firestore user document updated');
 
       // 🔄 SYNC WITH ADMIN STUDENT LIST
       // If this is a student, also update their record in the admin's students collection
@@ -299,83 +333,64 @@ export default function EditProfile() {
           if (!studentsSnapshot.empty) {
             // Update the existing student record in admin's collection
             const studentDoc = studentsSnapshot.docs[0];
-            await updateDoc(doc(db, 'students', studentDoc.id), {
-              firstName: profile.firstName,
-              lastName: profile.lastName,
-              middleInitial: profile.middleInitial,
-              sex: profile.sex,
-              age: profile.age,
-              birthdate: profile.birthdate,
-              sccNumber: profile.sccNumber,
-              contact: profile.contact,
-              fatherName: profile.fatherName,
-              fatherOccupation: profile.fatherOccupation,
-              motherName: profile.motherName,
-              motherOccupation: profile.motherOccupation,
-              guardian: profile.guardian,
-              guardianContact: profile.guardianContact,
-              homeAddress: profile.homeAddress,
-              profilePic: imageURL,
-              email: profile.email,
+            console.log('📝 Updating existing student record...');
+            const studentUpdateData = {
+              firstName: profile.firstName || '',
+              lastName: profile.lastName || '',
+              middleInitial: profile.middleInitial || '',
+              sex: profile.sex || '',
+              age: profile.age || '',
+              birthdate: profile.birthdate || '',
+              contact: profile.contact || '',
+              homeAddress: profile.homeAddress || '',
+              email: profile.email || '',
               isRegistered: true,
               registeredUserId: currentUser.uid,
               lastUpdated: new Date().toISOString(),
               updatedBy: 'student'
-            });
+            };
+            
+            // Only add image if it exists
+            if (imageURL) {
+              studentUpdateData.image = imageURL;
+              studentUpdateData.profilePic = imageURL;
+            }
+            
+            await updateDoc(doc(db, 'students', studentDoc.id), studentUpdateData);
             
             console.log('✅ Student record synced with admin list successfully');
           } else {
-            console.log('⚠️ Student record not found in admin collection, creating new record...');
-            
-            // Create a new student record in admin's collection if not found
-            await addDoc(collection(db, 'students'), {
-              id: profile.studentId,
-              firstName: profile.firstName,
-              lastName: profile.lastName,
-              middleInitial: profile.middleInitial,
-              sex: profile.sex,
-              age: profile.age,
-              birthdate: profile.birthdate,
-              sccNumber: profile.sccNumber,
-              contact: profile.contact,
-              fatherName: profile.fatherName,
-              fatherOccupation: profile.fatherOccupation,
-              motherName: profile.motherName,
-              motherOccupation: profile.motherOccupation,
-              guardian: profile.guardian,
-              guardianContact: profile.guardianContact,
-              homeAddress: profile.homeAddress,
-              profilePic: imageURL,
-              email: profile.email,
-              isRegistered: true,
-              registeredUserId: currentUser.uid,
-              registeredAt: new Date().toISOString(),
-              createdAt: new Date().toISOString(),
-              lastUpdated: new Date().toISOString(),
-              updatedBy: 'student'
-            });
-            
-            console.log('✅ New student record created in admin collection');
+            console.log('⚠️ Student record not found in admin collection, skipping sync...');
+            // Don't create new record - let admin handle student creation
           }
         } catch (syncError) {
           console.error('❌ Error syncing with admin student list:', syncError);
-          // Don't fail the entire operation if sync fails
+          // Don't fail the entire operation if sync fails - just log the error
+          setSnackbar({ 
+            open: true, 
+            message: "Profile saved, but sync with admin records failed: " + syncError.message, 
+            severity: "warning" 
+          });
         }
       }
 
-      setSnackbar({ open: true, message: "Profile updated successfully! Changes synced with admin records.", severity: "success" });
+      setSnackbar({ open: true, message: "Profile updated successfully!", severity: "success" });
       setSaveSuccess(true);
+      setSaving(false); // Reset saving state before navigation
       setTimeout(() => setSaveSuccess(false), 3000);
       
       // Navigate back to profile after successful save
       setTimeout(() => {
         navigate('/profile');
-      }, 2000);
+      }, 1500);
     } catch (error) {
-      console.error('Error updating profile:', error);
-      setSnackbar({ open: true, message: "Error updating profile: " + error.message, severity: "error" });
-    } finally {
-      setSaving(false);
+      console.error('❌ Error updating profile:', error);
+      setSnackbar({ 
+        open: true, 
+        message: "Error updating profile: " + (error.message || 'Unknown error. Please try again.'), 
+        severity: "error" 
+      });
+      setSaving(false); // Make sure to reset saving state on error
     }
   };
 

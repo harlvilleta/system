@@ -5,6 +5,7 @@ import FirebaseDataViewer from '../components/FirebaseDataViewer';
 import LoginDiagnostic from '../components/LoginDiagnostic';
 import FirestoreTest from '../components/FirestoreTest';
 import FirebaseRulesChecker from '../components/FirebaseRulesChecker';
+import UpdateAdminRole from '../components/UpdateAdminRole';
 
 export default function TestPage() {
   const [loading, setLoading] = useState(false);
@@ -40,6 +41,7 @@ export default function TestPage() {
           <Tab label="🔧 Login Diagnostics" />
           <Tab label="📝 Firestore Test" />
           <Tab label="🔒 Rules Checker" />
+          <Tab label="👑 Update Admin Role" />
         </Tabs>
       </Box>
 
@@ -108,6 +110,10 @@ export default function TestPage() {
 
       {activeTab === 4 && (
         <FirebaseRulesChecker />
+      )}
+
+      {activeTab === 5 && (
+        <UpdateAdminRole />
       )}
     </Box>
   );

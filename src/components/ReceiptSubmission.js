@@ -411,7 +411,8 @@ export default function ReceiptSubmission() {
   return (
     <Box sx={{ 
       p: { xs: 2, sm: 4 }, 
-      maxWidth: 800, 
+      maxWidth: 1200,
+      width: '100%',
       mx: 'auto',
       minHeight: '100vh',
       bgcolor: theme.palette.mode === 'dark' ? '#0a0a0a' : '#f8fafc'

@@ -27,22 +27,8 @@ export default function UserAnnouncements() {
       const announcementsData = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       // Filter out private announcements - only show public announcements to regular users
       const publicAnnouncements = announcementsData.filter(a => a.visibility !== "private");
-      // Filter to show only active announcements (not completed, not expired, within schedule/expiry dates)
-      const now = new Date();
-      const activeAnnouncements = publicAnnouncements.filter(a => {
-        // Check if completed (manually or expired)
-        const isCompleted = a.completed || (a.expiryDate && new Date(a.expiryDate) <= now);
-        if (isCompleted) return false;
-        
-        // Check if scheduled date has passed
-        if (a.scheduleDate && new Date(a.scheduleDate) > now) return false;
-        
-        // Check if expiry date hasn't passed
-        if (a.expiryDate && new Date(a.expiryDate) <= now) return false;
-        
-        return true;
-      });
-      setAnnouncements(activeAnnouncements);
+      // Store ALL public announcements (including expired ones) so we can display them
+      setAnnouncements(publicAnnouncements);
       setLoading(false);
     });
 
@@ -73,9 +59,17 @@ export default function UserAnnouncements() {
     return { recent, mainList: filteredMain };
   }
 
-  function getCompletedAnnouncements(announcements, search) {
-    const completed = announcements.filter(a => a.completed);
-    const sorted = [...completed].sort((a, b) => new Date(b.completedAt || b.date) - new Date(a.completedAt || a.date));
+  function getExpiredAnnouncements(announcements, search) {
+    const now = new Date();
+    const expired = announcements.filter(a => {
+      // Check if announcement is expired (either manually completed or past expiry date)
+      return a.completed || (a.expiryDate && new Date(a.expiryDate) <= now);
+    });
+    const sorted = [...expired].sort((a, b) => {
+      const aDate = new Date(a.expiryDate || a.completedAt || b.date || 0);
+      const bDate = new Date(b.expiryDate || b.completedAt || a.date || 0);
+      return bDate - aDate;
+    });
     return search
       ? sorted.filter(a =>
           (a.title?.toLowerCase().includes(search.toLowerCase()) ||
@@ -98,7 +92,7 @@ export default function UserAnnouncements() {
       case 'active':
         return mainList;
       case 'completed':
-        return filteredCompleted;
+        return filteredExpired;
       default:
         return announcements;
     }
@@ -111,7 +105,7 @@ export default function UserAnnouncements() {
       case 'active':
         return 'Active Announcements';
       case 'completed':
-        return 'Completed Announcements';
+        return 'Expired Announcements';
       default:
         return 'All Announcements';
     }
@@ -119,7 +113,7 @@ export default function UserAnnouncements() {
 
   // Use utility functions for each tab
   const { recent, mainList } = getActiveAnnouncements(announcements, search);
-  const filteredCompleted = getCompletedAnnouncements(announcements, search);
+  const filteredExpired = getExpiredAnnouncements(announcements, search);
 
   const total = announcements.length;
   const pinnedCount = announcements.filter(a => a.pinned).length;
@@ -209,10 +203,10 @@ export default function UserAnnouncements() {
             >
               <CardContent sx={{ textAlign: 'center', py: 3 }}>
                 <Typography variant="h4" fontWeight={700} sx={{ color: '#000000' }}>
-                  {filteredCompleted.length}
+                  {filteredExpired.length}
                 </Typography>
                 <Typography variant="body2" color="textSecondary" sx={{ mt: 1 }}>
-                  Completed
+                  Expired
                 </Typography>
               </CardContent>
             </Card>
@@ -242,17 +236,15 @@ export default function UserAnnouncements() {
           </Box>
         </Box>
 
-        {/* Search Bar and Filters */}
-        <Box sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
-          {/* Search Bar */}
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, maxWidth: 400, flex: 1, minWidth: 300 }}>
+        {/* Search Bar */}
+        <Box sx={{ mb: 3, display: 'flex', alignItems: 'center', gap: 2 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, maxWidth: 500, flex: 1 }}>
             <TextField
               value={search}
               onChange={e => setSearch(e.target.value)}
               placeholder="Search announcements..."
               size="small"
               fullWidth
-              autoFocus
               sx={{ 
                 '& .MuiOutlinedInput-root': {
                   bgcolor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.9)',
@@ -299,84 +291,9 @@ export default function UserAnnouncements() {
               }}
             />
           </Box>
-
-          {/* Filter Buttons */}
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <Typography variant="body2" sx={{ color: '#000000', fontWeight: 600, fontSize: '0.9rem', mr: 1 }}>
-              Filters:
-            </Typography>
-            <Chip 
-              label="All" 
-              variant={search === "" ? "filled" : "outlined"}
-              onClick={() => setSearch("")}
-              sx={{ 
-                color: search === "" ? '#ffffff' : '#000000',
-                bgcolor: search === "" ? '#800000' : 'transparent',
-                borderColor: '#000000',
-                borderWidth: 2,
-                fontWeight: 500,
-                '&:hover': {
-                  bgcolor: '#800000',
-                  color: '#000000',
-                  borderColor: '#800000'
-                }
-              }}
-            />
-            <Chip 
-              label="Students" 
-              variant="outlined"
-              onClick={() => setSearch("students")}
-              sx={{ 
-                color: '#000000',
-                bgcolor: 'transparent',
-                borderColor: '#000000',
-                borderWidth: 2,
-                fontWeight: 500,
-                '&:hover': {
-                  bgcolor: '#800000',
-                  color: '#000000',
-                  borderColor: '#800000'
-                }
-              }}
-            />
-            <Chip 
-              label="Teachers" 
-              variant="outlined"
-              onClick={() => setSearch("teachers")}
-              sx={{ 
-                color: '#000000',
-                bgcolor: 'transparent',
-                borderColor: '#000000',
-                borderWidth: 2,
-                fontWeight: 500,
-                '&:hover': {
-                  bgcolor: '#800000',
-                  color: '#000000',
-                  borderColor: '#800000'
-                }
-              }}
-            />
-            <Chip 
-              label="With Photos" 
-              variant="outlined"
-              onClick={() => setSearch("photo")}
-              sx={{ 
-                color: '#000000',
-                bgcolor: 'transparent',
-                borderColor: '#000000',
-                borderWidth: 2,
-                fontWeight: 500,
-                '&:hover': {
-                  bgcolor: '#800000',
-                  color: '#000000',
-                  borderColor: '#800000'
-                }
-              }}
-            />
-          </Box>
         </Box>
 
-        {/* Recent and Completed Announcements Side by Side */}
+        {/* Recent and Expired Announcements Side by Side */}
         <Grid container spacing={3} sx={{ mb: 4 }}>
           {/* Recent Announcements - Left Side */}
           <Grid item xs={12} md={6} sx={{ display: 'flex', flexDirection: 'column' }}>
@@ -488,7 +405,7 @@ export default function UserAnnouncements() {
             </Box>
           </Grid>
 
-          {/* Completed Announcements - Right Side */}
+          {/* Expired Announcements - Right Side */}
           <Grid item xs={12} md={6} sx={{ display: 'flex', flexDirection: 'column' }}>
             <Box sx={{ 
               maxWidth: '100%', 
@@ -497,8 +414,8 @@ export default function UserAnnouncements() {
               display: 'flex',
               flexDirection: 'column'
             }}>
-              <Typography variant="h6" sx={{ mb: 1, fontWeight: 700, color: '#43a047' }}>
-                Completed Announcements
+              <Typography variant="h6" sx={{ mb: 1, fontWeight: 700, color: '#ff9800' }}>
+                Expired Announcements
               </Typography>
               <Box sx={{ 
                 flex: 1,
@@ -506,19 +423,19 @@ export default function UserAnnouncements() {
                 maxHeight: '600px',
                 overflow: 'auto'
               }}>
-                {filteredCompleted.length === 0 ? (
-                  <Typography align="center" color="text.secondary" sx={{ mt: 4 }}>No completed announcements.</Typography>
+                {filteredExpired.length === 0 ? (
+                  <Typography align="center" color="text.secondary" sx={{ mt: 4 }}>No expired announcements.</Typography>
                 ) : (
                   <MuiStack spacing={0.5}>
-                    {filteredCompleted.map(a => (
-                      <Card key={a.id} sx={{ mb: 0.5, borderLeft: '3px solid #43a047', boxShadow: 1, px: 0.5, py: 0.25, minHeight: 'auto' }}>
+                    {filteredExpired.map(a => (
+                      <Card key={a.id} sx={{ mb: 0.5, borderLeft: '3px solid #4caf50', boxShadow: 1, px: 0.5, py: 0.25, minHeight: 'auto' }}>
                         <CardHeader
                           title={<MuiStack direction="row" alignItems="center" spacing={1}>
                             <Typography fontWeight={700}>{a.title}</Typography>
-                            <Chip label="Completed" color="success" size="small" />
+                            <Chip label="Expired" color="success" size="small" />
                             <Chip label={a.audience || 'All'} color="secondary" size="small" />
                           </MuiStack>}
-                          subheader={a.completedAt ? new Date(a.completedAt).toLocaleDateString() : a.date ? new Date(a.date).toLocaleDateString() : ''}
+                          subheader={a.expiryDate ? new Date(a.expiryDate).toLocaleDateString() : a.completedAt ? new Date(a.completedAt).toLocaleDateString() : a.date ? new Date(a.date).toLocaleDateString() : ''}
                           action={
                             <MuiStack direction="row" spacing={1}>
                               <IconButton 

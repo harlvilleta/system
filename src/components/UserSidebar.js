@@ -8,9 +8,10 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { auth, db } from '../firebase';
 import { signOut } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
+import { saveLastPath } from '../utils/authPersistence';
 
 const userMenu = [
-  { text: "Dashboard", icon: <Dashboard sx={{ color: 'inherit' }} />, path: "/" },
+  { text: "Dashboard", icon: <Dashboard sx={{ color: 'inherit' }} />, path: "/user-dashboard" },
   { text: "My Violations", icon: <Assignment sx={{ color: 'inherit' }} />, path: "/violations" },
   { text: "Announcements", icon: <Announcement sx={{ color: 'inherit' }} />, path: "/announcements" },
   { text: "Lost & Found", icon: <Search sx={{ color: 'inherit' }} />, path: "/lost-found" },
@@ -107,18 +108,28 @@ export default function UserSidebar({ currentUser, userProfile }) {
         scrollbarWidth: 'none', // Firefox
         msOverflowStyle: 'none' // IE and Edge
       }}>
-        {userMenu.map((item, index) => (
+        {userMenu.map((item, index) => {
+          // Check if item is active - handle Dashboard specially to match both "/" and "/user-dashboard"
+          const isActive = item.path === "/user-dashboard" 
+            ? (location.pathname === "/user-dashboard" || location.pathname === "/")
+            : location.pathname === item.path || location.pathname.startsWith(item.path + "/");
+          
+          return (
           <ListItem
             key={index}
             button
-            onClick={() => navigate(item.path)}
+            onClick={() => {
+              // Save the path before navigating
+              saveLastPath(item.path);
+              navigate(item.path, { replace: true });
+            }}
             sx={{
               mb: 1,
               borderRadius: 2,
-              bgcolor: location.pathname === item.path ? '#A52A2A' : 'transparent',
-              color: location.pathname === item.path ? '#fff' : '#b2bec3',
+              bgcolor: isActive ? '#A52A2A' : 'transparent',
+              color: isActive ? '#fff' : '#b2bec3',
               '&:hover': {
-                bgcolor: location.pathname === item.path ? '#A52A2A' : '#8B0000',
+                bgcolor: isActive ? '#A52A2A' : '#8B0000',
                 transform: 'translateX(4px)',
                 boxShadow: 2
               },
@@ -131,7 +142,7 @@ export default function UserSidebar({ currentUser, userProfile }) {
               primary={item.text} 
               sx={{ 
                 '& .MuiListItemText-primary': {
-                  fontWeight: location.pathname === item.path ? 600 : 400,
+                  fontWeight: isActive ? 600 : 400,
                   fontSize: '0.875rem',
                   lineHeight: 1.2,
                   textAlign: 'left'
@@ -139,7 +150,8 @@ export default function UserSidebar({ currentUser, userProfile }) {
               }}
             />
           </ListItem>
-        ))}
+          );
+        })}
 
         <Divider sx={{ my: 2, bgcolor: '#b2bec3' }} />
 

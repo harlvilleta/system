@@ -1,6 +1,7 @@
 // Auth persistence utilities to ensure login state is maintained across page refreshes
 
 const AUTH_STORAGE_KEY = 'portal_auth_state';
+const LAST_PATH_KEY = 'portal_last_path';
 
 export const saveAuthState = (user, userProfile, userRole) => {
   try {
@@ -18,6 +19,31 @@ export const saveAuthState = (user, userProfile, userRole) => {
     localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(authState));
   } catch (error) {
     console.error('Failed to save auth state:', error);
+  }
+};
+
+export const saveLastPath = (path) => {
+  try {
+    localStorage.setItem(LAST_PATH_KEY, path);
+  } catch (error) {
+    console.error('Failed to save last path:', error);
+  }
+};
+
+export const getLastPath = () => {
+  try {
+    return localStorage.getItem(LAST_PATH_KEY);
+  } catch (error) {
+    console.error('Failed to get last path:', error);
+    return null;
+  }
+};
+
+export const clearLastPath = () => {
+  try {
+    localStorage.removeItem(LAST_PATH_KEY);
+  } catch (error) {
+    console.error('Failed to clear last path:', error);
   }
 };
 
