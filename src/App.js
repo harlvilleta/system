@@ -8,6 +8,8 @@ import ProfileDropdown from "./components/ProfileDropdown";
 import ThemeWrapper from "./components/ThemeWrapper";
 import { ThemeProvider as CustomThemeProvider } from "./contexts/ThemeContext";
 import Sidebar from "./components/Sidebar";
+import AdminSidebar from "./components/AdminSidebar";
+import StaffSidebar from "./components/StaffSidebar";
 import UserSidebar from "./components/UserSidebar";
 import TeacherSidebar from "./components/TeacherSidebar";
 import Overview from "./pages/Overview";
@@ -66,6 +68,17 @@ import ClassroomDashboard from "./pages/ClassroomDashboard";
 import StudentClassroom from "./pages/StudentClassroom";
 import StudentActivities from "./pages/StudentActivities";
 import EditProfile from "./pages/EditProfile";
+import AdminDashboard from "./pages/AdminDashboard";
+import AdminUsers from "./pages/AdminUsers";
+import AdminSecurity from "./pages/AdminSecurity";
+import AdminMaintenance from "./pages/AdminMaintenance";
+import AdminSettings from "./pages/AdminSettings";
+import AdminAnalytics from "./pages/AdminAnalytics";
+import AdminAudit from "./pages/AdminAudit";
+import AdminMonitoring from "./pages/AdminMonitoring";
+import AdminStaffManagement from "./pages/AdminStaffManagement";
+import AdminRoleAssignment from "./pages/AdminRoleAssignment";
+import StaffOverview from "./pages/StaffOverview";
 
 // Header component for admin dashboard
 function AdminHeader({ currentUser, userProfile }) {
@@ -152,7 +165,7 @@ function AdminHeader({ currentUser, userProfile }) {
   const getUserDisplayInfo = () => {
     if (userProfile) {
       return {
-        name: userProfile.fullName || currentUser?.displayName || 'Admin User',
+        name: userProfile.fullName || currentUser?.displayName || (userProfile.role === 'Staff' ? 'Staff User' : 'Admin User'),
         email: userProfile.email || currentUser?.email,
         photo: userProfile.profilePic || currentUser?.photoURL,
         role: userProfile.role || 'Admin'
@@ -551,7 +564,7 @@ function App() {
             } else {
               // Normalize role case (Admin, admin, ADMIN -> Admin)
               const normalizedRole = role.charAt(0).toUpperCase() + role.slice(1).toLowerCase();
-              if (['Admin', 'Teacher', 'Student'].includes(normalizedRole)) {
+              if (['Admin', 'Staff', 'Teacher', 'Student'].includes(normalizedRole)) {
                 role = normalizedRole;
               } else {
                 console.warn('⚠️ Unknown role value:', role, '- defaulting to Student');
@@ -807,8 +820,18 @@ function App() {
         <Router>
           <PathTracker />
           <Routes>
-            <Route path="/login" element={<Navigate to={userRole === 'Admin' ? '/overview' : userRole === 'Teacher' ? '/teacher-dashboard' : '/user-dashboard'} replace />} />
-            <Route path="/register" element={<Navigate to={userRole === 'Admin' ? '/overview' : userRole === 'Teacher' ? '/teacher-dashboard' : '/user-dashboard'} replace />} />
+            <Route path="/login" element={<Navigate to={
+              userRole === 'Admin' ? '/admin-dashboard' : 
+              userRole === 'Staff' ? '/staff-overview' : 
+              userRole === 'Teacher' ? '/teacher-dashboard' : 
+              '/user-dashboard'
+            } replace />} />
+            <Route path="/register" element={<Navigate to={
+              userRole === 'Admin' ? '/admin-dashboard' : 
+              userRole === 'Staff' ? '/staff-overview' : 
+              userRole === 'Teacher' ? '/teacher-dashboard' : 
+              '/user-dashboard'
+            } replace />} />
             
             {/* Admin/Teacher Routes - Only accessible to Admin/Teacher roles */}
             <Route path="/*" element={
@@ -828,15 +851,16 @@ function App() {
                   // Still loading role - show loading state (handled by outer loading check)
                   return false;
                 }
-                const isAdminOrTeacher = (userRole === 'Admin' || userRole === 'Teacher');
-                console.log('✅ Is Admin or Teacher?', isAdminOrTeacher);
-                return isAdminOrTeacher;
+                const isAdminOrStaffOrTeacher = (userRole === 'Admin' || userRole === 'Staff' || userRole === 'Teacher');
+                console.log('✅ Is Admin, Staff, or Teacher?', isAdminOrStaffOrTeacher);
+                return isAdminOrStaffOrTeacher;
               })() ? (
                 userRole === 'Admin' ? (
+                  // Admin Dashboard - System Management Only
                   <Box sx={{ display: "flex", flexDirection: "column", height: "100vh", bgcolor: "background.default" }}>
                     <AdminHeader currentUser={currentUser} userProfile={userProfile} />
                     <Box sx={{ display: "flex", flex: 1 }}>
-                      <Sidebar />
+                      <AdminSidebar />
                       <Box sx={{ 
                         flex: 1, 
                         overflowY: "auto",
@@ -848,45 +872,74 @@ function App() {
                         msOverflowStyle: 'none'
                       }}>
                         <Routes>
-                          <Route path="/" element={<PreserveRoute defaultPath="/overview" userRole={userRole} />} />
-                          <Route path="/overview" element={<Overview />} />
-                          <Route path="/students/*" element={<Students />} />
-                                                    <Route path="/activity" element={<Activity />} />
-                              <Route path="/activity/history" element={<ActivityHistory />} />
-                          <Route path="/history" element={<History />} />
-                          <Route path="/activity/requests" element={<ActivityRequestsAdmin />} />
+                          <Route path="/" element={<PreserveRoute defaultPath="/admin-dashboard" userRole={userRole} />} />
+                          <Route path="/admin-dashboard" element={<AdminDashboard />} />
+                          <Route path="/admin-users" element={<AdminUsers />} />
+                          <Route path="/admin-users/staff" element={<AdminStaffManagement />} />
+                          <Route path="/admin-users/roles" element={<AdminRoleAssignment />} />
+                          <Route path="/admin-security" element={<AdminSecurity />} />
+                          <Route path="/admin-security/logs" element={<AdminSecurity />} />
+                          <Route path="/admin-security/login-history" element={<AdminSecurity />} />
+                          <Route path="/admin-security/access" element={<AdminSecurity />} />
+                          <Route path="/admin-maintenance" element={<AdminMaintenance />} />
+                          <Route path="/admin-maintenance/database" element={<AdminMaintenance />} />
+                          <Route path="/admin-maintenance/backup" element={<AdminMaintenance />} />
+                          <Route path="/admin-maintenance/cleanup" element={<AdminMaintenance />} />
+                          <Route path="/admin-settings" element={<AdminSettings />} />
+                          <Route path="/admin-settings/general" element={<AdminSettings />} />
+                          <Route path="/admin-settings/email" element={<AdminSettings />} />
+                          <Route path="/admin-settings/notifications" element={<AdminSettings />} />
+                          <Route path="/admin-analytics" element={<AdminAnalytics />} />
+                          <Route path="/admin-audit" element={<AdminAudit />} />
+                          <Route path="/admin-monitoring" element={<AdminMonitoring />} />
+                          <Route path="/admin-view-data" element={<Overview />} />
                           <Route path="/profile" element={<Profile />} />
                           <Route path="/edit-profile" element={<EditProfile />} />
+                          <Route path="/*" element={<Navigate to="/admin-dashboard" replace />} />
+                        </Routes>
+                      </Box>
+                    </Box>
+                  </Box>
+                ) : userRole === 'Staff' ? (
+                  // Staff Dashboard - Day-to-day Operations
+                  <Box sx={{ display: "flex", flexDirection: "column", height: "100vh", bgcolor: "background.default" }}>
+                    <AdminHeader currentUser={currentUser} userProfile={userProfile} />
+                    <Box sx={{ display: "flex", flex: 1 }}>
+                      <StaffSidebar />
+                      <Box sx={{ 
+                        flex: 1, 
+                        overflowY: "auto",
+                        height: "calc(100vh - 32px)",
+                        '&::-webkit-scrollbar': {
+                          display: 'none'
+                        },
+                        scrollbarWidth: 'none',
+                        msOverflowStyle: 'none'
+                      }}>
+                        <Routes>
+                          <Route path="/" element={<PreserveRoute defaultPath="/staff-overview" userRole={userRole} />} />
+                          <Route path="/staff-overview" element={<StaffOverview />} />
+                          <Route path="/students-chart" element={<StudentsChartDashboard />} />
+                          <Route path="/violations-chart" element={<ViolationsChartDashboard />} />
+                          <Route path="/students/*" element={<Students />} />
+                          <Route path="/activity" element={<Activity />} />
+                          <Route path="/activity/history" element={<ActivityHistory />} />
+                          <Route path="/activity/requests" element={<ActivityRequestsAdmin />} />
                           <Route path="/violation-record" element={<ViolationRecord />} />
                           <Route path="/violation-record/create-meeting" element={<ViolationCreateMeeting />} />
                           <Route path="/violation-record/history" element={<ViolationHistory />} />
                           <Route path="/violation-record/status" element={<ViolationStatus />} />
                           <Route path="/violation-review" element={<ViolationReview />} />
-                          <Route path="/violation-record/review/:id" element={<ViolationReview />} />
-                          <Route path="/options" element={<Options />} />
                           <Route path="/announcements" element={<Announcements />} />
                           <Route path="/announcements/report" element={<AnnouncementReport />} />
                           <Route path="/receipt-review" element={<ReceiptReview />} />
                           <Route path="/lost-found" element={<AdminLostFound />} />
-                          <Route path="/students-lost-found" element={<StudentsLostFound />} />
-                          <Route path="/lost-item-records" element={<LostItemRecords />} />
-                          <Route path="/found-item-records" element={<FoundItemRecords />} />
-                          <Route path="/recycle-bin" element={<RecycleBin />} />
-                          <Route path="/admin-notifications" element={<AdminNotifications />} />
                           <Route path="/admin-activity-scheduler" element={<AdminActivityScheduler />} />
-                          <Route path="/students-chart" element={<StudentsChartDashboard />} />
-                          <Route path="/violations-chart" element={<ViolationsChartDashboard />} />
                           <Route path="/teacher-request" element={<TeacherRequest />} />
-                          <Route path="/user/*" element={<Navigate to="/overview" />} />
-                          <Route path="/*" element={
-                            (() => {
-                              const lastPath = getLastPath();
-                              if (lastPath && lastPath !== '/' && lastPath !== '/overview') {
-                                return <Navigate to={lastPath} replace />;
-                              }
-                              return <Navigate to="/overview" replace />;
-                            })()
-                          } />
+                          <Route path="/profile" element={<Profile />} />
+                          <Route path="/edit-profile" element={<EditProfile />} />
+                          <Route path="/options" element={<Options />} />
+                          <Route path="/*" element={<Navigate to="/staff-overview" replace />} />
                         </Routes>
                       </Box>
                     </Box>

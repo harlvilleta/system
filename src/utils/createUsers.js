@@ -147,6 +147,14 @@ export const createSampleUsers = async () => {
           assignedBy: 'system',
           assignedDate: new Date().toISOString()
         };
+      } else if (userData.role === 'Staff') {
+        firestoreUserData.staffInfo = {
+          department: 'General',
+          hireDate: new Date().toISOString(),
+          status: 'active',
+          assignedBy: 'system',
+          assignedDate: new Date().toISOString()
+        };
       } else if (userData.role === 'Teacher') {
         firestoreUserData.teacherInfo = {
           subjects: [],
@@ -313,6 +321,14 @@ export const createSingleUser = async (userData) => {
       firestoreUserData.adminInfo = {
         permissions: ['all'],
         adminLevel: 'super',
+        assignedBy: 'admin',
+        assignedDate: new Date().toISOString()
+      };
+    } else if (userData.role === 'Staff') {
+      firestoreUserData.staffInfo = {
+        department: 'General',
+        hireDate: new Date().toISOString(),
+        status: 'active',
         assignedBy: 'admin',
         assignedDate: new Date().toISOString()
       };

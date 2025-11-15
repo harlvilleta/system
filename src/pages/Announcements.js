@@ -858,7 +858,7 @@ export default function Announcements() {
       </Box>
 
         {/* Create Announcement Button - Right Side */}
-        {userRole === 'Admin' && (
+        {(userRole === 'Admin' || userRole === 'Staff') && (
           <Button 
             variant="outlined" 
             onClick={() => setFormModalOpen(true)}
@@ -952,7 +952,7 @@ export default function Announcements() {
                       }
                       action={
                         <Stack direction="row" spacing={1}>
-                            {userRole === 'Admin' && (
+                            {(userRole === 'Admin' || userRole === 'Staff') && (
                               <>
                                 <Tooltip title={a.pinned ? "Unpin" : "Pin"}><IconButton onClick={() => handlePin(a, !a.pinned)} disabled={isSubmitting}>{a.pinned ? <PushPinIcon /> : <PushPinOutlinedIcon />}</IconButton></Tooltip>
                                 <Tooltip title="Edit"><IconButton 
@@ -1215,7 +1215,7 @@ export default function Announcements() {
       {selectedCard && (
         <Box sx={{ mb: 4, maxWidth: '100%', width: '100%' }}>
           <Typography variant="h6" sx={{ mb: 1, fontWeight: 700 }}>{getCardTitle()}</Typography>
-          {selected.length > 0 && userRole === 'Admin' && (
+          {selected.length > 0 && (userRole === 'Admin' || userRole === 'Staff') && (
             <Paper sx={{ mb: 2, p: 1, bgcolor: '#f5f5f5', display: 'flex', alignItems: 'center', gap: 2 }}>
               <Typography>{selected.length} selected</Typography>
               <Button size="small" color="error" onClick={() => setBulkAction('delete')}>Delete</Button>
@@ -1246,7 +1246,7 @@ export default function Announcements() {
                     bgcolor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.08)' : 'rgba(255, 255, 255, 1)'
                   }
                 }}>
-                  {userRole === 'Admin' && (
+                  {(userRole === 'Admin' || userRole === 'Staff') && (
                     <Box sx={{ position: 'absolute', left: 8, top: 8 }}>
                       <input type="checkbox" checked={selected.includes(a.id)} onChange={e => setSelected(sel => e.target.checked ? [...sel, a.id] : sel.filter(id => id !== a.id))} />
                     </Box>
@@ -1262,7 +1262,7 @@ export default function Announcements() {
                     subheader={a.date ? new Date(a.date).toLocaleDateString() : ''}
                     action={
                       <Stack direction="row" spacing={1}>
-                        {userRole === 'Admin' && (
+                        {(userRole === 'Admin' || userRole === 'Staff') && (
                           <>
                             <Tooltip title={a.pinned ? "Unpin" : "Pin"}><IconButton onClick={() => handlePin(a, !a.pinned)} disabled={isSubmitting}>{a.pinned ? <PushPinIcon /> : <PushPinOutlinedIcon />}</IconButton></Tooltip>
                             <Tooltip title="Edit"><IconButton onClick={() => setEditAnnouncement(a)}><EditIcon /></IconButton></Tooltip>

@@ -15,7 +15,7 @@ import {
 } from '@mui/material';
 import { createSingleUser } from '../utils/createUsers';
 
-const roles = ['Student', 'Admin', 'Teacher'];
+const roles = ['Student', 'Staff', 'Admin', 'Teacher'];
 const courses = ["BSIT", "BSBA", "BSCRIM", "BSHTM", "BEED", "BSED", "BSHM"];
 const years = ["1st Year", "2nd Year", "3rd Year", "4th Year"];
 
