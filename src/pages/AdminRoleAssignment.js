@@ -28,9 +28,11 @@ import {
   Snackbar,
   Alert,
   Tabs,
-  Tab
+  Tab,
+  TablePagination,
+  InputAdornment
 } from '@mui/material';
-import { People, Settings, Refresh, Edit } from '@mui/icons-material';
+import { People, Settings, Refresh, Edit, Search } from '@mui/icons-material';
 import { collection, getDocs, doc, updateDoc, query, orderBy } from 'firebase/firestore';
 import { db } from '../firebase';
 import { ROLES } from '../utils/roles';
@@ -45,10 +47,26 @@ export default function AdminRoleAssignment() {
   const [selectedUser, setSelectedUser] = useState(null);
   const [newRole, setNewRole] = useState('');
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(8);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filteredUsers, setFilteredUsers] = useState([]);
 
   useEffect(() => {
     loadUsers();
   }, []);
+
+  useEffect(() => {
+    filterUsers();
+    setPage(0); // Reset to first page when filtering
+    // Recalculate role stats from all users (not filtered)
+    const stats = {};
+    users.forEach(user => {
+      const role = user.role || 'Unknown';
+      stats[role] = (stats[role] || 0) + 1;
+    });
+    setRoleStats(stats);
+  }, [searchTerm, users]);
 
   const loadUsers = async () => {
     try {
@@ -57,6 +75,7 @@ export default function AdminRoleAssignment() {
       const snapshot = await getDocs(usersQuery);
       const usersData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       setUsers(usersData);
+      setFilteredUsers(usersData);
 
       // Calculate role statistics
       const stats = {};
@@ -71,6 +90,19 @@ export default function AdminRoleAssignment() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const filterUsers = () => {
+    let filtered = [...users];
+    if (searchTerm) {
+      filtered = filtered.filter(user => 
+        user.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        user.fullName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (user.firstName + ' ' + user.lastName)?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        user.role?.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+    setFilteredUsers(filtered);
   };
 
   const handleEditRole = (user) => {
@@ -107,10 +139,10 @@ export default function AdminRoleAssignment() {
   };
 
   const roleCards = [
-    { role: 'Admin', color: '#d32f2f', description: 'System administrators' },
-    { role: 'Staff', color: '#ed6c02', description: 'Day-to-day operations' },
-    { role: 'Teacher', color: '#1976d2', description: 'Teaching staff' },
-    { role: 'Student', color: '#2e7d32', description: 'Student accounts' }
+    { role: 'Admin', color: '#8B0000', description: 'System administrators' },
+    { role: 'Staff', color: '#A52A2A', description: 'Day-to-day operations' },
+    { role: 'Teacher', color: '#800000', description: 'Teaching staff' },
+    { role: 'Student', color: '#722F37', description: 'Student accounts' }
   ];
 
   if (loading) {
@@ -124,17 +156,9 @@ export default function AdminRoleAssignment() {
   return (
     <Box sx={{ p: { xs: 2, sm: 3 }, minHeight: '100vh', bgcolor: theme.palette.mode === 'dark' ? '#0a0a0a' : '#f5f5f5' }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h4" fontWeight={700} sx={{ color: theme.palette.mode === 'dark' ? '#ffffff' : '#1a1a1a' }}>
+        <Typography variant="h4" fontWeight={700} sx={{ color: '#8B0000' }}>
           Role Assignment
         </Typography>
-        <Button
-          variant="outlined"
-          startIcon={<Refresh />}
-          onClick={loadUsers}
-          sx={{ borderColor: '#1976d2', color: '#1976d2', '&:hover': { borderColor: '#1565c0', bgcolor: 'rgba(25, 118, 210, 0.04)' } }}
-        >
-          Refresh
-        </Button>
       </Box>
 
       <Alert severity="info" sx={{ mb: 3, bgcolor: '#e3f2fd', border: '1px solid #1976d2' }}>
@@ -149,15 +173,17 @@ export default function AdminRoleAssignment() {
               height: '100%',
               bgcolor: theme.palette.mode === 'dark' ? '#1a1a1a' : '#ffffff',
               border: `2px solid ${roleCard.color}`,
-              borderLeft: `6px solid ${roleCard.color}`,
+              borderLeft: '4px solid',
+              borderLeftColor: '#8B0000',
               transition: 'all 0.3s',
               '&:hover': {
                 transform: 'translateY(-4px)',
-                boxShadow: 6
+                boxShadow: 6,
+                borderLeftColor: '#A52A2A'
               }
             }}>
-              <CardContent>
-                <Typography variant="h4" fontWeight={700} sx={{ color: roleCard.color, mb: 1 }}>
+              <CardContent sx={{ textAlign: 'center' }}>
+                <Typography variant="h4" fontWeight={700} sx={{ color: '#000000', mb: 1 }}>
                   {roleStats[roleCard.role] || 0}
                 </Typography>
                 <Typography variant="h6" fontWeight={600} sx={{ mb: 0.5 }}>
@@ -172,26 +198,52 @@ export default function AdminRoleAssignment() {
         ))}
       </Grid>
 
+      {/* Search and Refresh Button above table */}
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 2, mb: 2 }}>
+        <TextField
+          size="small"
+          placeholder="Search users by name, email, or role..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <Search />
+              </InputAdornment>
+            )
+          }}
+          sx={{ maxWidth: 400, flexGrow: 0 }}
+        />
+        <Button
+          variant="outlined"
+          startIcon={<Refresh />}
+          onClick={loadUsers}
+          sx={{ borderColor: '#1976d2', color: '#1976d2', '&:hover': { borderColor: '#1565c0', bgcolor: 'rgba(25, 118, 210, 0.04)' } }}
+        >
+          Refresh
+        </Button>
+      </Box>
+
       {/* Users Table */}
-      <TableContainer component={Paper} sx={{ bgcolor: theme.palette.mode === 'dark' ? '#1a1a1a' : '#ffffff', border: '2px solid #9c27b0' }}>
+      <TableContainer component={Paper} sx={{ bgcolor: theme.palette.mode === 'dark' ? '#1a1a1a' : '#ffffff' }}>
         <Table>
           <TableHead>
-            <TableRow sx={{ bgcolor: theme.palette.mode === 'dark' ? '#2a2a2a' : '#f3e5f5' }}>
-              <TableCell sx={{ fontWeight: 700, color: '#1976d2' }}>Email</TableCell>
-              <TableCell sx={{ fontWeight: 700, color: '#2e7d32' }}>Name</TableCell>
-              <TableCell sx={{ fontWeight: 700, color: '#ed6c02' }}>Current Role</TableCell>
-              <TableCell sx={{ fontWeight: 700, color: '#d32f2f' }}>Actions</TableCell>
+            <TableRow>
+              <TableCell sx={{ fontWeight: 700, color: '#ffffff', bgcolor: '#8B0000' }}>Email</TableCell>
+              <TableCell sx={{ fontWeight: 700, color: '#ffffff', bgcolor: '#8B0000' }}>Name</TableCell>
+              <TableCell sx={{ fontWeight: 700, color: '#ffffff', bgcolor: '#8B0000' }}>Current Role</TableCell>
+              <TableCell sx={{ fontWeight: 700, color: '#ffffff', bgcolor: '#8B0000' }}>Actions</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
-            {users.length === 0 ? (
+            {filteredUsers.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={4} align="center" sx={{ py: 4 }}>
                   <Typography color="text.secondary">No users found</Typography>
                 </TableCell>
               </TableRow>
             ) : (
-              users.map((user) => (
+              filteredUsers.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage).map((user) => (
                 <TableRow key={user.id} hover>
                   <TableCell>{user.email || 'N/A'}</TableCell>
                   <TableCell>{user.fullName || user.firstName + ' ' + user.lastName || 'N/A'}</TableCell>
@@ -221,6 +273,18 @@ export default function AdminRoleAssignment() {
             )}
           </TableBody>
         </Table>
+        <TablePagination
+          component="div"
+          count={filteredUsers.length}
+          page={page}
+          onPageChange={(event, newPage) => setPage(newPage)}
+          rowsPerPage={rowsPerPage}
+          onRowsPerPageChange={(event) => {
+            setRowsPerPage(parseInt(event.target.value, 10));
+            setPage(0);
+          }}
+          rowsPerPageOptions={[8]}
+        />
       </TableContainer>
 
       {/* Edit Role Dialog */}

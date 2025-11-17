@@ -479,6 +479,51 @@ function App() {
       
       console.log('Auth state changed:', { user: !!user, currentUserRole: userRole });
       
+      // Check if admin is creating a user - if so, handle specially
+      const adminCreatingUser = localStorage.getItem('adminCreatingUser');
+      if (adminCreatingUser === 'true' && user) {
+        // Get the backed up admin auth state
+        let adminAuthStateBackup = null;
+        try {
+          const backupStr = localStorage.getItem('adminAuthStateBackup');
+          if (backupStr) {
+            adminAuthStateBackup = JSON.parse(backupStr);
+          }
+        } catch (error) {
+          console.error('Error reading admin auth state backup:', error);
+        }
+        
+        // Check if this is the newly created user (not the admin)
+        if (adminAuthStateBackup && adminAuthStateBackup.user) {
+          // If the current user is NOT the admin, it's the newly created user
+          // Sign them out immediately and restore admin session
+          if (user.uid !== adminAuthStateBackup.user.uid) {
+            console.log('🚫 Detected newly created user during admin creation, signing out...');
+            try {
+              await signOut(auth);
+              // Restore admin session from backup
+              setUser(adminAuthStateBackup.user);
+              setCurrentUser(adminAuthStateBackup.user);
+              setUserProfile(adminAuthStateBackup.userProfile);
+              setUserRole(adminAuthStateBackup.userRole);
+              setLoading(false);
+              setIsRefreshing(false);
+              setAuthError(null);
+              setForceLogin(false);
+              // Restore the auth state in localStorage
+              saveAuthState(adminAuthStateBackup.user, adminAuthStateBackup.userProfile, adminAuthStateBackup.userRole);
+              console.log('✅ Admin session restored, staying on current page');
+              return; // Don't process the new user
+            } catch (signOutError) {
+              console.error('Error signing out new user:', signOutError);
+            }
+          } else {
+            // This is the admin, continue normally
+            console.log('✅ This is the admin user, continuing normally');
+          }
+        }
+      }
+      
       if (!authInitialized) {
         setAuthInitialized(true);
       }
@@ -728,6 +773,57 @@ function App() {
         }
       } else {
         // User logged out
+        // Check if admin is creating a user - if so, restore admin session
+        const adminCreatingUser = localStorage.getItem('adminCreatingUser');
+        if (adminCreatingUser === 'true') {
+          console.log('Admin is creating a user, preventing redirect...');
+          // Try to restore admin auth state from backup
+          let adminAuthStateBackup = null;
+          try {
+            const backupStr = localStorage.getItem('adminAuthStateBackup');
+            if (backupStr) {
+              adminAuthStateBackup = JSON.parse(backupStr);
+            }
+          } catch (error) {
+            console.error('Error reading admin auth state backup:', error);
+          }
+          
+          if (adminAuthStateBackup && adminAuthStateBackup.user && adminAuthStateBackup.userRole === 'Admin') {
+            console.log('🔄 Restoring admin session from backup...');
+            // Restore the admin's session state
+            setUser(adminAuthStateBackup.user);
+            setCurrentUser(adminAuthStateBackup.user);
+            setUserProfile(adminAuthStateBackup.userProfile);
+            setUserRole(adminAuthStateBackup.userRole);
+            setLoading(false);
+            setIsRefreshing(false);
+            setAuthError(null);
+            setForceLogin(false);
+            // Restore the auth state in localStorage
+            saveAuthState(adminAuthStateBackup.user, adminAuthStateBackup.userProfile, adminAuthStateBackup.userRole);
+            // Don't redirect - admin should stay on current page
+            return;
+          }
+          // If no backup, try stored auth state
+          const storedAuthState = getAuthState();
+          if (storedAuthState && storedAuthState.user && storedAuthState.userRole === 'Admin') {
+            console.log('🔄 Restoring admin session from stored auth state...');
+            setUser(storedAuthState.user);
+            setCurrentUser(storedAuthState.user);
+            setUserProfile(storedAuthState.userProfile);
+            setUserRole(storedAuthState.userRole);
+            setLoading(false);
+            setIsRefreshing(false);
+            setAuthError(null);
+            setForceLogin(false);
+            return;
+          }
+          // If no stored state, just prevent redirect but keep user as null
+          // The page will stay but admin will need to refresh or the flag will clear
+          console.log('⚠️ No stored admin auth state found, preventing redirect only');
+          return;
+        }
+        
         setUser(null);
         setCurrentUser(null);
         setUserProfile(null);
@@ -765,7 +861,9 @@ function App() {
   }
 
   // If user is not authenticated OR forceLogin is true, show login/register forms
-  if (!user || forceLogin) {
+  // BUT: If admin is creating a user, don't redirect - keep them on current page
+  const adminCreatingUser = localStorage.getItem('adminCreatingUser');
+  if ((!user || forceLogin) && adminCreatingUser !== 'true') {
     return (
       <CustomThemeProvider>
         <ThemeWrapper>
@@ -778,6 +876,19 @@ function App() {
           </Router>
         </ThemeWrapper>
       </CustomThemeProvider>
+    );
+  }
+  
+  // If admin is creating a user but user is null, show loading while state is restored
+  // The useEffect will restore the admin session
+  if (adminCreatingUser === 'true' && !user) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', flexDirection: 'column' }}>
+        <CircularProgress size={40} sx={{ mb: 2 }} />
+        <Typography variant="body2" color="text.secondary">
+          Restoring admin session...
+        </Typography>
+      </Box>
     );
   }
 

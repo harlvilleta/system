@@ -209,7 +209,7 @@ export default function AdminAnalytics() {
   return (
     <Box sx={{ p: { xs: 2, sm: 3 }, minHeight: '100vh', bgcolor: theme.palette.mode === 'dark' ? '#0a0a0a' : '#f5f5f5' }}>
       <Typography variant="h4" fontWeight={700} gutterBottom sx={{ 
-        color: theme.palette.mode === 'dark' ? '#ffffff' : '#1a1a1a',
+        color: '#8B0000',
         mb: 3
       }}>
         Analytics & Reports
@@ -220,31 +220,32 @@ export default function AdminAnalytics() {
         {statCards.map((stat, index) => (
           <Grid item xs={12} sm={6} md={2.4} key={index}>
             <Card sx={{ 
-              height: '100%',
               bgcolor: theme.palette.mode === 'dark' ? '#1a1a1a' : '#ffffff',
-              border: `2px solid ${stat.color}`,
-              borderLeft: `6px solid ${stat.color}`,
+              border: 'none',
+              borderLeft: '4px solid',
+              borderLeftColor: '#8B0000',
               transition: 'all 0.3s',
               '&:hover': {
                 transform: 'translateY(-4px)',
-                boxShadow: 6
+                boxShadow: 6,
+                borderLeftColor: '#A52A2A'
               }
             }}>
-              <CardContent>
-                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+              <CardContent sx={{ textAlign: 'center', py: 2 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', mb: 1.5 }}>
                   <Box sx={{ 
-                    p: 1.5, 
+                    p: 1, 
                     borderRadius: 2, 
-                    bgcolor: `${stat.color}20`,
-                    color: stat.color
+                    bgcolor: '#1976d220',
+                    color: '#1976d2'
                   }}>
                     {stat.icon}
                   </Box>
                 </Box>
-                <Typography variant="h4" fontWeight={700} sx={{ color: stat.color, mb: 0.5 }}>
+                <Typography variant="h5" fontWeight={700} sx={{ color: '#000000', mb: 0.5 }}>
                   {stat.value}
                 </Typography>
-                <Typography variant="body2" color="text.secondary" fontWeight={600}>
+                <Typography variant="body2" sx={{ color: '#000000', fontWeight: 600 }}>
                   {stat.title}
                 </Typography>
               </CardContent>
@@ -257,8 +258,8 @@ export default function AdminAnalytics() {
       <Grid container spacing={3}>
         {/* Monthly Trends */}
         <Grid item xs={12} md={8}>
-          <Paper sx={{ p: 3, bgcolor: theme.palette.mode === 'dark' ? '#1a1a1a' : '#ffffff', border: '2px solid #1976d2' }}>
-            <Typography variant="h6" fontWeight={600} gutterBottom sx={{ color: '#1976d2', mb: 3 }}>
+          <Paper sx={{ p: 3, bgcolor: theme.palette.mode === 'dark' ? '#1a1a1a' : '#ffffff', border: '2px solid #8B0000' }}>
+            <Typography variant="h6" fontWeight={600} gutterBottom sx={{ color: '#8B0000', mb: 3 }}>
               Monthly Trends (Last 6 Months)
             </Typography>
             <ResponsiveContainer width="100%" height={350}>
@@ -278,8 +279,8 @@ export default function AdminAnalytics() {
 
         {/* Role Distribution */}
         <Grid item xs={12} md={4}>
-          <Paper sx={{ p: 3, bgcolor: theme.palette.mode === 'dark' ? '#1a1a1a' : '#ffffff', border: '2px solid #9c27b0' }}>
-            <Typography variant="h6" fontWeight={600} gutterBottom sx={{ color: '#9c27b0', mb: 3 }}>
+          <Paper sx={{ p: 3, bgcolor: theme.palette.mode === 'dark' ? '#1a1a1a' : '#ffffff', border: '2px solid #8B0000' }}>
+            <Typography variant="h6" fontWeight={600} gutterBottom sx={{ color: '#8B0000', mb: 3 }}>
               Role Distribution
             </Typography>
             <ResponsiveContainer width="100%" height={350}>

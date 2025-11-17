@@ -19,7 +19,7 @@ const roles = ['Student', 'Staff', 'Admin', 'Teacher'];
 const courses = ["BSIT", "BSBA", "BSCRIM", "BSHTM", "BEED", "BSED", "BSHM"];
 const years = ["1st Year", "2nd Year", "3rd Year", "4th Year"];
 
-export default function CreateUsers({ open, onClose }) {
+export default function CreateUsers({ open, onClose, onSuccess, preserveAdminSession = false }) {
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -49,14 +49,31 @@ export default function CreateUsers({ open, onClose }) {
   };
 
   const handleSubmit = async () => {
-    if (!formData.email || !formData.password || !formData.fullName) {
-      setMessage({ show: true, text: 'Please fill in all required fields', severity: 'error' });
+    // Validate required fields based on role
+    if (!formData.email || !formData.password) {
+      setMessage({ show: true, text: 'Please fill in email and password', severity: 'error' });
       return;
     }
 
+    // For students, validate student-specific fields
+    if (formData.role === 'Student') {
+      if (!formData.studentId || !formData.firstName || !formData.lastName || !formData.course || !formData.year || !formData.section) {
+        setMessage({ show: true, text: 'Please fill in all required student fields (Student ID, First Name, Last Name, Course, Year, Section)', severity: 'error' });
+        return;
+      }
+    } else {
+      // For non-students, validate full name
+      if (!formData.fullName) {
+        setMessage({ show: true, text: 'Please fill in all required fields', severity: 'error' });
+        return;
+      }
+    }
+
     setLoading(true);
+    setMessage({ show: false, text: '', severity: 'success' }); // Clear previous messages
+    
     try {
-      const result = await createSingleUser(formData);
+      const result = await createSingleUser(formData, { preserveAdminSession });
       if (result.success) {
         setMessage({ show: true, text: `User created successfully: ${formData.email}`, severity: 'success' });
         setFormData({
@@ -73,12 +90,19 @@ export default function CreateUsers({ open, onClose }) {
           year: '',
           section: ''
         });
+        // Call onSuccess callback after a short delay to show success message
+        setTimeout(() => {
+          if (onSuccess) {
+            onSuccess();
+          }
+        }, 1500);
       } else {
-        setMessage({ show: true, text: 'Failed to create user', severity: 'error' });
+        setMessage({ show: true, text: result.error || 'Failed to create user. Please try again.', severity: 'error' });
+        setLoading(false);
       }
     } catch (error) {
-      setMessage({ show: true, text: 'Error creating user', severity: 'error' });
-    } finally {
+      console.error('Error in handleSubmit:', error);
+      setMessage({ show: true, text: `Error creating user: ${error.message || 'Unknown error occurred. Please try again.'}`, severity: 'error' });
       setLoading(false);
     }
   };

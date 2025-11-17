@@ -7,7 +7,6 @@ import {
   CardContent,
   Paper,
   useTheme,
-  CircularProgress,
   LinearProgress,
   Chip,
   Alert
@@ -27,7 +26,6 @@ import { db } from '../firebase';
 
 export default function AdminMonitoring() {
   const theme = useTheme();
-  const [loading, setLoading] = useState(true);
   const [systemStats, setSystemStats] = useState({
     databaseSize: 0,
     totalCollections: 0,
@@ -40,14 +38,10 @@ export default function AdminMonitoring() {
 
   useEffect(() => {
     loadMonitoringData();
-    const interval = setInterval(loadMonitoringData, 30000); // Refresh every 30 seconds
-    return () => clearInterval(interval);
   }, []);
 
   const loadMonitoringData = async () => {
     try {
-      setLoading(true);
-      
       // Get all collections
       const collections = [
         'users', 'students', 'violations', 'activities', 
@@ -88,18 +82,8 @@ export default function AdminMonitoring() {
       });
     } catch (error) {
       console.error('Error loading monitoring data:', error);
-    } finally {
-      setLoading(false);
     }
   };
-
-  if (loading) {
-    return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
-        <CircularProgress />
-      </Box>
-    );
-  }
 
   const getHealthColor = (status) => {
     const colors = {
@@ -143,64 +127,57 @@ export default function AdminMonitoring() {
       icon: <Cloud />,
       color: '#9c27b0',
       progress: Math.min((systemStats.activeConnections / 100) * 100, 100)
-    },
-    {
-      title: 'System Health',
-      value: systemStats.healthStatus.toUpperCase(),
-      unit: '',
-      icon: getHealthIcon(systemStats.healthStatus),
-      color: getHealthColor(systemStats.healthStatus),
-      progress: systemStats.healthStatus === 'good' ? 100 : systemStats.healthStatus === 'warning' ? 60 : 30
     }
   ];
 
   return (
     <Box sx={{ p: { xs: 2, sm: 3 }, minHeight: '100vh', bgcolor: theme.palette.mode === 'dark' ? '#0a0a0a' : '#f5f5f5' }}>
       <Typography variant="h4" fontWeight={700} gutterBottom sx={{ 
-        color: theme.palette.mode === 'dark' ? '#ffffff' : '#1a1a1a',
+        color: '#8B0000',
         mb: 3
       }}>
         System Monitoring
       </Typography>
 
       <Alert severity="info" sx={{ mb: 3 }}>
-        Real-time system monitoring. Data refreshes every 30 seconds.
+        Real-time system monitoring.
       </Alert>
 
       {/* System Metrics */}
       <Grid container spacing={3} sx={{ mb: 4 }}>
         {metricCards.map((metric, index) => (
-          <Grid item xs={12} sm={6} md={3} key={index}>
+          <Grid item xs={12} sm={4} key={index}>
             <Card sx={{ 
-              height: '100%',
-              bgcolor: theme.palette.mode === 'dark' ? '#1a1a1a' : '#ffffff',
-              border: `2px solid ${metric.color}`,
-              borderLeft: `6px solid ${metric.color}`,
+              bgcolor: 'transparent',
+              border: 'none',
+              borderLeft: '4px solid',
+              borderLeftColor: '#8B0000',
               transition: 'all 0.3s',
               '&:hover': {
                 transform: 'translateY(-4px)',
-                boxShadow: 6
+                boxShadow: 6,
+                borderLeftColor: '#A52A2A'
               }
             }}>
-              <CardContent>
-                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+              <CardContent sx={{ textAlign: 'center', py: 2, px: 2 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', mb: 1.5 }}>
                   <Box sx={{ 
-                    p: 1.5, 
+                    p: 1, 
                     borderRadius: 2, 
-                    bgcolor: `${metric.color}20`,
-                    color: metric.color
+                    bgcolor: '#1976d220',
+                    color: '#1976d2'
                   }}>
                     {metric.icon}
                   </Box>
                 </Box>
-                <Typography variant="h4" fontWeight={700} sx={{ color: metric.color, mb: 0.5 }}>
+                <Typography variant="h5" fontWeight={700} sx={{ color: '#000000', mb: 0.5 }}>
                   {metric.value}
                 </Typography>
-                <Typography variant="body2" color="text.secondary" fontWeight={600} sx={{ mb: 1 }}>
+                <Typography variant="body2" sx={{ color: '#000000', fontWeight: 600, mb: 0.5 }}>
                   {metric.title}
                 </Typography>
                 {metric.unit && (
-                  <Typography variant="caption" color="text.secondary">
+                  <Typography variant="caption" sx={{ color: '#000000' }}>
                     {metric.unit}
                   </Typography>
                 )}
@@ -208,12 +185,12 @@ export default function AdminMonitoring() {
                   variant="determinate" 
                   value={metric.progress} 
                   sx={{ 
-                    mt: 2, 
+                    mt: 1.5, 
                     height: 6, 
                     borderRadius: 3,
-                    bgcolor: `${metric.color}20`,
+                    bgcolor: '#8B000020',
                     '& .MuiLinearProgress-bar': {
-                      bgcolor: metric.color
+                      bgcolor: '#8B0000'
                     }
                   }} 
                 />
@@ -224,31 +201,29 @@ export default function AdminMonitoring() {
       </Grid>
 
       {/* Collection Statistics */}
-      <Paper sx={{ p: 3, bgcolor: theme.palette.mode === 'dark' ? '#1a1a1a' : '#ffffff', border: '2px solid #0288d1' }}>
-        <Typography variant="h6" fontWeight={600} gutterBottom sx={{ color: '#0288d1', mb: 3 }}>
+      <Paper sx={{ p: 3, bgcolor: theme.palette.mode === 'dark' ? '#1a1a1a' : '#ffffff', border: '2px solid #8B0000' }}>
+        <Typography variant="h6" fontWeight={600} gutterBottom sx={{ color: '#000000', mb: 3 }}>
           Collection Statistics
         </Typography>
         <Grid container spacing={2}>
           {collectionStats.map((stat, index) => {
-            const colors = ['#1976d2', '#2e7d32', '#ed6c02', '#d32f2f', '#9c27b0', '#0288d1', '#7b1fa2'];
-            const color = colors[index % colors.length];
             return (
               <Grid item xs={12} sm={6} md={4} key={stat.name}>
                 <Card sx={{ 
-                  bgcolor: `${color}10`,
-                  border: `1px solid ${color}`,
-                  borderLeft: `4px solid ${color}`
+                  bgcolor: '#8B000010',
+                  border: '1px solid #8B0000',
+                  borderLeft: '4px solid #8B0000'
                 }}>
                   <CardContent>
                     <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                      <Typography variant="body1" fontWeight={600} sx={{ color: color }}>
+                      <Typography variant="body1" fontWeight={600} sx={{ color: '#000000' }}>
                         {stat.name}
                       </Typography>
                       <Chip 
                         label={stat.count} 
                         sx={{ 
-                          bgcolor: color,
-                          color: 'white',
+                          bgcolor: '#8B0000',
+                          color: '#000000',
                           fontWeight: 700
                         }}
                       />
@@ -256,8 +231,11 @@ export default function AdminMonitoring() {
                     <Chip 
                       label={stat.status} 
                       size="small"
-                      color={stat.status === 'active' ? 'success' : 'default'}
-                      sx={{ mt: 1 }}
+                      sx={{ 
+                        mt: 1,
+                        bgcolor: '#A52A2A',
+                        color: '#000000'
+                      }}
                     />
                   </CardContent>
                 </Card>

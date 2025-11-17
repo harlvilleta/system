@@ -22,39 +22,9 @@ const menu = [
       { text: "Role Assignment", icon: <Settings sx={{ color: 'inherit' }} />, path: "/admin-users/roles" }
     ]
   },
-  { 
-    text: "Security Center", 
-    icon: <Security sx={{ color: 'inherit' }} />, 
-    path: "/admin-security",
-    hasSubmenu: true,
-    submenu: [
-      { text: "Security Logs", icon: <Shield sx={{ color: 'inherit' }} />, path: "/admin-security/logs" },
-      { text: "Login History", icon: <History sx={{ color: 'inherit' }} />, path: "/admin-security/login-history" },
-      { text: "Access Control", icon: <Security sx={{ color: 'inherit' }} />, path: "/admin-security/access" }
-    ]
-  },
-  { 
-    text: "System Maintenance", 
-    icon: <Build sx={{ color: 'inherit' }} />, 
-    path: "/admin-maintenance",
-    hasSubmenu: true,
-    submenu: [
-      { text: "Database Management", icon: <Storage sx={{ color: 'inherit' }} />, path: "/admin-maintenance/database" },
-      { text: "Backup & Restore", icon: <CloudUpload sx={{ color: 'inherit' }} />, path: "/admin-maintenance/backup" },
-      { text: "Data Cleanup", icon: <Build sx={{ color: 'inherit' }} />, path: "/admin-maintenance/cleanup" }
-    ]
-  },
-  { 
-    text: "System Settings", 
-    icon: <Settings sx={{ color: 'inherit' }} />, 
-    path: "/admin-settings",
-    hasSubmenu: true,
-    submenu: [
-      { text: "General Settings", icon: <Settings sx={{ color: 'inherit' }} />, path: "/admin-settings/general" },
-      { text: "Email Configuration", icon: <Settings sx={{ color: 'inherit' }} />, path: "/admin-settings/email" },
-      { text: "Notification Settings", icon: <Settings sx={{ color: 'inherit' }} />, path: "/admin-settings/notifications" }
-    ]
-  },
+  { text: "Security Center", icon: <Security sx={{ color: 'inherit' }} />, path: "/admin-security/logs" },
+  { text: "System Maintenance", icon: <Build sx={{ color: 'inherit' }} />, path: "/admin-maintenance" },
+  { text: "System Settings", icon: <Settings sx={{ color: 'inherit' }} />, path: "/admin-settings" },
   { text: "Analytics & Reports", icon: <Analytics sx={{ color: 'inherit' }} />, path: "/admin-analytics" },
   { text: "Audit Logs", icon: <History sx={{ color: 'inherit' }} />, path: "/admin-audit" },
   { text: "System Monitoring", icon: <Monitor sx={{ color: 'inherit' }} />, path: "/admin-monitoring" },
@@ -111,7 +81,7 @@ export default function AdminSidebar() {
       sx={{
         width: 230,
         flexShrink: 0,
-        [`& .MuiDrawer-paper`]: { width: 230, boxSizing: "border-box", bgcolor: "#1a1a1a", color: "#fff", display: 'flex', flexDirection: 'column', overflowX: 'hidden' }
+        [`& .MuiDrawer-paper`]: { width: 230, boxSizing: "border-box", bgcolor: "#8B0000", color: "#fff", display: 'flex', flexDirection: 'column', overflowX: 'hidden' }
       }}
     >
       <Box sx={{ p: 2, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
@@ -135,7 +105,7 @@ export default function AdminSidebar() {
         >
           System Administration
         </Typography>
-        <Divider sx={{ width: '100%', mb: 2, bgcolor: '#444' }} />
+        <Divider sx={{ width: '100%', mb: 2, bgcolor: '#b2bec3' }} />
       </Box>
       
       <List sx={{ 
@@ -158,10 +128,10 @@ export default function AdminSidebar() {
                 mb: 1,
                 mt: index === 0 ? 0.5 : 0,
                 borderRadius: 2,
-                bgcolor: isItemSelected(item) ? '#333' : 'transparent',
+                bgcolor: isItemSelected(item) ? '#A52A2A' : 'transparent',
                 color: isItemSelected(item) ? '#fff' : '#e8e8e8',
                 '&:hover': {
-                  bgcolor: isItemSelected(item) ? '#333' : '#2a2a2a',
+                  bgcolor: isItemSelected(item) ? '#A52A2A' : '#8B0000',
                   transform: 'translateX(4px)',
                   boxShadow: 2,
                   color: '#fff'
@@ -194,10 +164,10 @@ export default function AdminSidebar() {
                         pl: 4,
                         borderRadius: 2,
                         mb: 0.5,
-                        bgcolor: isSubItemSelected(subItem) ? '#333' : 'transparent',
+                        bgcolor: isSubItemSelected(subItem) ? '#A52A2A' : 'transparent',
                         color: isSubItemSelected(subItem) ? '#fff' : '#e8e8e8',
                         '&:hover': {
-                          bgcolor: isSubItemSelected(subItem) ? '#333' : '#2a2a2a',
+                          bgcolor: isSubItemSelected(subItem) ? '#A52A2A' : '#8B0000',
                           transform: 'translateX(4px)',
                           boxShadow: 2,
                           color: '#fff'
@@ -227,7 +197,7 @@ export default function AdminSidebar() {
           </Box>
         ))}
 
-        <Divider sx={{ my: 2, bgcolor: '#444' }} />
+        <Divider sx={{ my: 2, bgcolor: '#b2bec3' }} />
 
         <ListItem
           button

@@ -1,6 +1,7 @@
 import { auth, db } from '../firebase';
-import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
-import { setDoc, doc, addDoc, collection, query, where, getDocs, updateDoc } from 'firebase/firestore';
+import { createUserWithEmailAndPassword, updateProfile, signOut } from 'firebase/auth';
+import { getAuthState, saveAuthState } from './authPersistence';
+import { setDoc, doc, addDoc, collection, query, where, getDocs, updateDoc, getDoc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { storage } from '../firebase';
 
@@ -225,10 +226,69 @@ export const createSampleUsers = async () => {
   console.log('📋 Summary: Check the console above for detailed results.');
 };
 
+// Helper function to remove undefined values from an object (Firestore doesn't allow undefined)
+const cleanFirestoreData = (obj) => {
+  const cleaned = {};
+  for (const key in obj) {
+    if (obj[key] !== undefined) {
+      if (obj[key] === null || typeof obj[key] !== 'object' || Array.isArray(obj[key]) || obj[key] instanceof Date) {
+        cleaned[key] = obj[key];
+      } else {
+        // Recursively clean nested objects
+        cleaned[key] = cleanFirestoreData(obj[key]);
+      }
+    }
+  }
+  return cleaned;
+};
+
 // Function to create a single user
-export const createSingleUser = async (userData) => {
+export const createSingleUser = async (userData, options = {}) => {
+  const { preserveAdminSession = false } = options;
   try {
     console.log(`🚀 Creating user: ${userData.email} (${userData.role})`);
+    
+    // Store admin's auth state before creating user (to restore after)
+    let adminAuthState = null;
+    if (preserveAdminSession) {
+      localStorage.setItem('adminCreatingUser', 'true');
+      // Get and preserve the current admin auth state before it gets replaced
+      const storedAuthState = getAuthState();
+      if (storedAuthState && storedAuthState.user && storedAuthState.userRole === 'Admin') {
+        // Save a backup of the admin's auth state
+        localStorage.setItem('adminAuthStateBackup', JSON.stringify(storedAuthState));
+        console.log('💾 Backed up admin auth state before creating user:', storedAuthState.user.email);
+      } else {
+        // If no stored state, try to get from current user
+        const currentUser = auth.currentUser;
+        if (currentUser) {
+          // Try to get user profile from Firestore
+          try {
+            const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
+            if (userDoc.exists()) {
+              const userData = userDoc.data();
+              if (userData.role === 'Admin') {
+                const backupState = {
+                  user: {
+                    uid: currentUser.uid,
+                    email: currentUser.email,
+                    displayName: currentUser.displayName,
+                    photoURL: currentUser.photoURL
+                  },
+                  userProfile: userData,
+                  userRole: 'Admin',
+                  timestamp: Date.now()
+                };
+                localStorage.setItem('adminAuthStateBackup', JSON.stringify(backupState));
+                console.log('💾 Backed up admin auth state from current user');
+              }
+            }
+          } catch (error) {
+            console.error('Error backing up admin auth state:', error);
+          }
+        }
+      }
+    }
     
     // Create user account in Firebase Auth
     const userCredential = await createUserWithEmailAndPassword(
@@ -280,37 +340,40 @@ export const createSingleUser = async (userData) => {
     
     // Add student-specific data if role is Student
     if (userData.role === 'Student') {
+      // Helper function to ensure no undefined values
+      const cleanValue = (value) => value !== undefined && value !== null ? value : '';
+      
       firestoreUserData.studentId = userData.studentId || user.uid; // Use UID as fallback if studentId is empty
-      firestoreUserData.firstName = userData.firstName;
-      firestoreUserData.lastName = userData.lastName;
-      firestoreUserData.course = userData.course;
-      firestoreUserData.year = userData.year;
-      firestoreUserData.section = userData.section;
-      firestoreUserData.sex = userData.sex;
-      firestoreUserData.contact = userData.contact;
-      firestoreUserData.birthdate = userData.birthdate;
-      firestoreUserData.age = userData.age;
-      firestoreUserData.image = userData.image;
+      firestoreUserData.firstName = cleanValue(userData.firstName);
+      firestoreUserData.lastName = cleanValue(userData.lastName);
+      firestoreUserData.course = cleanValue(userData.course);
+      firestoreUserData.year = cleanValue(userData.year);
+      firestoreUserData.section = cleanValue(userData.section);
+      firestoreUserData.sex = cleanValue(userData.sex);
+      firestoreUserData.contact = cleanValue(userData.contact);
+      firestoreUserData.birthdate = cleanValue(userData.birthdate);
+      firestoreUserData.age = cleanValue(userData.age);
+      firestoreUserData.image = cleanValue(userData.image);
       
       // Add transfer information if available
       if (userData.transferredFromStudents) {
         firestoreUserData.transferredFromStudents = true;
-        firestoreUserData.transferDate = userData.transferDate;
-        firestoreUserData.originalStudentData = userData.originalStudentData;
+        firestoreUserData.transferDate = userData.transferDate || new Date().toISOString();
+        firestoreUserData.originalStudentData = userData.originalStudentData || null;
       }
       
       firestoreUserData.studentInfo = {
         studentId: userData.studentId || user.uid, // Use UID as fallback if studentId is empty
-        firstName: userData.firstName,
-        lastName: userData.lastName,
-        course: userData.course,
-        year: userData.year,
-        section: userData.section,
-        sex: userData.sex,
-        contact: userData.contact,
-        birthdate: userData.birthdate,
-        age: userData.age,
-        image: userData.image,
+        firstName: cleanValue(userData.firstName),
+        lastName: cleanValue(userData.lastName),
+        course: cleanValue(userData.course),
+        year: cleanValue(userData.year),
+        section: cleanValue(userData.section),
+        sex: cleanValue(userData.sex),
+        contact: cleanValue(userData.contact),
+        birthdate: cleanValue(userData.birthdate),
+        age: cleanValue(userData.age),
+        image: cleanValue(userData.image),
         enrollmentDate: new Date().toISOString(),
         transferredFromStudents: userData.transferredFromStudents || false
       };
@@ -351,7 +414,9 @@ export const createSingleUser = async (userData) => {
       ? userData.studentId 
       : user.uid;
     
-    await setDoc(doc(db, 'users', documentId), firestoreUserData);
+    // Clean the data to remove any undefined values before saving
+    const cleanedUserData = cleanFirestoreData(firestoreUserData);
+    await setDoc(doc(db, 'users', documentId), cleanedUserData);
     console.log(`✅ User data saved to Firestore with ID: ${documentId}`);
     
     // Also create entry in RegisteredStudents collection for students
@@ -362,7 +427,7 @@ export const createSingleUser = async (userData) => {
         const registeredStudentData = {
           studentId: userData.studentId,
           email: user.email,
-          fullName: userData.fullName,
+          fullName: userData.fullName || '',
           firstName: userData.firstName || '',
           lastName: userData.lastName || '',
           course: userData.course || '',
@@ -384,7 +449,9 @@ export const createSingleUser = async (userData) => {
         
         console.log('📦 RegisteredStudentData to save:', registeredStudentData);
         
-        await setDoc(doc(db, 'RegisteredStudents', userData.studentId), registeredStudentData);
+        // Clean the data before saving
+        const cleanedRegisteredData = cleanFirestoreData(registeredStudentData);
+        await setDoc(doc(db, 'RegisteredStudents', userData.studentId), cleanedRegisteredData);
         console.log(`✅ Student data saved to RegisteredStudents collection with ID: ${userData.studentId}`);
         
         // CRITICAL: Also create/update entry in students collection for admin dashboard
@@ -438,7 +505,9 @@ export const createSingleUser = async (userData) => {
             };
             
             console.log('📦 Creating new student record in students collection:', studentData);
-            await setDoc(doc(db, 'students', userData.studentId), studentData);
+            // Clean the data before saving
+            const cleanedStudentData = cleanFirestoreData(studentData);
+            await setDoc(doc(db, 'students', userData.studentId), cleanedStudentData);
             console.log('✅ Created new student record in students collection');
           }
         } catch (studentError) {
@@ -525,6 +594,31 @@ export const createSingleUser = async (userData) => {
       }
     });
     console.log(`✅ Activity logged: ${userData.email}`);
+    
+    // If preserveAdminSession is true, sign out the newly created user immediately
+    // This prevents the admin from being redirected to the new user's dashboard
+    if (preserveAdminSession) {
+      try {
+        // Small delay to ensure all operations are complete before signing out
+        await new Promise(resolve => setTimeout(resolve, 100));
+        await signOut(auth);
+        console.log(`✅ Signed out newly created user to preserve admin session`);
+        
+        // Clear the flags after a short delay to allow App.js to handle the auth state change
+        setTimeout(() => {
+          localStorage.removeItem('adminCreatingUser');
+          localStorage.removeItem('adminAuthStateBackup');
+          console.log('🧹 Cleared admin creation flags');
+        }, 2000);
+      } catch (signOutError) {
+        console.error('❌ Error signing out newly created user:', signOutError);
+        // Clear the flags even if sign out fails
+        localStorage.removeItem('adminCreatingUser');
+        localStorage.removeItem('adminAuthStateBackup');
+        // Don't fail the entire operation - user was created successfully
+        // Just log the error and continue
+      }
+    }
     
     console.log(`🎉 Successfully created ${userData.role}: ${userData.email}`);
     return { success: true, user };

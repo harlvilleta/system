@@ -89,21 +89,21 @@ export default function AdminDashboard() {
       title: 'Active Users',
       value: stats.activeUsers,
       icon: <People />,
-      color: '#2e7d32',
+      color: '#1976d2',
       description: 'Users with assigned roles'
     },
     {
       title: 'Staff Members',
       value: stats.staffCount,
       icon: <People />,
-      color: '#ed6c02',
+      color: '#1976d2',
       description: 'Active staff accounts'
     },
     {
       title: 'System Health',
       value: stats.systemHealth === 'good' ? 'Good' : 'Warning',
       icon: stats.systemHealth === 'good' ? <CheckCircle /> : <Warning />,
-      color: stats.systemHealth === 'good' ? '#2e7d32' : '#d32f2f',
+      color: '#1976d2',
       description: 'System status'
     }
   ];
@@ -112,25 +112,25 @@ export default function AdminDashboard() {
     {
       title: 'User Management',
       description: 'Manage staff accounts, assign roles, and control access',
-      color: '#1976d2',
+      color: '#8B0000',
       path: '/admin-users'
     },
     {
       title: 'Security Monitoring',
       description: 'View security logs, login history, and access control',
-      color: '#d32f2f',
+      color: '#A52A2A',
       path: '/admin-security'
     },
     {
       title: 'System Maintenance',
       description: 'Database management, backups, and data cleanup',
-      color: '#ed6c02',
+      color: '#800000',
       path: '/admin-maintenance'
     },
     {
       title: 'Analytics & Reports',
       description: 'View system analytics and generate reports',
-      color: '#9c27b0',
+      color: '#722F37',
       path: '/admin-analytics'
     }
   ];
@@ -138,7 +138,7 @@ export default function AdminDashboard() {
   return (
     <Box sx={{ p: { xs: 2, sm: 3 }, minHeight: '100vh', bgcolor: theme.palette.mode === 'dark' ? '#0a0a0a' : '#f5f5f5' }}>
       <Typography variant="h4" fontWeight={700} gutterBottom sx={{ 
-        color: theme.palette.mode === 'dark' ? '#ffffff' : '#1a1a1a',
+        color: '#8B0000',
         mb: 3
       }}>
         System Administration Dashboard
@@ -155,10 +155,13 @@ export default function AdminDashboard() {
               height: '100%',
               bgcolor: theme.palette.mode === 'dark' ? '#1a1a1a' : '#ffffff',
               border: `1px solid ${theme.palette.mode === 'dark' ? '#333' : '#e0e0e0'}`,
+              borderLeft: '4px solid',
+              borderLeftColor: '#8B0000',
               transition: 'all 0.3s',
               '&:hover': {
                 transform: 'translateY(-4px)',
-                boxShadow: 4
+                boxShadow: 4,
+                borderLeftColor: '#A52A2A'
               }
             }}>
               <CardContent>
@@ -175,16 +178,16 @@ export default function AdminDashboard() {
                     label={stat.value} 
                     sx={{ 
                       bgcolor: stat.color,
-                      color: 'white',
+                      color: '#000000',
                       fontWeight: 700,
                       fontSize: '1.1rem'
                     }} 
                   />
                 </Box>
-                <Typography variant="h6" fontWeight={600} sx={{ mb: 0.5 }}>
+                <Typography variant="h6" fontWeight={600} sx={{ mb: 0.5, color: '#000000' }}>
                   {stat.title}
                 </Typography>
-                <Typography variant="body2" color="text.secondary">
+                <Typography variant="body2" sx={{ color: '#000000' }}>
                   {stat.description}
                 </Typography>
               </CardContent>
@@ -206,21 +209,23 @@ export default function AdminDashboard() {
                     height: '100%',
                     bgcolor: theme.palette.mode === 'dark' ? '#1a1a1a' : '#ffffff',
                     border: `2px solid ${action.color}`,
-                    borderLeft: `6px solid ${action.color}`,
+                    borderLeft: '4px solid',
+                    borderLeftColor: '#8B0000',
                     cursor: 'pointer',
                     transition: 'all 0.3s',
                     '&:hover': {
                       transform: 'translateY(-4px)',
-                      boxShadow: 6
+                      boxShadow: 6,
+                      borderLeftColor: '#A52A2A'
                     }
                   }}
                   onClick={() => navigate(action.path)}
                 >
                   <CardContent>
-                    <Typography variant="h6" fontWeight={600} sx={{ color: action.color, mb: 1 }}>
+                    <Typography variant="h6" fontWeight={600} sx={{ color: '#000000', mb: 1 }}>
                       {action.title}
                     </Typography>
-                    <Typography variant="body2" color="text.secondary">
+                    <Typography variant="body2" sx={{ color: '#000000' }}>
                       {action.description}
                     </Typography>
                   </CardContent>
@@ -235,28 +240,34 @@ export default function AdminDashboard() {
         <Grid item xs={12} md={6}>
           <Card sx={{ 
             bgcolor: theme.palette.mode === 'dark' ? '#1a1a1a' : '#ffffff',
-            border: `2px solid #0288d1`
+            border: `2px solid #8B0000`,
+            borderLeft: '4px solid',
+            borderLeftColor: '#8B0000',
+            transition: 'all 0.3s',
+            '&:hover': {
+              borderLeftColor: '#A52A2A'
+            }
           }}>
             <CardContent>
-              <Typography variant="h6" fontWeight={600} gutterBottom sx={{ color: '#0288d1' }}>
+              <Typography variant="h6" fontWeight={600} gutterBottom sx={{ color: '#8B0000' }}>
                 System Information
               </Typography>
               <Box sx={{ mt: 2 }}>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
-                  <Typography variant="body2" fontWeight={600}>System Status</Typography>
+                  <Typography variant="body2" fontWeight={600} sx={{ color: '#000000' }}>System Status</Typography>
                   <Chip label="Operational" sx={{ bgcolor: '#2e7d32', color: 'white' }} size="small" />
                 </Box>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
-                  <Typography variant="body2" fontWeight={600}>Database</Typography>
+                  <Typography variant="body2" fontWeight={600} sx={{ color: '#000000' }}>Database</Typography>
                   <Chip label="Connected" sx={{ bgcolor: '#1976d2', color: 'white' }} size="small" />
                 </Box>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
-                  <Typography variant="body2" fontWeight={600}>Storage</Typography>
+                  <Typography variant="body2" fontWeight={600} sx={{ color: '#000000' }}>Storage</Typography>
                   <Chip label="Normal" sx={{ bgcolor: '#ed6c02', color: 'white' }} size="small" />
                 </Box>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <Typography variant="body2" fontWeight={600}>Last Backup</Typography>
-                  <Typography variant="caption" color="text.secondary" fontWeight={600}>
+                  <Typography variant="body2" fontWeight={600} sx={{ color: '#000000' }}>Last Backup</Typography>
+                  <Typography variant="caption" sx={{ color: '#000000', fontWeight: 600 }}>
                     {new Date().toLocaleDateString()}
                   </Typography>
                 </Box>

@@ -466,7 +466,7 @@ export default function AdminNotifications() {
     <Box sx={{ p: { xs: 2, sm: 3 }, pt: { xs: 2, sm: 3 }, pl: { xs: 2, sm: 3, md: 4 }, pr: { xs: 2, sm: 3, md: 4 }, minHeight: '100vh' }}>
       {/* Header */}
       <Box sx={{ mb: 4 }}>
-        <Typography variant="h4" fontWeight={700} color={theme.palette.mode === 'dark' ? '#ffffff' : '#800000'} gutterBottom sx={{ mb: 2, mt: 1 }}>
+        <Typography variant="h4" fontWeight={700} gutterBottom sx={{ color: '#8B0000', mb: 2, mt: 1 }}>
           Admin Notifications
         </Typography>
         <Typography variant="body1" sx={{ color: theme.palette.mode === 'dark' ? 'text.secondary' : '#666666' }}>

@@ -15,7 +15,8 @@ import {
   Tabs,
   Tab,
   TextField,
-  Button
+  Button,
+  TablePagination
 } from '@mui/material';
 import { Security, History, Shield } from '@mui/icons-material';
 import { collection, getDocs, query, orderBy, limit, where } from 'firebase/firestore';
@@ -28,9 +29,12 @@ export default function AdminSecurity() {
   const [securityLogs, setSecurityLogs] = useState([]);
   const [loginHistory, setLoginHistory] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(8);
 
   useEffect(() => {
     loadSecurityData();
+    setPage(0); // Reset to first page when switching tabs
   }, [activeTab]);
 
   const loadSecurityData = async () => {
@@ -81,7 +85,7 @@ export default function AdminSecurity() {
 
   return (
     <Box sx={{ p: { xs: 2, sm: 3 }, minHeight: '100vh', bgcolor: theme.palette.mode === 'dark' ? '#0a0a0a' : '#f5f5f5' }}>
-      <Typography variant="h4" fontWeight={700} gutterBottom sx={{ color: theme.palette.mode === 'dark' ? '#ffffff' : '#1a1a1a', mb: 3 }}>
+      <Typography variant="h4" fontWeight={700} gutterBottom sx={{ color: '#8B0000', mb: 3 }}>
         Security Center
       </Typography>
 
@@ -102,12 +106,12 @@ export default function AdminSecurity() {
           <Table>
             <TableHead>
               <TableRow>
-                <TableCell>Timestamp</TableCell>
-                <TableCell>Event Type</TableCell>
-                <TableCell>User</TableCell>
-                <TableCell>IP Address</TableCell>
-                <TableCell>Status</TableCell>
-                <TableCell>Details</TableCell>
+                <TableCell sx={{ fontWeight: 700, color: '#ffffff', bgcolor: '#8B0000' }}>Timestamp</TableCell>
+                <TableCell sx={{ fontWeight: 700, color: '#ffffff', bgcolor: '#8B0000' }}>Event Type</TableCell>
+                <TableCell sx={{ fontWeight: 700, color: '#ffffff', bgcolor: '#8B0000' }}>User</TableCell>
+                <TableCell sx={{ fontWeight: 700, color: '#ffffff', bgcolor: '#8B0000' }}>IP Address</TableCell>
+                <TableCell sx={{ fontWeight: 700, color: '#ffffff', bgcolor: '#8B0000' }}>Status</TableCell>
+                <TableCell sx={{ fontWeight: 700, color: '#ffffff', bgcolor: '#8B0000' }}>Details</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
@@ -124,7 +128,7 @@ export default function AdminSecurity() {
                   </TableCell>
                 </TableRow>
               ) : (
-                securityLogs.map((log, index) => (
+                securityLogs.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage).map((log, index) => (
                   <TableRow key={index}>
                     <TableCell>{log.timestamp.toLocaleString()}</TableCell>
                     <TableCell>{log.eventType}</TableCell>
@@ -139,6 +143,18 @@ export default function AdminSecurity() {
               )}
             </TableBody>
           </Table>
+          <TablePagination
+            component="div"
+            count={securityLogs.length}
+            page={page}
+            onPageChange={(event, newPage) => setPage(newPage)}
+            rowsPerPage={rowsPerPage}
+            onRowsPerPageChange={(event) => {
+              setRowsPerPage(parseInt(event.target.value, 10));
+              setPage(0);
+            }}
+            rowsPerPageOptions={[8]}
+          />
         </TableContainer>
       )}
 
@@ -147,11 +163,11 @@ export default function AdminSecurity() {
           <Table>
             <TableHead>
               <TableRow>
-                <TableCell>Timestamp</TableCell>
-                <TableCell>User Email</TableCell>
-                <TableCell>IP Address</TableCell>
-                <TableCell>Status</TableCell>
-                <TableCell>Device</TableCell>
+                <TableCell sx={{ fontWeight: 700, color: '#ffffff', bgcolor: '#8B0000' }}>Timestamp</TableCell>
+                <TableCell sx={{ fontWeight: 700, color: '#ffffff', bgcolor: '#8B0000' }}>User Email</TableCell>
+                <TableCell sx={{ fontWeight: 700, color: '#ffffff', bgcolor: '#8B0000' }}>IP Address</TableCell>
+                <TableCell sx={{ fontWeight: 700, color: '#ffffff', bgcolor: '#8B0000' }}>Status</TableCell>
+                <TableCell sx={{ fontWeight: 700, color: '#ffffff', bgcolor: '#8B0000' }}>Device</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
@@ -168,7 +184,7 @@ export default function AdminSecurity() {
                   </TableCell>
                 </TableRow>
               ) : (
-                loginHistory.map((login, index) => (
+                loginHistory.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage).map((login, index) => (
                   <TableRow key={index}>
                     <TableCell>{login.timestamp.toLocaleString()}</TableCell>
                     <TableCell>{login.email}</TableCell>
@@ -182,6 +198,18 @@ export default function AdminSecurity() {
               )}
             </TableBody>
           </Table>
+          <TablePagination
+            component="div"
+            count={loginHistory.length}
+            page={page}
+            onPageChange={(event, newPage) => setPage(newPage)}
+            rowsPerPage={rowsPerPage}
+            onRowsPerPageChange={(event) => {
+              setRowsPerPage(parseInt(event.target.value, 10));
+              setPage(0);
+            }}
+            rowsPerPageOptions={[8]}
+          />
         </TableContainer>
       )}
 

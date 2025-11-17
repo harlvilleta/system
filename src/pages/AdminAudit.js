@@ -14,11 +14,14 @@ import {
   InputAdornment,
   useTheme,
   CircularProgress,
-  Pagination,
   Select,
   MenuItem,
   FormControl,
-  InputLabel
+  InputLabel,
+  Grid,
+  Card,
+  CardContent,
+  TablePagination
 } from '@mui/material';
 import { Search, History, FilterList } from '@mui/icons-material';
 import { collection, getDocs, query, orderBy, limit, where } from 'firebase/firestore';
@@ -31,8 +34,8 @@ export default function AdminAudit() {
   const [filteredLogs, setFilteredLogs] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState('all');
-  const [page, setPage] = useState(1);
-  const rowsPerPage = 10;
+  const [page, setPage] = useState(0);
+  const rowsPerPage = 8;
 
   useEffect(() => {
     loadAuditLogs();
@@ -114,7 +117,7 @@ export default function AdminAudit() {
     }
 
     setFilteredLogs(filtered);
-    setPage(1);
+    setPage(0);
   };
 
   const getTypeColor = (type) => {
@@ -127,7 +130,7 @@ export default function AdminAudit() {
     return colors[type] || '#9c27b0';
   };
 
-  const paginatedLogs = filteredLogs.slice((page - 1) * rowsPerPage, page * rowsPerPage);
+  const paginatedLogs = filteredLogs.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
 
   if (loading) {
     return (
@@ -140,7 +143,7 @@ export default function AdminAudit() {
   return (
     <Box sx={{ p: { xs: 2, sm: 3 }, minHeight: '100vh', bgcolor: theme.palette.mode === 'dark' ? '#0a0a0a' : '#f5f5f5' }}>
       <Typography variant="h4" fontWeight={700} gutterBottom sx={{ 
-        color: theme.palette.mode === 'dark' ? '#ffffff' : '#1a1a1a',
+        color: '#8B0000',
         mb: 3
       }}>
         Audit Logs
@@ -178,34 +181,89 @@ export default function AdminAudit() {
       </Box>
 
       {/* Statistics */}
-      <Box sx={{ display: 'flex', gap: 2, mb: 3, flexWrap: 'wrap' }}>
-        <Paper sx={{ p: 2, minWidth: 150, bgcolor: '#1976d2', color: 'white' }}>
-          <Typography variant="h4" fontWeight={700}>{auditLogs.length}</Typography>
-          <Typography variant="body2">Total Logs</Typography>
-        </Paper>
-        <Paper sx={{ p: 2, minWidth: 150, bgcolor: '#2e7d32', color: 'white' }}>
-          <Typography variant="h4" fontWeight={700}>{filteredLogs.length}</Typography>
-          <Typography variant="body2">Filtered Results</Typography>
-        </Paper>
-        <Paper sx={{ p: 2, minWidth: 150, bgcolor: '#ed6c02', color: 'white' }}>
-          <Typography variant="h4" fontWeight={700}>
-            {auditLogs.filter(l => l.type === 'activity').length}
-          </Typography>
-          <Typography variant="body2">Activities</Typography>
-        </Paper>
-      </Box>
+      <Grid container spacing={3} sx={{ mb: 3 }}>
+        <Grid item xs={12} sm={4}>
+          <Card sx={{ 
+            bgcolor: 'transparent',
+            border: 'none',
+            borderLeft: '4px solid',
+            borderLeftColor: '#8B0000',
+            transition: 'all 0.3s',
+            '&:hover': {
+              transform: 'translateY(-4px)',
+              boxShadow: 6,
+              borderLeftColor: '#A52A2A'
+            }
+          }}>
+            <CardContent sx={{ textAlign: 'center', py: 2 }}>
+              <Typography variant="h4" fontWeight={700} sx={{ color: '#000000' }}>
+                {auditLogs.length}
+              </Typography>
+              <Typography variant="body2" sx={{ color: theme.palette.mode === 'dark' ? '#ffffff' : '#1a1a1a' }}>
+                Total Logs
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+        <Grid item xs={12} sm={4}>
+          <Card sx={{ 
+            bgcolor: 'transparent',
+            border: 'none',
+            borderLeft: '4px solid',
+            borderLeftColor: '#8B0000',
+            transition: 'all 0.3s',
+            '&:hover': {
+              transform: 'translateY(-4px)',
+              boxShadow: 6,
+              borderLeftColor: '#A52A2A'
+            }
+          }}>
+            <CardContent sx={{ textAlign: 'center', py: 2 }}>
+              <Typography variant="h4" fontWeight={700} sx={{ color: '#000000' }}>
+                {filteredLogs.length}
+              </Typography>
+              <Typography variant="body2" sx={{ color: theme.palette.mode === 'dark' ? '#ffffff' : '#1a1a1a' }}>
+                Filtered Results
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+        <Grid item xs={12} sm={4}>
+          <Card sx={{ 
+            bgcolor: 'transparent',
+            border: 'none',
+            borderLeft: '4px solid',
+            borderLeftColor: '#8B0000',
+            transition: 'all 0.3s',
+            '&:hover': {
+              transform: 'translateY(-4px)',
+              boxShadow: 6,
+              borderLeftColor: '#A52A2A'
+            }
+          }}>
+            <CardContent sx={{ textAlign: 'center', py: 2 }}>
+              <Typography variant="h4" fontWeight={700} sx={{ color: '#000000' }}>
+                {auditLogs.filter(l => l.type === 'activity').length}
+              </Typography>
+              <Typography variant="body2" sx={{ color: theme.palette.mode === 'dark' ? '#ffffff' : '#1a1a1a' }}>
+                Activities
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+      </Grid>
 
       {/* Audit Logs Table */}
       <TableContainer component={Paper} sx={{ bgcolor: theme.palette.mode === 'dark' ? '#1a1a1a' : '#ffffff' }}>
         <Table>
           <TableHead>
-            <TableRow sx={{ bgcolor: theme.palette.mode === 'dark' ? '#2a2a2a' : '#f5f5f5' }}>
-              <TableCell sx={{ fontWeight: 700, color: '#1976d2' }}>Timestamp</TableCell>
-              <TableCell sx={{ fontWeight: 700, color: '#2e7d32' }}>Action</TableCell>
-              <TableCell sx={{ fontWeight: 700, color: '#ed6c02' }}>User</TableCell>
-              <TableCell sx={{ fontWeight: 700, color: '#9c27b0' }}>Details</TableCell>
-              <TableCell sx={{ fontWeight: 700, color: '#d32f2f' }}>Type</TableCell>
-              <TableCell sx={{ fontWeight: 700, color: '#0288d1' }}>Status</TableCell>
+            <TableRow>
+              <TableCell sx={{ fontWeight: 700, bgcolor: '#8B0000', color: '#ffffff' }}>Timestamp</TableCell>
+              <TableCell sx={{ fontWeight: 700, bgcolor: '#8B0000', color: '#ffffff' }}>Action</TableCell>
+              <TableCell sx={{ fontWeight: 700, bgcolor: '#8B0000', color: '#ffffff' }}>User</TableCell>
+              <TableCell sx={{ fontWeight: 700, bgcolor: '#8B0000', color: '#ffffff' }}>Details</TableCell>
+              <TableCell sx={{ fontWeight: 700, bgcolor: '#8B0000', color: '#ffffff' }}>Type</TableCell>
+              <TableCell sx={{ fontWeight: 700, bgcolor: '#8B0000', color: '#ffffff' }}>Status</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -249,20 +307,15 @@ export default function AdminAudit() {
             )}
           </TableBody>
         </Table>
+        <TablePagination
+          component="div"
+          count={filteredLogs.length}
+          page={page}
+          onPageChange={(e, newPage) => setPage(newPage)}
+          rowsPerPage={rowsPerPage}
+          rowsPerPageOptions={[8]}
+        />
       </TableContainer>
-
-      {/* Pagination */}
-      {filteredLogs.length > rowsPerPage && (
-        <Box sx={{ display: 'flex', justifyContent: 'center', mt: 3 }}>
-          <Pagination
-            count={Math.ceil(filteredLogs.length / rowsPerPage)}
-            page={page}
-            onChange={(e, value) => setPage(value)}
-            color="primary"
-            size="large"
-          />
-        </Box>
-      )}
     </Box>
   );
 }

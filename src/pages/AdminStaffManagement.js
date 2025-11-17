@@ -25,7 +25,9 @@ import {
   FormControl,
   InputLabel,
   Snackbar,
-  Alert
+  Alert,
+  TablePagination,
+  Grid
 } from '@mui/material';
 import { Search, Edit, Refresh, PersonAdd } from '@mui/icons-material';
 import { collection, getDocs, doc, updateDoc, query, where, orderBy } from 'firebase/firestore';
@@ -43,6 +45,8 @@ export default function AdminStaffManagement() {
   const [selectedStaff, setSelectedStaff] = useState(null);
   const [newStatus, setNewStatus] = useState('');
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(8);
 
   useEffect(() => {
     loadStaff();
@@ -50,19 +54,39 @@ export default function AdminStaffManagement() {
 
   useEffect(() => {
     filterStaff();
+    setPage(0); // Reset to first page when filtering
   }, [searchTerm, staff]);
 
   const loadStaff = async () => {
     try {
       setLoading(true);
-      const usersQuery = query(collection(db, 'users'), where('role', '==', 'Staff'), orderBy('createdAt', 'desc'));
-      const snapshot = await getDocs(usersQuery);
+      // Try with orderBy first, fallback to without if it fails (e.g., missing index or createdAt field)
+      let snapshot;
+      try {
+        const usersQuery = query(collection(db, 'users'), where('role', '==', 'Staff'), orderBy('createdAt', 'desc'));
+        snapshot = await getDocs(usersQuery);
+      } catch (orderByError) {
+        // If orderBy fails, try without it
+        console.warn('OrderBy failed, loading without sorting:', orderByError);
+        const usersQuery = query(collection(db, 'users'), where('role', '==', 'Staff'));
+        snapshot = await getDocs(usersQuery);
+        // Sort manually by createdAt if available
+        const staffData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        staffData.sort((a, b) => {
+          const aDate = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+          const bDate = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+          return bDate - aDate;
+        });
+        setStaff(staffData);
+        setFilteredStaff(staffData);
+        return;
+      }
       const staffData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       setStaff(staffData);
       setFilteredStaff(staffData);
     } catch (error) {
       console.error('Error loading staff:', error);
-      setSnackbar({ open: true, message: 'Error loading staff', severity: 'error' });
+      setSnackbar({ open: true, message: `Error loading staff: ${error.message || 'Please check your connection and try again'}`, severity: 'error' });
     } finally {
       setLoading(false);
     }
@@ -122,15 +146,102 @@ export default function AdminStaffManagement() {
   return (
     <Box sx={{ p: { xs: 2, sm: 3 }, minHeight: '100vh', bgcolor: theme.palette.mode === 'dark' ? '#0a0a0a' : '#f5f5f5' }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h4" fontWeight={700} sx={{ color: theme.palette.mode === 'dark' ? '#ffffff' : '#1a1a1a' }}>
+        <Typography variant="h4" fontWeight={700} sx={{ color: '#8B0000' }}>
           Staff Management
         </Typography>
+      </Box>
+
+      <Alert severity="info" sx={{ mb: 3, bgcolor: '#e3f2fd', border: '1px solid #1976d2' }}>
+        Manage staff accounts, view status, and control access. Staff members handle day-to-day operations.
+      </Alert>
+
+      {/* Statistics */}
+      <Grid container spacing={3} sx={{ mb: 3 }}>
+        <Grid item xs={12} sm={4}>
+          <Paper sx={{ 
+            p: 3, 
+            bgcolor: 'transparent', 
+            color: theme.palette.mode === 'dark' ? '#ffffff' : '#1a1a1a', 
+            textAlign: 'center', 
+            border: `1px solid ${theme.palette.mode === 'dark' ? '#333' : '#e0e0e0'}`, 
+            width: '100%',
+            borderLeft: '4px solid',
+            borderLeftColor: '#8B0000',
+            transition: 'all 0.3s',
+            '&:hover': {
+              borderLeftColor: '#A52A2A'
+            }
+          }}>
+            <Typography variant="h4" fontWeight={700} sx={{ color: '#000000' }}>{staff.length}</Typography>
+            <Typography variant="body2">Total Staff</Typography>
+          </Paper>
+        </Grid>
+        <Grid item xs={12} sm={4}>
+          <Paper sx={{ 
+            p: 3, 
+            bgcolor: 'transparent', 
+            color: theme.palette.mode === 'dark' ? '#ffffff' : '#1a1a1a', 
+            textAlign: 'center', 
+            border: `1px solid ${theme.palette.mode === 'dark' ? '#333' : '#e0e0e0'}`, 
+            width: '100%',
+            borderLeft: '4px solid',
+            borderLeftColor: '#8B0000',
+            transition: 'all 0.3s',
+            '&:hover': {
+              borderLeftColor: '#A52A2A'
+            }
+          }}>
+            <Typography variant="h4" fontWeight={700} sx={{ color: '#000000' }}>
+              {staff.filter(s => s.staffInfo?.status === 'active').length}
+            </Typography>
+            <Typography variant="body2">Active</Typography>
+          </Paper>
+        </Grid>
+        <Grid item xs={12} sm={4}>
+          <Paper sx={{ 
+            p: 3, 
+            bgcolor: 'transparent', 
+            color: theme.palette.mode === 'dark' ? '#ffffff' : '#1a1a1a', 
+            textAlign: 'center', 
+            border: `1px solid ${theme.palette.mode === 'dark' ? '#333' : '#e0e0e0'}`, 
+            width: '100%',
+            borderLeft: '4px solid',
+            borderLeftColor: '#8B0000',
+            transition: 'all 0.3s',
+            '&:hover': {
+              borderLeftColor: '#A52A2A'
+            }
+          }}>
+            <Typography variant="h4" fontWeight={700} sx={{ color: '#000000' }}>
+              {staff.filter(s => s.staffInfo?.status === 'inactive').length}
+            </Typography>
+            <Typography variant="body2">Inactive</Typography>
+          </Paper>
+        </Grid>
+      </Grid>
+
+      {/* Buttons and Search above table */}
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 2, mb: 2 }}>
+        <TextField
+          size="small"
+          placeholder="Search staff by name or email..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <Search />
+              </InputAdornment>
+            )
+          }}
+          sx={{ maxWidth: 400, flexGrow: 0 }}
+        />
         <Box sx={{ display: 'flex', gap: 2 }}>
           <Button
             variant="contained"
             startIcon={<PersonAdd />}
             onClick={() => setCreateDialogOpen(true)}
-            sx={{ bgcolor: '#ed6c02', '&:hover': { bgcolor: '#f57c00' } }}
+            sx={{ bgcolor: '#8B0000', '&:hover': { bgcolor: '#A52A2A' } }}
           >
             Add Staff
           </Button>
@@ -145,56 +256,16 @@ export default function AdminStaffManagement() {
         </Box>
       </Box>
 
-      <Alert severity="info" sx={{ mb: 3, bgcolor: '#e3f2fd', border: '1px solid #1976d2' }}>
-        Manage staff accounts, view status, and control access. Staff members handle day-to-day operations.
-      </Alert>
-
-      {/* Statistics */}
-      <Box sx={{ display: 'flex', gap: 2, mb: 3, flexWrap: 'wrap' }}>
-        <Paper sx={{ p: 2, minWidth: 150, bgcolor: '#1976d2', color: 'white', textAlign: 'center' }}>
-          <Typography variant="h4" fontWeight={700}>{staff.length}</Typography>
-          <Typography variant="body2">Total Staff</Typography>
-        </Paper>
-        <Paper sx={{ p: 2, minWidth: 150, bgcolor: '#2e7d32', color: 'white', textAlign: 'center' }}>
-          <Typography variant="h4" fontWeight={700}>
-            {staff.filter(s => s.staffInfo?.status === 'active').length}
-          </Typography>
-          <Typography variant="body2">Active</Typography>
-        </Paper>
-        <Paper sx={{ p: 2, minWidth: 150, bgcolor: '#ed6c02', color: 'white', textAlign: 'center' }}>
-          <Typography variant="h4" fontWeight={700}>
-            {staff.filter(s => s.staffInfo?.status === 'inactive').length}
-          </Typography>
-          <Typography variant="body2">Inactive</Typography>
-        </Paper>
-      </Box>
-
-      {/* Search */}
-      <TextField
-        fullWidth
-        placeholder="Search staff by name or email..."
-        value={searchTerm}
-        onChange={(e) => setSearchTerm(e.target.value)}
-        InputProps={{
-          startAdornment: (
-            <InputAdornment position="start">
-              <Search />
-            </InputAdornment>
-          )
-        }}
-        sx={{ mb: 3 }}
-      />
-
       {/* Staff Table */}
-      <TableContainer component={Paper} sx={{ bgcolor: theme.palette.mode === 'dark' ? '#1a1a1a' : '#ffffff', border: '2px solid #1976d2' }}>
+      <TableContainer component={Paper} sx={{ bgcolor: theme.palette.mode === 'dark' ? '#1a1a1a' : '#ffffff' }}>
         <Table>
           <TableHead>
-            <TableRow sx={{ bgcolor: theme.palette.mode === 'dark' ? '#2a2a2a' : '#e3f2fd' }}>
-              <TableCell sx={{ fontWeight: 700, color: '#1976d2' }}>Name</TableCell>
-              <TableCell sx={{ fontWeight: 700, color: '#2e7d32' }}>Email</TableCell>
-              <TableCell sx={{ fontWeight: 700, color: '#ed6c02' }}>Status</TableCell>
-              <TableCell sx={{ fontWeight: 700, color: '#9c27b0' }}>Department</TableCell>
-              <TableCell sx={{ fontWeight: 700, color: '#d32f2f' }}>Actions</TableCell>
+            <TableRow>
+              <TableCell sx={{ fontWeight: 700, color: '#ffffff', bgcolor: '#8B0000' }}>Name</TableCell>
+              <TableCell sx={{ fontWeight: 700, color: '#ffffff', bgcolor: '#8B0000' }}>Email</TableCell>
+              <TableCell sx={{ fontWeight: 700, color: '#ffffff', bgcolor: '#8B0000' }}>Status</TableCell>
+              <TableCell sx={{ fontWeight: 700, color: '#ffffff', bgcolor: '#8B0000' }}>Department</TableCell>
+              <TableCell sx={{ fontWeight: 700, color: '#ffffff', bgcolor: '#8B0000' }}>Actions</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -205,7 +276,7 @@ export default function AdminStaffManagement() {
                 </TableCell>
               </TableRow>
             ) : (
-              filteredStaff.map((staffMember) => (
+              filteredStaff.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage).map((staffMember) => (
                 <TableRow key={staffMember.id} hover>
                   <TableCell>{staffMember.fullName || 'N/A'}</TableCell>
                   <TableCell>{staffMember.email || 'N/A'}</TableCell>
@@ -235,6 +306,18 @@ export default function AdminStaffManagement() {
             )}
           </TableBody>
         </Table>
+        <TablePagination
+          component="div"
+          count={filteredStaff.length}
+          page={page}
+          onPageChange={(event, newPage) => setPage(newPage)}
+          rowsPerPage={rowsPerPage}
+          onRowsPerPageChange={(event) => {
+            setRowsPerPage(parseInt(event.target.value, 10));
+            setPage(0);
+          }}
+          rowsPerPageOptions={[8]}
+        />
       </TableContainer>
 
       {/* Edit Status Dialog */}
@@ -283,8 +366,12 @@ export default function AdminStaffManagement() {
         open={createDialogOpen} 
         onClose={() => {
           setCreateDialogOpen(false);
+        }}
+        onSuccess={() => {
+          setCreateDialogOpen(false);
           loadStaff();
-        }} 
+        }}
+        preserveAdminSession={true}
       />
     </Box>
   );
